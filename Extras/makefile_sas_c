@@ -1,0 +1,97 @@
+# Makefile for Sevgi_Engine projects (SAS/C)
+
+EXE = sevgi_engine
+################################################################################
+AS = sc:c/asm
+CC = sc:c/sc nolink
+LD = sc:c/sc link
+
+################################################################################
+CFLAGS = data=far NOSTKCHK
+
+################################################################################
+LFLAGS =
+
+################################################################################
+# target 'all' (default target)
+all : $(EXE)
+
+main.o : main.c version.h
+	$(CC) $(CFLAGS) main.c
+
+anims.o : anims.c anims.h
+	$(CC) $(CFLAGS) anims.c
+
+audio.o : audio.c audio.h settings.h
+	$(CC) $(CFLAGS) audio.c
+
+collisions.o : collisions.c collisions.h
+	$(CC) $(CFLAGS) collisions.c
+
+color.o : color.c color.h settings.h
+	$(CC) $(CFLAGS) color.c
+
+diskio.o : diskio.c diskio.h settings.h
+	$(CC) $(CFLAGS) diskio.c
+
+display_level.o : display_level.c level_display_loop.c level_display_gradients.c level_display_gradients.h display_level.h anims.h collisions.h settings.h
+	$(CC) $(CFLAGS) display_level.c
+
+display_loading.o : display_loading.c display_loading.h settings.h
+	$(CC) $(CFLAGS) display_loading.c
+
+display_menu.o : display_menu.c display_menu.h settings.h
+	$(CC) $(CFLAGS) display_menu.c
+
+display_splash.o : display_splash.c display_splash.h version.h
+	$(CC) $(CFLAGS) display_splash.c
+
+display.o : display.c display.h
+	$(CC) $(CFLAGS) display.c
+
+fonts.o : fonts.c fonts.h assets.h settings.h
+	$(CC) $(CFLAGS) fonts.c
+
+gameobject.o : gameobject.c gameobject.h anims.h collisions.h settings.h
+	$(CC) $(CFLAGS) gameobject.c
+
+input.o : input.c input.h
+	$(CC) $(CFLAGS) input.c
+
+keyboard.o : keyboard.c keyboard.h
+	$(CC) $(CFLAGS) keyboard.c
+
+level.o : level.c level.h assets.h settings.h palettes.h
+	$(CC) $(CFLAGS) level.c
+
+physics.o : physics.c physics.h
+	$(CC) $(CFLAGS) physics.c
+
+ptplayer.o : ptplayer.asm
+#ptplayer is linked from a pre-compiled binary
+
+rainbow.o : rainbow.c rainbow.h settings.h
+	$(CC) $(CFLAGS) rainbow.c
+
+system.o : system.c system.h
+	$(CC) $(CFLAGS) system.c
+
+tilemap.o : tilemap.c tilemap.h
+	$(CC) $(CFLAGS) tilemap.c
+
+tiles.o : tiles.c tiles.h settings.h
+	$(CC) $(CFLAGS) tiles.c
+
+OBJS = main.o system.o keyboard.o input.o display.o diskio.o fonts.o         \
+       display_level.o display_loading.o display_menu.o display_splash.o     \
+       color.o rainbow.o tiles.o tilemap.o                                   \
+       audio.o                                                               \
+       gameobject.o physics.o level.o anims.o collisions.o
+
+$(EXE) : $(OBJS)
+	$(LD) $(LFLAGS) $(OBJS) ptplayer.o TO $(EXE)
+
+# target 'clean'
+clean:
+	-delete $(EXE)
+	-delete $(OBJS)

@@ -1,0 +1,4420 @@
+@database Sevgi_Engine.guide
+@database Sevgi_Editor.guide
+
+@node main "Sevgi_Engine.guide"
+
+                             Sevgi_Engine
+
+                A video game engine for Amiga computers
+
+                             Version 0.174
+
+                        Developer Documentation
+
+                © Copyright 2025 by Ibrahim Alper Sönmez
+
+
+@{" What is...          " link "Engine_01Concept"}        Sevgi_Engine?
+@{" System Requirements " link "Engine_02System_Req"}        What hardware does it run on?
+@{" Features            " link "Engine_03Features"}        What can it do?
+@{" Concepts            " link "Engine_04Concepts"}        Terminology of the features.
+@{" Workflow            " link "Engine_05Workflow"}        How to implement game features.
+@{" Compiling           " link "Engine_06Compiling"}        How to build a game?
+@{" Debugging           " link "Engine_07Debugging"}        Tools to hunt errors.
+
+@{" Function Reference  " link "Engine_09Function_Ref"}
+
+@{" Editor              " LINK Sevgi_Editor.guide/main}        Sevgi_Editor
+
+@{" Licence             " link "Engine_10Licence"}        Terms of use and copyright
+
+@endnode
+
+@node "Engine_01Concept" "Sevgi_Engine.guide/What is..."
+@{b}What is Sevgi_Engine@{ub}
+====================
+
+Sevgi_Engine is yet another video game engine for the Amiga computer. The main
+concept behind its creation was to have some template code to be able to create
+an Amiga game on the Amiga in C language (the best programming language ever),
+easily, quickly and efficiently.
+
+The goals in mind developing it were:
+    - @{b}to be completely system friendly:@{ub}
+      I was pretty annoyed by many games created on other engines not being able
+      to quit back to AmigaOS and requiring a reboot (or crash trying it) even
+      if you had plenty of hardware resources on your Amiga. Sevgi_Engine's
+      system take over is tested on various hardware and ROM versions for a
+      clean quit. So a game created in Sevgi_Engine will not require a WHDLoad
+      version.
+    - @{b}to be codable in C language:@{ub}
+      Since it is highly recommended to code in Assembly for performance
+      demanding Amiga games, it is something pretty hard to learn, takes longer
+      to develop and pretty difficult to maintain the first goal.
+    - @{b}to be as efficient as possible:@{ub}
+      Although it is written purely in C, all the performance demanding
+      functions are micro-optimized to use as little instructions as possible
+      and all memory allocations are done to benefit from Fast Ram where
+      available. All display algorithms are implemented to aim at 50 FPS.
+    - @{b}use assets in the most popular formats:@{ub}
+      Developer is able to create all graphical assets from ILBM pictures
+      (created on DeluxePaint or Personal Paint) and use Protracker modules for
+      music and IFF sound samples for sound effects.
+    - @{b}support every kind of visual tricks used in the most popular Amiga titles:@{ub}
+      You want to create a game like Alien Breed or Super Frog? Or a game with
+      multi layered parallax scroll using sprite multiplexing as in Jim Power?
+      Or scrolling copper skies with a huge map as in Turrican or Fire and Ice?
+      Or multiple scrolling copper gradients as in the great Lionheart? Anything
+      is possible (with some bit of extra work of course).
+    - @{b}not limit the developer in any way:@{ub}
+      This is why it is completely open source. If the developer finds some part
+      of the engine limiting for their design, they can re-implement them as to
+      their heart's content.
+    - @{b}to be completely free:@{ub}
+      Yes. You heard it right. I'm giving away my years of labor away for your
+      convenience. Yet, no one is stopping any of you from donating if you wish
+      to. :)
+
+I believe I've achieved most of the goals above, yet there is always room for
+improvement. Especially for ease of use, more features can be implemented to
+help create the code required for the visual tricks mentioned above. And again
+no one is stopping you from creating pull requests on github if you've
+implemented some. Never forget this is open source, all yours, all our's.
+
+@{b}Naming@{ub}
+======
+
+"Sevgi" means "Love" in Turkish and is the name of my most beloved wife who has
+shown a great tolerance and patience during the years long development of this
+engine.
+
+@endnode
+
+@node "Engine_02System_Req" "Sevgi_Engine.guide/System Requirements"
+@{b}System Requirements@{ub}
+===================
+
+Sevgi_Engine can be used to create games for both OCS/ECS and AGA Amigas.
+However its actual intended target platform is expanded Amigas (which will most
+probably be AGA). All implementations were made to take advantage of FAST RAM
+and to benefit a faster CPU. You still can create a vanilla Amiga 500 game with
+it, but you may have to tone the graphics down (less color depth) and further
+optimize the engine code. The engine requires no third party libraries.
+
+For the developing environment, Sevgi_Engine aims to enable the entire
+development process to be done on Amiga Workbench. So the editor @{"Sevgi_Editor" LINK Sevgi_Editor.guide/main}
+and all the tools needed are coded for the Amiga OS (version 2.0+). The editor
+"Sevgi_Editor" requires MUI 3.8. An Amiga system powerful enough to run MUI
+applications, an IDE application (like CubicIDE or CodeCraft), a compiler (like
+SAS/C or Amiga GCC) and programs like Personal Paint and Protracker will be
+enough. Unfortunately we lack a system friendly map editor we can use on the
+AmigaOS (yet), so as of now the developing process relies on @{"Tiled" link "Concepts_00Tiled"} for map
+creation, and that sofware has no Amiga version (yet).
+
+Since the engine is entirely written in C language, cross developing and
+compiling is entirely possible. Yet carrying the entire development process onto
+some other environment requires the porting of the editor "Sevgi_Editor" and the
+tools needed (which is planned).
+
+@endnode
+
+@node "Engine_03Features" "Sevgi_Engine.guide/Features"
+@{b}Main features of Sevgi_Engine@{ub}
+=============================
+
+- Supports all OCS/ECS and AGA features
+- Provides safe and clean system take over and release back on all 68k Amiga OS
+  versions.
+- Implements custom code which hits hardware directly for operations that
+  require speed.
+- Provides a glitch free, single buffered, 8 way scrollable native game level
+  display locked at 50fps.
+- Provides a non blitting sprite engine, which supports priority, vertical
+  hardware sprite reuse and all AGA sprite fetch modes.
+- A beam chasing BOB update engine.
+- Management of gameobjects (aka. entities), their spawn, images, animations and
+  collisions.
+- Support for scrollable copper gradients for multipe color registers
+- Implementations for very quick access to keyboard, mice and joystick ports.
+- A non-FPU, hue based color fade engine which can also fade copper gradients
+- Easy management of loading level assets.
+- Support for multicolor gamefonts.
+- An audio engine for asynchronous music module and sound sample playback
+  (thanks to ptplayer by Frank Wille).
+- A GUI editor for creating engine code, editing game settings and assets called
+  Sevgi_Editor.
+
+@endnode
+
+@node "Engine_04Concepts" "Sevgi_Engine.guide/Concepts"
+@{b}Concepts@{ub}
+========
+
+Sevgi_Engine can be looked into by the following concepts:
+
+@{" System      " link "Concepts_01System"}     Hardware takeover
+@{" Input       " link "Concepts_02Input"}     Read input devices
+@{" DiskIO      " link "Concepts_03DiskIO"}     Access files
+@{" Audio       " link "Concepts_03Audio"}     Music and sound effects
+@{" Fonts       " link "Concepts_04Fonts"}     Text display
+@{" Tilesets    " link "Concepts_05Tilesets"}     Elements to create game level graphics
+@{" Tilemaps    " link "Concepts_06Tilemaps"}     Scrollable level content in tile ids
+@{" Displays    " link "Concepts_07Displays"}     Screens in Sevgi_Engine
+@{" Colors      " link "Concepts_08Colors"}     Fadeable color palettes
+@{" Copperlists " link "Concepts_09Copperlists"}     Hardware tricks for each display
+@{" CopOps      " link "Concepts_10CopOps"}     Short for "Copper Operations"
+@{" Gradients   " link "Concepts_11Gradients"}     Vertical color gradients
+@{" Rainbows    " link "Concepts_12Rainbows"}     Movable/Scrollable color gradients
+@{" Images      " link "Concepts_13Images"}     Images for Sprites and BOBs
+@{" Hitboxes    " link "Concepts_14Hitboxes"}     Specific collision checks
+@{" Mediums     " link "Concepts_15Mediums"}     Sprite and BOB structs to display images
+@{" Gameobjects " link "Concepts_16Gameobjects"}     Game entities
+@{" Levels      " link "Concepts_17Levels"}     Handles assets for each game level
+@{" Functions   " link "Concepts_18Functions"}     Functions to call on gameobjects on events
+
+@endnode
+
+@node "Concepts_01System" "Sevgi_Engine.guide/Concepts/System"
+@{b}System@{ub}
+======
+
+The main system takeover features of Sevgi_Engine are implemented in system.c
+file. This file provides functions to query the hardware, takeover the system,
+install input and vblank handlers, opening devices, making required assigns etc.
+
+@{u}Exported global variables:@{uu}
+@{b}new_frame_flag:@{ub} will provide a very quick and simple way to query if the video
+                beam has started a new frame and sync your display events with
+                it.
+
+@{b}g_frame_counter:@{ub} This value will be incremented at every new frame. So you can
+                 know how much time has passed since your game has been run.
+                 Also will provide a way to calculate time delays.
+
+@{b}chipset:@{ub} The chipset of the machine the game is running on.
+
+@{u}Functions exported:@{uu}
+@{"detectChipset()" link "13-detectChipset"}
+@{"takeOverSystem()" link "78-takeOverSystem"}
+@{"giveBackSystem()" link "30-giveBackSystem"}
+@{"WaitVBL()" link "90-WaitVBL"}
+@{"waitTOF()" link "86-waitTOF"}
+@{"waitVBeam()" link "88-waitVBeam"}
+@{"WaitVBeam()" link "89-WaitVBeam"}
+@{"busyWaitBlit()" link "03-busyWaitBlit"}
+@{"setVBlankEvents()" link "74-setVBlankEvents"}
+@{"removeVBlankEvents()" link "64-removeVBlankEvents"}
+
+@endnode
+
+@node "Concepts_02Input" "Sevgi_Engine.guide/Concepts/Input"
+@{b}Input@{ub}
+=====
+
+Functions implemented to query input devices like mouse, joystick and keyboard
+can be found in input.c and keyboard.c files.
+
+@{b}input.c@{ub}
+    Provides functions and macros to quickly query Amiga mice and joysticks.
+
+    @{u}Joystick macros:@{uu}
+        These macros below will return the state of the joysticks by directly
+        checking the hardware.
+
+        JOY_LEFT(a)
+        JOY_RIGHT(a)
+        JOY_UP(a)
+        JOY_DOWN(a)
+        JOY_BUTTON1(a)
+        JOY_BUTTON2(a)
+
+        to query joystick on port 0 (mouse port) a = 0
+        to query joystick on port 1 (joystick port) a = 1
+
+        You will have to import the two structs below for these macros to
+        compile.
+            extern struct Custom custom;
+            extern struct CIA ciaa, ciab;
+
+    @{u}Example:@{uu}
+        //Checks if the second button on the joystick plugged in the mouse port
+        if (JOY_BUTTON2(0)) { /*initiate a shoot or something :) */ }
+
+    @{u}Functions exported:@{uu}
+    @{"readMouse()" link "63-readMouse"}
+
+@{b}keyboard.c@{ub}
+    Provides a fast and easy interface to check for key presses. Please take a
+    look at the defines made in keyboard.h for the rawkey values of every key
+    on the Amiga keyboard.
+
+    @{u}Functions exported:@{uu}
+    @{"setKeyboardAccess()" link "73-setKeyboardAccess"}
+    @{"endKeyboardAccess()" link "19-endKeyboardAccess"}
+    @{"doKeyboardIO()" link "18-doKeyboardIO"}
+    @{"keyState()" link "32-keyState"}
+
+@endnode
+
+@node "Concepts_03DiskIO" "Sevgi_Engine.guide/Concepts/DiskIO"
+@{b}DiskIO@{ub}
+======
+
+The file diskio.c contains functions to load assets like (@{"tilesets" link "Concepts_05Tilesets"}, @{"tilemaps" link "Concepts_06Tilemaps"},
+@{"sprite banks" link "Concepts_13Images"}, @{"BOBSheets" link "Concepts_13Images"} etc.) from the disk. Because @{"takeOverSystem()" link "78-takeOverSystem"} changes the
+current directory to data drawer in the game folder, file_name arguments on the
+functions should be relative to data directory. All required calls to these
+functions will be handled by @{"loadLevel()" link "35-loadLevel"} function from level.c.
+
+@{u}Functions exported:@{uu}
+@{"loadTileSet()" link "37-loadTileSet"}
+@{"loadTileMap()" link "36-loadTileMap"}
+@{"loadILBMBitMap()" link "34-loadILBMBitMap"}
+@{"PT_Load8SVX" link "52-PT_Load8SVX"}
+@{"PT_FreeSFX" link "49-PT_FreeSFX"}
+@{"loadSpriteBank" link "36-loadSpriteBank"}
+@{"freeSpriteBank()" link "25-freeSpriteBank"}
+@{"loadBOBSheet" link "33-loadBOBSheet"}
+@{"freeBOBSheet()" link "20-freeBOBSheet"}
+
+@endnode
+
+@node "Concepts_03Audio" "Sevgi_Engine.guide/Concepts/Audio"
+@{b}Audio@{ub}
+=====
+
+Sevgi_Engine links the great ptplayer from Frank Wille for music and sound
+effects playback. The file audio.c Provides functions to load protracker modules
+and iff sound samples from disk and to interface ptplayer to have them played.
+
+@{u}Exported functions:@{uu}
+    Most of the functions below are actually defined macros that call the
+    corresponding functions from ptplayer. This is done to improve readability.
+
+    @{"PT_InitPTPlayer" link "51-PT_InitPTPlayer"}      Install ptplayer
+    @{"PT_LoadModule" link "52-PT_LoadModule"}        Load a protracker module
+    @{"PT_InitModule" link "50-PT_InitModule"}        Initialize ptplayer for a Protracker Module
+    @{"PT_StopAudio" link "60-PT_StopAudio"}         Stop all audio playback
+    @{"PT_PlayModule" link "54-PT_PlayModule"}        Start playing the module initialized
+    @{"PT_PauseModule" link "53-PT_PauseModule"}       Pause the playing module
+    @{"PT_SetModuleVolume" link "58-PT_SetModuleVolume"}   Set the playback volume of the module
+    @{"PT_SetSampleVolume" link "59-PT_SetSampleVolume"}   Set the volume of a sample on the module
+    @{"PT_SetChannelMask" link "56-PT_SetChannelMask"}    Mute/unmute audio channels for the module
+    @{"PT_SetModuleChannels" link "57-PT_SetModuleChannels"} Sets channels dedicated for module playback
+    @{"PT_PlaySFX" link "55-PT_PlaySFX"}           Play a sound sample
+    @{"PT_LoopSFX" link "52-PT_LoopSFX"}           Loops a sound sample
+    @{"PT_StopSFX" link "61-PT_StopSFX"}           Stops a playing sound sample
+    @{"PT_TerminatePTPlayer" link "62-PT_TerminatePTPlayer"} Uninstall ptplayer
+    @{"updateVolume" link "85-updateVolume"}         Fade in/out music
+    @{"setVolume" link "75-setVolume"}            Set module volume respecting fade in/out
+    @{"changeVolumeSteps" link "05-changeVolumeSteps"}    Set volume fade in/out speed
+
+@endnode
+
+@node "Concepts_04Fonts" "Sevgi_Engine.guide/Concepts/Fonts"
+@{b}Fonts@{ub}
+=====
+
+The files fonts.c and font.h provide functions to load and display Amiga Fonts
+and Sevgi_Engine gamefonts, and defines the structs required.
+
+@{u}Exported globals:@{uu}
+struct TextFont* textFonts[NUM_TEXTFONTS]
+struct GameFont* gameFonts[NUM_GAMEFONTS]
+
+These two global arrays will hold the pointers to the Amiga Fonts and
+Sevgi_Engine gamefonts available to your game. You can select which fonts to be
+loaded in Sevgi_Editor. They will be saved in assets.h. At run time The fonts
+will be loaded by @{"openFonts()" link "47-openFonts"} function and these two array will be filled with
+pointers.
+
+@{u}Functions exported:@{uu}
+@{"openFonts" link "47-openFonts"}
+@{"closeFonts" link "08-closeFonts"}
+@{"GF_TextLength" link "28-GF_TextLength"}
+@{"GF_Text" link "26-GF_Text"}
+@{"createBlitMasks" link "09-createBlitMasks"}
+
+@endnode
+
+@node "Concepts_05Tilesets" "Sevgi_Engine.guide/Concepts/Tilesets"
+@{b}Tilesets@{ub}
+========
+
+Tiles in Sevgi_Engine are square blocks of interleaved bitmap graphics with the
+size of TILESIZE and color depth of TILEDEPTH defined in settings.h. And a
+tileset is simply an array of these blocks in contigous chip memory. The purpose
+of using interleaved bitmap structure is to be able draw them on screen using a
+single blit for each tile. Naturally this obligates the level display to also be
+an interleaved bitmap.
+
+The algorithms provided in display_level.c to draw the tiles on screen utilize
+the methods described in: @{u}https://aminet.net/package/dev/src/ScrollingTrick@{uu}
+
+A tileset usable by the engine can be created from ILBM tile sheet files using
+the conversion tool called @{"Tileset Creator" LINK Sevgi_Editor.guide/07_Editor_TilesetCreator} in Sevgi_Editor. The file created
+later can be loaded from disk at run time by the functions provided in diskio.c.
+Tileset files required to be loaded per each game level can be defined in
+assets.h file by using the Assets Editor tool in Sevgi_Editor.
+
+The files tiles.c and tiles.h provides functions to allocate and free tilesets
+and defines the structs required.
+
+@{u}Functions exported:@{uu}
+@{"newTileSet" link "46-newTileSet"}      Allocates chip memory to store a tileset
+@{"disposeTileSet" link "17-disposeTileSet"}  Frees the chip memory allocated
+
+@endnode
+
+@node "Concepts_06Tilemaps" "Sevgi_Engine.guide/Concepts/Tilemaps"
+@{b}Tilemaps@{ub}
+========
+
+A tilemap in Sevgi_Engine is just an array of 16 bit tile id values. Of course
+the struct defined stores values for size, position and boundaries.
+
+struct TileMap {
+  ULONG width;      // width of the tilemap (in tiles)
+  ULONG height;     // height of the tilemap (in tiles)
+  ULONG size;       // how many tiles (width*heigth)
+  LONG mapPosX;     // the coordinates defining the rectangle...
+  LONG mapPosY;     // ...on the map which is currently shown...
+  LONG mapPosX2;    // ...by the screen. Scrolling will...
+  LONG mapPosY2;    // ...update these values.
+  LONG maxMapPosX;  // The maximum values for map positions...
+  LONG maxMapPosY;  // ...which will restrict over-scrolling.
+  TILEID data[0];   // an array of UWORDS that holds tile id's
+};
+
+A tilemap file compatible with the engine can be created by converting from a
+@{"Tiled" link "Concepts_00Tiled"} (https://www.mapeditor.org/) map using the conversion tool called
+@{"Tilemap Creator" LINK Sevgi_Editor.guide/08_Editor_TilemapCreator} provided in Sevgi_Editor. The file created later can be loaded
+from disk at run time by the functions provided in diskio.c. Tilemap files
+required to be loaded per each game level can be defined in assets.h file by
+using the @{"Assets Editor" LINK Sevgi_Editor.guide/03_Editor_AssetsEditor} tool in Sevgi_Editor.
+
+@{u}Functions exported:@{uu}
+@{"newTileMap" link "45-newTileMap"}
+@{"disposeTileMap" link "16-disposeTileMap"}
+
+@endnode
+
+@node "Concepts_07Displays" "Sevgi_Engine.guide/Concepts/Displays"
+@{b}Displays@{ub}
+========
+
+Every game screen is called a "display" in Sevgi_Engine. Every display is
+defined as a C object which basically consists of:
+    - a Copperlist
+    - a BitMap (better a RastPort if you plan to draw text on it)
+    - a function to allocate the two above
+    - a VBlankEvents function
+    - a function to blit a BOB onto display's BitMap
+    - a function to unblit a BOB (restore background)
+    - a function to update sprite positions (if you plan to animate sprites)
+    - a display loop
+    - and finally a function to switch to this display
+
+The developer has to code all the components listed above for a functional
+display. This may seem like a serious inconvenience for a game engine but it is
+essential to ensure that the developer can implement all known Amiga hardware
+tricks in their screens. Fortunately Sevgi_Editor has a @{u}Display Creator@{uu}
+to help create the all the boilerplate code.
+
+You can also always get hints from other existing screens that have been already
+implemented.
+
+Essential displays that are already implemented can be found in the files:
+    - display_splash.c   - The Sevgi_Engine splash screen animation
+    - display_menu.c     - Main Menu screen
+    - display_loading.c  - Loading screen
+
+@{b}display.c@{ub}
+The file display.c implements the necessary globals and utility functions needed
+in creating your displays.
+
+There is also the NULL Display implemented in this file. Which is a black blank
+screen to provide a glitchless blackout scene.
+
+@{u}Exported global variables:@{uu}
+NULL_SPRITE_ADDRESS_H:
+NULL_SPRITE_ADDRESS_L:
+    When a display doesn't have any sprite images to show, all sprite registers
+    should be pointing to a sprite that has no image. Otherwise some random
+    garbage can be displayed as sprites as long as the sprite DMA is active.
+    After system takeover these two globals will provide you this empty sprite,
+    already split to its high and low words to be set to sprite registers.
+
+@{u}Functions exported:@{uu}
+@{"switchToNullCopperList" link "77-switchToNullCopperList"}
+@{"allocRastPort" link "02-allocRastPort"}
+@{"freeRastPort" link "24-freeRastPort"}
+@{"allocCopperList" link "01-allocCopperList"}
+@{"freeCopperList" link "22-freeCopperList"}
+@{"allocBitMap" link "00-allocBitMap"}
+
+@endnode
+
+@node "Concepts_08Colors" "Sevgi_Engine.guide/Concepts/Colors"
+@{b}Colors@{ub}
+======
+
+A color palette for a display in Sevgi_Engine is defined as in the pseudo code
+below:
+struct Palette {
+   UBYTE num_colors;      // actually the number of colors in the palette -1
+   struct {
+      UBYTE R, G, B;
+   }hues[num_colors + 1];
+};
+
+@{b}NOTE:@{ub} the num_colors is actually the the number of colors in the palette - 1
+      Meaning: When it is 0 there is 1 color in the palette.
+               When it is 255 there are 256 colors in the palette.
+      This way we can store the size of a 256 color (full AGA palette) in a
+      single UBYTE. So that the data type for a palette can just be an UBYTE
+      array of size: num_colors * 3 + 1.
+
+All palettes to be used in a game should be defined in the file palettes.h
+All these palettes defined in palettes.h can be edited using the
+@{"Palette Editor" LINK Sevgi_Editor.guide/04_Editor_PaletteEditor} tool in Sevgi_Editor.
+
+The file color.c implements the algorithms to do quick fade in/out effect on
+these palettes.
+
+@{b}color.c@{ub}
+   Provides a very fast non-FPU hue based color fading algorithm using
+   ColorTables.
+
+   A ColorTable holds fixed point state and increment values for every hue of
+   every color on a palette. The increment values are precalculated at creation
+   time for the given fade speed (fade_steps). So during a fade in/out event
+   there will be only one fixed point addition operation per color hue.
+
+   At fade events Sevgi_Engine sets new color values directly to the color
+   registers at vertical blank instead of setting them on the copperlist
+   conventionally. This method was chosen considering that the conventional
+   method bloating up the copperlist and wasting DMA time. This of course isn't
+   the case when it fades copper gradients. That's why there is three variations
+   of newColorTable() functions.
+
+@{u}Functions exported:@{uu}
+@{"newColorTable" link "40-newColorTable"}
+@{"newColorTable_CL" link "41-newColorTable_CL"}
+@{"newColorTable_GRD" link "42-newColorTable_GRD"}
+@{"freeColorTable" link "21-freeColorTable"}
+@{"updateColorTable" link "82-updateColorTable"}
+@{"updateColorTable_Partial" link "83-updateColorTable_Partial"}
+@{"setColorTable" link "67-setColorTable"}
+@{"setColorTable_Partial" link "70-setColorTable_Partial"}
+@{"setColorTable_CL" link "68-setColorTable_CL"}
+@{"setColorTable_GRD" link "69-setColorTable_GRD"}
+@{"setColor" link "65-setColor"}
+@{"setColors" link "66-setColors"}
+@{"updateColor" link "81-updateColor"}
+@{"changeFadeSteps" link "04-changeFadeSteps"}
+
+@endnode
+
+@node "Concepts_09Copperlists" "Sevgi_Engine.guide/Concepts/Copperlists"
+@{b}Copperlists@{ub}
+===========
+
+Copperlists in Sevgi_Engine are defined as ULONG arrays where each item is a
+32bit copper instruction. Every display has to implement at least one copperlist
+to display itself.
+
+An example copperlist to display a 2 color low res display can look like this:
+    STATIC ULONG copperList_Instructions[] = {
+                                         // Action:
+        MOVE(COLOR00, 0),                // Set color 0 to black
+        MOVE(FMODE,   0),                // Set Sprite/Bitplane Fetch Modes
+        MOVE(BPLCON0, 2 * BPLCON0_BPU0), // Set Screen Depth
+        MOVE(BPLCON1, 0),                // Set h_scroll register
+        MOVE(BPLCON2, 0x264),            // Set EHB mode off
+        MOVE(BPLCON3, BPLCON3_BRDNBLNK), // Set AGA bitplane features
+        MOVE(BPLCON4, 0x0),              //  "   "     "        "
+        MOVE(BPL1MOD, 0),                // Set bitplane mods
+        MOVE(BPL2MOD, 0),                //  "     "       "
+        MOVE(DIWSTRT, 0x2C81),           // Set Display Window Start
+        MOVE(DIWSTOP, 0x2CC1),           // Set Display Window Stop
+        MOVE(DDFSTRT, 0x0038),           // Set Data Fetch Start
+        MOVE(DDFSTOP, 0x00D0),           // Set Data Fetch Stop
+        MOVE(BPL1PTH, 0),                // Set bitplane addresses
+        MOVE(BPL1PTL, 0),                //  "      "       "
+        MOVE(BPL2PTH, 0),                //  "      "       "
+        MOVE(BPL2PTL, 0),                //  "      "       "
+        MOVE(SPR0PTH, 0),                // Set sprite pointers
+        MOVE(SPR0PTL, 0),                //  "     "      "
+        MOVE(SPR1PTH, 0),                //  "     "      "
+        MOVE(SPR1PTL, 0),                //  "     "      "
+        MOVE(SPR2PTH, 0),                //  "     "      "
+        MOVE(SPR2PTL, 0),                //  "     "      "
+        MOVE(SPR3PTH, 0),                //  "     "      "
+        MOVE(SPR3PTL, 0),                //  "     "      "
+        MOVE(SPR4PTH, 0),                //  "     "      "
+        MOVE(SPR4PTL, 0),                //  "     "      "
+        MOVE(SPR5PTH, 0),                //  "     "      "
+        MOVE(SPR5PTL, 0),                //  "     "      "
+        MOVE(SPR6PTH, 0),                //  "     "      "
+        MOVE(SPR6PTL, 0),                //  "     "      "
+        MOVE(SPR7PTH, 0),                //  "     "      "
+        MOVE(SPR7PTL, 0),                //  "     "      "
+        END
+    };
+
+For a proper display every copperlist should have the instructions defined
+above. If you want to create a copper effect like a copper gradient, you can
+add WAIT(0, y) instructions to wait for the rasterline y, followed by a
+MOVE(COLOR00, col) instruction which sets color register 0 to the value col.
+
+Since this array is not guaranteed to be in Chip Ram, you also have to implement
+a createCopperList() function to copy the contents of the array to Chip memory.
+The function @{"allocCopperList()" link "01-allocCopperList"} provided in display.c will be great help doing
+this, also providing access pointers to specific instructions which you may wish
+to change later programmatically.
+
+The the macros used in the example above are defined in cop_inst_macros.h which
+every display should include.
+
+@{b}cop_inst_macros.h@{ub}
+    The macros defined in this file provide an easy and readible way to create
+    your copperlists avoiding mistakes.
+
+WAIT(x,y)
+    Creates the proper copper wait instruction with the given hardware
+    coordinates (do not mistake with screen coordinates).
+WAITB(x,y)
+    Same as the WAIT() macro but also makes the copper to wait for blitter to
+    finish its job.
+SKIP(x,y)
+    Creates the proper copper skip instruction with the given hardware
+    coordinates (do not mistake with screen coordinates).
+SKIPB(x,y)
+    Same as the SKIP() macro but also makes the copper to wait for blitter to
+    finish its job.
+MOVE(r,v)
+    Creates the proper copper move instruction to the hardware register given in
+    r, and the value in v. All writable hardware register addresses are also
+    defined in this header file for your convenience.
+END
+    Creates the proper copper wait instruction which terminates a copper list.
+NOOP
+    Creates a copper instruction which basically does nothing.
+
+All these macros have their placeholder counterparts which end with _PH, which
+are desinged to be identified by @{"allocCopperList()" link "01-allocCopperList"} function to set access
+pointers to the instructions they create.
+
+If you want more information on how to program a copper list please refer to the
+Amiga Hardware Reference Manual. Also for some practical examples please check
+the great @{u}https://codetapper.com/@{uu}.
+
+@endnode
+
+@node "Concepts_10CopOps" "Sevgi_Engine.guide/Concepts/CopOps"
+@{b}CopOps@{ub}
+======
+
+When DYNAMIC_COPPERLIST is defined the instructions on the copperlist for the
+level display has to be sorted every frame when there are copper gradients
+defined and the screen is scrolled vertically. That is because when the map is
+scrolled the "video split" (refer to scrolling_trick.lha on Aminet) instructions
+(which must WAIT for a specific raster line) has to be moved to the proper place
+within the color update instructions of a copper gradient.
+
+And if SMART_SPRITES is also defined, and these sprites move vertically the
+instructions to display these sprites will have to be move to their proper place
+in the copperlist.
+
+Since all these instructions has to be on Chip Memory, running a conventional
+sort algorithm would cause a great performance hit.
+
+To solve this issue Sevgi_Engine intruduces the concept of CopOps. A "CopOp"
+(short for Copper Operation) is basically a wrapper struct for a number of
+copper instructions.
+
+struct CopOp {
+  UWORD wait;     // the raster line the instructions wait
+  UWORD size;     // number of instructions in the CopOp
+  ULONG* pointer; // pointer to the actual copper list instruction in Chip Ram
+};
+
+This structure can reside in Fast Memory allowing CPU to no not wait for the
+system bus to access Chip Mem when doing the calculations and tests to sort the
+instructions.
+
+Therefore when DYNAMIC_COPPERLIST is defined, all instructions performing the
+video split are wrapped in a CopOp. Same goes for the sprite instructions when
+SMART_SPRITES is defined. And of course all color update instructions for a
+single raster line will have its CopOp if there are @{"gradients" link "Concepts_11Gradients"} on the @{"rainbow" link "Concepts_12Rainbows"}.
+
+@endnode
+
+@node "Concepts_11Gradients" "Sevgi_Engine.guide/Concepts/Gradients"
+@{b}Gradients@{ub}
+=========
+
+The scrollable "Copper Skies" in video games like Turrican, Yo! Joe!, Zool and
+Fire and Ice is achievable using Gradients in Sevgi_Engine.
+
+Gradients encapsulates all the values required to move, scroll and fade these
+copper color gradients. Gradients are created from hue_lists which are simply
+array of 24 bit RGB color values that determine the start, middle and end colors
+of the color gradient.
+
+Example hue_list:
+UBYTE hue_list[] = {2,
+                      0,   0,   0,
+                    255, 255, 255,
+                      0,   0,   0};
+
+This defines a color gradient starting from black, to white and again fading
+back to black.
+
+The first value on the array is the number of hues on the hue list - 1 (it is
+same data structure as @{"palette arrays" link "Concepts_08Colors"}).
+
+Created gradients are later used to create @{"rainbows" link "Concepts_12Rainbows"}.
+
+@{u}rainbow.h exports the functions below for creating gradients:@{uu}
+@{"createGradient" link "11-createGradient"}
+@{"freeGradient" link "27-freeGradient"}
+
+@endnode
+
+@node "Concepts_12Rainbows" "Sevgi_Engine.guide/Concepts/Rainbows"
+@{b}Rainbows@{ub}
+========
+
+Rainbows in Sevgi_Engine is a data structure do display multiple vertical copper
+gradients on the level display allowing them to be moved and/or scrolled in an
+optimized and encapsulated fashion.
+
+Naming refers to the Rainbow command in Amos Basic.
+
+Rainbows are only utilized when DYNAMIC_COPPERLIST is defined and it is the only
+way you can display copper gradients on the level display if you plan to scroll
+the game map. You cannot define a static custom copperlist which contains the
+all the color change instructions per raster line, because the "video split"
+(refer to scrolling_trick.lha on Aminet) will need to be moved in between them
+to the proper place for the WAIT instruction to work when the map gets scrolled.
+
+This will get further complex if you plan to have other copper events to trigger
+at certain scanlines and also be able to scroll, move or fade the gradients.
+Rainbows cover all this for you in a very optimized and encapsulated fashion.
+
+Rainbows utilize @{"CopOps" link "Concepts_10CopOps"} to optimize the sorting required on the copperlist per
+frame and use @{"Gradients" link "Concepts_11Gradients"} to allow multiple movable/scrollable and fadeable
+copper gradients.
+
+Defining DYNAMIC_COPPERLIST will obligate the allocation of a Rainbow (at least
+an empty one) for the level display. If you do not create a Rainbow for your
+level an empty one will be created and used.
+
+@{u}rainbow.c exports the functions below:@{uu}
+@{"newRainbow" link "44-newRainbow"}
+@{"createEmptyRainbow" link "10-createEmptyRainbow"}
+@{"createRainbow" link "12-createRainbow"}
+@{"freeRainbow" link "29-freeRainbow"}
+@{"updateRainbow" link "85-updateRainbow"}
+
+@endnode
+
+@node "Concepts_13Images" "Sevgi_Engine.guide/Concepts/Images"
+@{b}Images@{ub}
+******
+
+Image data for sprite and BOB mediums are structured differently in
+Sevgi_Engine.
+
+Images for BOBs are stored in chip memory as interleaved bitmap sheets, where
+each image on the sheet is horizontally aligned to a 16 pixel grid so they are
+quickly blittable to the game display using the width and height values stored
+on the BOB struct. Thankfully the tool called @{"BobSheet Creator" LINK Sevgi_Editor.guide/09_Editor_BOBSheetCreator} in Sevgi_Editor
+can automatically create the proper BOBSheet files, directly loadable by the
+engine from any ILBM sheet.
+
+On the other hand, sprite images are stored as in the data structure explained
+in Amiga Hardware Reference Manual's @{b}SPRITE HARDWARE/Forming A Sprite@{ub} section
+(@{u}https://amigadev.elowar.com/read/ADCD_2.1/Hardware_Manual_guide/node00B9.html@{uu})
+in a container structure called Sprite Banks. This enables each sprite image to
+be directly settable to sprite hardware registers to be displayed without the
+need to move any image data in memory.
+
+Of course on the Amiga 16 colour sprite images has to be split into two sprite
+structures and set on to the registers as attached sprites. Also the higher
+fetch modes that came with the AGA complicates the structuring of image data
+even further. Sevgi_Editor provides another tool called @{"SpriteBank Creator" LINK Sevgi_Editor/10_Editor_SpriteBankCreator}
+which does all the complicated work of creating these structures properly from
+regular ILBM sheets.
+
+All you have to do is, create your BOBsheet or SpriteBank files from your ILBM
+sheets, list them on the level they will be needed in @{"Assets Editor" LINK Sevgi_Editor/03_Editor_AssetsEditor} and
+@{"loadLevel()" link "35-loadLevel"} function will load them for you at run time. Loaded images can be
+accessed just by using their indices as:
+current_level.bob_sheet[0]->image[index]
+or
+current_level.sprite_bank[0]->image[index]
+
+Since they are displayed by different methods by different functions, BOBImage
+and SpriteImage structs have different members. Yet they have these members in
+common:
+    width
+    height
+    h_offs
+    v_offs
+    hitbox
+
+width and height define the true image size, without any spacing on the edges.
+h_offs and v_offs define the hot spot of the image. Hot spot can even be outside
+of the image rectangle defined by width and height. But I'd recommend you to
+keep it always inside unless you have a reason obligates that. The image hot
+spots can be set using the @{"Image Editor" LINK Sevgi_Editor.guide/11_Editor_ImageEditor} tool in Sevgi_Editor.
+
+hitbox is a pointer to a HitBox struct which lets you define a different
+rectangle (or a number of rectangles that form a compound shape) for collision
+checks. When there is no hitbox set for an image this pointer is NULL. Refer to
+@{"Hitboxes" link "Concepts_14Hitboxes"} section for details.
+
+These common values can be accessed by casting an image pointer (either to a BOB
+or a sprite image) to struct ImageCommon*.
+
+Since a game will need plenty of these images, the types for these size values
+had to be selected wisely to preserve memory. You can set different sizes for
+these values by making the following defines:
+    SMALL_HITBOX_SIZES
+    SMALL_IMAGE_SIZES
+    BIG_IMAGE_SIZES
+
+SMALL_HITBOX_SIZES is explained in @{"Hitboxes" link "Concepts_14Hitboxes"} section.
+
+SMALL_IMAGE_SIZES is defined as default. Which makes the struct ImageCommon be:
+    struct ImageCommon {
+        UBYTE width;
+        UBYTE height;
+        BYTE h_offs;
+        BYTE v_offs;
+        struct HitBox* hitbox;
+        ...
+    };
+
+These sizes are pretty enough for the images to be used in an Amiga game. But if
+you need hot_spot values to range wider than -128..127 you can undefine this and
+then the struct ImageCommon becomes:
+    struct ImageCommon {
+        UBYTE width;
+        UBYTE height;
+        WORD h_offs;
+        WORD v_offs;
+        struct HitBox* hitbox;
+        ...
+    };
+
+Even these sizes are not enough for some of your images (which is pretty
+inappropriate regarding Amiga hardware limits) you can define BIG_IMAGE_SIZES
+which makes the struct ImageCommon be:
+    struct ImageCommon {
+        UWORD width;
+        UWORD height;
+        WORD h_offs;
+        WORD v_offs;
+        struct HitBox* hitbox;
+        ...
+    };
+
+Changing these sizes will require a complete recompilation of the engine (with a
+make clean) and also you will have to recreate all BOBSheet and SpriteBank
+assets selecting the correct checkboxes in Sevgi_Editor.
+
+Other values specific to sprite images are:
+    struct SpriteImage {
+        ...
+        struct SpriteBank* sprite_bank; //
+        UWORD  image_num;   // the index of this image on the sprite bank
+        UWORD  hsn;         // hardware sprite number to display this image
+    };
+
+sprite_bank - is a back pointer to the sprite bank this image is stored in
+image_num   - is the index of this image on the sprite bank
+hsn         - is hardware sprite number to display this image (0..7)
+
+Other values specific to BOB images are:
+    struct BOBImage {
+        ...
+        struct BitMap* bob_sheet;
+        UBYTE* pointer;
+        UBYTE* mask;
+        UWORD  bytesPerRow;
+    };
+
+bob_sheet   - is a back pointer to the bob sheet this image is stored in
+pointer     - points to the byte where the image starts on the sheet bitmap
+mask        - points to the byte where the image mask starts on the sheet bitmap
+bytesPerRow - a precalculated modulo value to be used when blitting this image
+
+All these values necessary will be set by the functions @{"loadSpriteBank()" link "36-loadSpriteBank"} and
+@{"loadBOBSheet()" link "33-loadBOBSheet"}, and these functions will be called automatically by @{"loadLevel()" link "35-loadLevel"}
+when you define what files to be loaded per game level in assets.h (or in
+@{"Assets Editor" LINK Sevgi_Editor.guide/03_Editor_AssetsEditor} in Sevgi_Editor).
+
+@endnode
+
+@node "Concepts_14Hitboxes" "Sevgi_Engine.guide/Concepts/Hitboxes"
+@{b}Hitboxes@{ub}
+========
+
+You can always use the image rectangle of an image for checking gameobject
+collisions. Actually the algorithm implemented in gameobject.c always uses this
+rectangle to detect collisions to determine the draw order regarding the
+priority of the gameobjects when they collide per image. It also triggers the
+collision functions set on them at this case.
+
+Yet sometimes depending on the image shape or to just improve playabilty you may
+need to set hitbox(es) different than image rectangle to images and act on
+their collisions.
+
+Or you may want to set a specific part of a gameobject to act specifically when
+hit. Imagine the weak spot of a big boss where it takes damage only. In such
+cases setting up hitboxes per image will be necessary.
+
+Since a game may need plenty of these hitboxes, the value sizes had to be
+selected wisely to preserve memory. You can set different sizes for hitbox
+coordinate value using the define: SMALL_HITBOX_SIZES
+
+SMALL_HITBOX_SIZES is defined by default. Which makes the hitbox struct be:
+    struct HitBox {
+        BYTE x1, y1;
+        BYTE x2, y2;
+        struct HitBox* next;
+    };
+
+These sizes will be pretty enough for most Amiga games. But if you need bigger
+hitboxes for some reason you can undefine SMALL_HITBOX_SIZES which will make the
+hitbox struct be:
+
+    struct HitBox {
+        WORD x1, y1;
+        WORD x2, y2;
+        struct HitBox* next;
+    };
+
+Changing these sizes will require a complete recompilation of the engine (with a
+make clean) and also you will have to recreate all BOBSheet and SpriteBank
+assets selecting the correct checkboxes in @{"Sevgi_Editor" LINK Sevgi_Editor.guide/main}.
+
+As you have noticed from the pointer next, every hitbox is a singly linked list.
+Which lets you create compound shapes defining multiple rectangles. You can use
+the @{"Image Editor" LINK Sevgi_Editor/11_Editor_ImageEditor} in Sevgi_Editor to add these hitboxes to images.
+@{"loadSpriteBank()" link "36-loadSpriteBank"} and @{"loadBOBSheet()" link "33-loadBOBSheet"} functions will load all the hitbox data and
+set the proper pointers onto images.
+
+And when two gameobjects collide per image you can then further check if their
+hitboxes collide in the collide functions they will trigger. This will provide
+some optimization by preventing all hitboxes on every gameobject from being
+tested every frame. But don't forget that in this case you will not be able to
+check the collisions of hitboxes that extend outside the image rectangle. You
+may need change the implementation of gameobject collisions in gameobjects.c.
+Fortunately all engine source is available to you to do such changes.
+
+@{u}diskio.c exports the functions below that handle the loading of hitboxes:@{uu}
+@{"loadSpriteBank" link "36-loadSpriteBank"}
+@{"freeSpriteBank" link "25-freeSpriteBank"}
+@{"loadBOBSheet" link "33-loadBOBSheet"}
+@{"freeBOBSheet" link "20-freeBOBSheet"}
+
+@{u}gameobject.c exports the functions below that checks hitbox collisions:@{uu}
+@{"checkHitBoxCollision" link "06-checkHitBoxCollision"}
+@{"checkPointHitBoxCollision" link "07-checkPointHitBoxCollision"}
+
+@endnode
+
+@node "Concepts_15Mediums" "Sevgi_Engine.guide/Concepts/Mediums"
+@{b}Mediums@{ub}
+=======
+
+gameobjects.c implements a concept called "medium" which is used to handle and
+limit the display of gameobject images.
+
+As you know Amiga hardware provides two different methods to display animated
+images on screen: Sprites and Blitter Objects (in short BOBs).
+
+Amiga Hardware Reference Manual provides very detailed explanations on how to
+get use of both. Sevgi_Engine tries to encapsulate the implementations for both
+concepts under the term "medium".
+
+If a gameobject has a valid image set on its image member, it should also have
+a matching medium on its medium member for the image to be displayed on screen.
+A gameobject can be of three different types (set on its type member):
+ - INVISIBLE_OBJECT
+ - SPRITE_OBJECT
+ - BOB_OBJECT
+
+Invisible gameobjects are the default type and cannot have images (even if one
+set they won't be displayed). They can be used for triggering events on
+collision or proximity or time etc.
+
+Sprite gameobjects should have only SpriteImage pointers and BOB gameobjects
+should have only BOBImage pointers set on their image member. But this is not
+enough for getting them displayed.
+
+A Sprite gameobject has to assign a Sprite medium to get its image displayed.
+And a BOB gameobject has to assign a BOB medium. These mediums are in a
+limited number and their assignments are handled automatically in the
+@{"updateGameObjects()" link "84-updateGameObjects"} function.
+
+The number of these mediums are set by the defines: NUM_SPRITES and NUM_BOBS in
+settings.h (you can use @{"Sevgi_Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings 168} to set them as well) at compile time and
+they define the maximum number of sprites and BOBs can be visible at the same
+time on the level screen (defined by display_level.c).
+
+A medium is only assigned to a gameobject when it enters the visible part of the
+game map and it gets 'resigned' (freed to be assignable for another gameobject)
+when the gameobject gets out of display or the gameobject is inactivated
+(by setting the state member to GOB_INACTIVE).
+
+You can refer to gameobject.h to for the definitions of struct Sprite and
+struct BOB to get an idea on how complex it can be to animate images on screen
+in a managable way. Fortunately it is all covered for you by Sevgi_Engine. All
+you need to do is to create your gameobjects in @{"Tiled" link "Concepts_00Tiled"} and set their properties
+there.
+
+@endnode
+
+@node "Concepts_16Gameobjects" "Sevgi_Engine.guide/Concepts/Gameobjects"
+@{b}Gameobjects@{ub}
+===========
+
+The game entities on Sevgi_Engine are called gameobjects. Anything moving or
+animating on the map can be implemented as a gameobject.
+
+The implementations for gameobjects reside on gameobject.c file.
+
+gameobject.c it is written in mind to be as modular as possible to provide
+animation to every kind of display. But for best performance on native Amiga
+screens, implementations for displaying mediums like sprites and BOBs had to be
+inlined. Meaning, it only supports Sevgi_Engine displays as of now. Hopefully
+with some minor changes it can be adapted to support RTG displays if I can
+create an engine version that supports RTG.
+
+gameobject.h defines a gameobject as follows:
+
+struct GameObject {
+  LONG x, y;      // Map coordinates of the game object (hot spot)
+  LONG x1, y1;    // Image rectangle on map (top left corner)
+  LONG x2, y2;    //   "      "      "   "  (bottom right corner)
+  UBYTE type;     // BOB_OBJECT or SPRITE_OBJECT
+  UBYTE state;    // GOB_ALIVE, GOB_DEAD or GOB_INACTIVE
+  UBYTE me_mask;  // A byte mask that defines what this gameobject can be hit by
+  UBYTE hit_mask; // A byte mask that defines what this gameobject can hit
+  VOID (*collide)(struct GameObject*, struct GameObject*);
+  VOID (*collideTile)(struct GameObject*);
+  struct Anim {
+    UBYTE type;
+    UBYTE state;
+    UBYTE frame;
+    UBYTE direction;
+    LONG storage_1;
+    LONG storage_2;
+    VOID (*func)(struct GameObject*);
+  }anim;
+  struct ImageCommon* image; // A pointer to a BOBImage or SpriteImage
+  APTR  medium;    // A pointer to a BOB or to a Sprite (depending on type)
+  BYTE  priority;  // Display priority (higher is in front of lower)
+  //struct Physics physics; // Define your physics struct in physics.c/.h
+};
+
+You should study the members of this struct very well (except the medium member,
+that is handled by @{"updateGameObjects()" link "84-updateGameObjects"} function), to be able to get your game
+entities behave the way you want them to.
+
+x and y members determine the position of the gameobject. Think of these
+coordinates as a point handle to pin the gameobject onto the game map. If the
+gameobject has an image this coordinate will be the coordinate of the hotspot.
+x and y members should always be set by @{"moveGameObject()" link "38-moveGameObject"},
+@{"moveGameObjectClamped()" link "39-moveGameObjectClamped"}, @{"setGameObjectPos()" link "72-setGameObjectPos"} functions. That way x1, y1, x2, y2
+values (which define the image rectangle) will be automatically updated for you.
+
+The same applies for the image member. You should always use the
+@{"setGameObjectImage()" link "71-setGameObjectImage"} function to change the image of a gameobject. It will
+update x1, y1, x2, y2 values regarding image size and hotspot. You will make use
+of this function in your animation functions a lot.
+
+type member should be used very carefully. Only a SPRITE_OBJECT can display
+SpriteImages. And only a BOB_OBJECT can display BOBImages.
+
+collide function is the function that will be called when this gameobject
+collides with another gameobject. @{"updateGameObjects()" link "84-updateGameObjects"} will do call.
+If it's NULL nothing will be called and this gameobject will do nothing when it
+collides with other gameobjects.
+You should implement these functions in collisions.c and get them indexed on
+the global: @{"gobjCollisionFunction[]" link "Concepts_18Functions" 37}. That way we will have a way to save
+gameobjects to disk including the collision function they shall have.
+
+collideTile function is the function which will implement gameobjects behaviour
+against tiles. If it's NULL nothing will be called. If you set a function it
+will be called on every frame on this gameobject during @{"updateGameObjects()" link "84-updateGameObjects"}.
+All collideTile functions should be implemented in collisions.c and indexed on
+the global: @{"tileCollisionFunction[]" link "Concepts_18Functions" 38}. That way we will have a way to save
+gameobjects to disk including the collideTile function they shall have.
+
+anim.func is the first function that will be called on this game object every
+frame if it is not NULL. This way you can implement the animation of every
+gameobject functionally. struct Anim also provides you some storage to store the
+state of your animations. You can add more members here if these aren't enough.
+All anim functions should be implemented in anims.c and indexed on the global:
+@{"animFunction[]" link "Concepts_18Functions" 13}. That way we will have a way to save gameobjects to disk
+including the animation function they shall have.
+
+Loading game objects from disk and managing them in memory is done using
+gameobject banks. Gameobject bank files will be created during the conversion of
+@{"Tiled" link "Concepts_00Tiled"} level map. Objects in each object layer will be saved as separate engine
+compatible gameobject bank files. They can be loaded in to memory with
+@{"loadGameObjectBank()" link "33-loadGameObjectBank"}. When the gameobject banks for each level is defined in
+assets.h (or edited in Sevgi_Editor's @{"Assets Editor" LINK Sevgi_Editor.guide/03_Editor_AssetsEditor}), @{"loadLevel()" link "35-loadLevel"} function
+will handle their loading and freeing for you.
+
+Gameobject banks should be used for gameobjects that must be always present
+during the level. For example these can be player sprite, the background (or
+even foreground) animations, collision objects (movement blocks or event
+triggers), spawners etc. Collectibles which won't be re-spawned can be defined
+in gameobject banks as well. The memory required to store these gameobjects will
+be handled by the bank.
+
+But for gameobjects which will spawn, get destroyed/collected, later spawn again
+should be handled differently. These can be enemies, collectibles, bullets etc.
+The define NUM_GAMEOBJECTS in settings.h defines the maximum number of
+gameobjects that can be spawned at the same time during game play. This value
+can also be set in @{"Sevgi_Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings 168}. The value applies to every level.
+
+The functions @{"spawnGameObject()" link "76-spawnGameObject"} and @{"despawnGameObject()" link "14-despawnGameObject"} handle spawning.
+spawnGameObject() takes a pointer to reference gameobject to spawn as. You can
+call these functions either from the display loop or from the anim or collision
+functions of other gameobjects.
+
+Of course you may wish to create and edit the properties of the spawning
+gameobjects on @{"Tiled" link "Concepts_00Tiled"}. In that case you may create a separate object layer for
+your spawners - which will turn into a separate gameobject bank file - then set
+them to be loaded alongside with the main gameobject bank for the level (every
+level can have multiple gameobject banks loaded) then use gameobjects in that
+bank as reference while spawning them.
+
+By the way, you can also use only one big gameobject bank per level which
+contains all the collectibles, spawners etc. and set just their state flag
+GOB_INACTIVE when collected (which will cause them to dissaper from display),
+later re-active them removing the flag. But beware, all game objects present on
+the map (even the ones on the out of display sections) will be updated and
+checked for collisions every single frame. So this approach can cause a drop in
+performance. Spawning/despawning can provide great optimization when desinged
+properly.
+
+You shall examine the code on template games provided by Sevgi_Editor to get an
+idea on the implementation methods.
+
+@{u}gameobject.c exports the following functions:@{uu}
+@{"allocBOBBackgroundBuffer" link "00-allocBOBBackgroundBuffer"}
+@{"initGameObjects" link "31-initGameObjects"}
+@{"updateGameObjects" link "84-updateGameObjects"}
+@{"updateBOBs" link "80-updateBOBs"}
+@{"moveGameObject" link "38-moveGameObject"}
+@{"moveGameObjectClamped" link "39-moveGameObjectClamped"}
+@{"setGameObjectPos" link "72-setGameObjectPos"}
+@{"setGameObjectImage" link "71-setGameObjectImage"}
+@{"checkHitBoxCollision" link "06-checkHitBoxCollision"}
+@{"checkPointHitBoxCollision" link "07-checkPointHitBoxCollision"}
+@{"newGameObjectBank" link "43-newGameObjectBank"}
+@{"freeGameObjectBank" link "23-freeGameObjectBank"}
+@{"loadGameObjectBank" link "33-loadGameObjectBank"}
+@{"spawnGameObject" link "76-spawnGameObject"}
+@{"despawnGameObject" link "14-despawnGameObject"}
+@{"destroyGameObject" link "15-destroyGameObject"}
+
+@endnode
+
+@node "Concepts_17Levels" "Sevgi_Engine.guide/Concepts/Levels"
+@{b}Levels@{ub}
+======
+
+As every game should have multiple levels - preferably in varying graphics and
+music - Sevgi_Engine provides an interface to manage the different assets for
+each level.
+
+The implementation is in level.c file and it exports the global "current_level"
+to help you access all assets required for a game level. current_level level is
+a staticly allocated singleton. Meaning it can be accessed with the dot (.)
+operator and its content gets updated at every level load.
+
+To access level assets you shall import the global in your other .c files as:
+extern struct Level current_level;
+
+Its structure is as follows:
+struct Level {
+  struct TileSet** tileset;
+  struct TileMap** tilemap;
+  struct BOBSheet** bob_sheet;
+  struct SpriteBank** sprite_bank;
+  struct PT_Module** music_module;
+  struct SfxStructure** sound_sample;
+  struct ColorTable** color_table;
+  struct BOBImage** bobImage;
+  struct SpriteImage** spriteImage;
+  struct GameObjectBank** gameobject_bank;
+  LONG initial_mapPosX;
+  LONG initial_mapPosY;
+  struct {
+    UBYTE tilesets;
+    UBYTE tilemaps;
+    UBYTE bob_sheets;
+    UBYTE sprite_banks;
+    UBYTE music_modules;
+    UBYTE sound_samples;
+    UBYTE color_tables;
+    UBYTE gameobject_banks;
+    UWORD bobImages;
+    UWORD spriteImages;
+  }num;
+  struct {
+    UBYTE tileset;
+    UBYTE tilemap;
+    UBYTE music_module;
+    UBYTE color_table;
+    UWORD gameobject_bank;
+  }current;
+};
+
+The assets tileset, tilemap, bob_sheet, sprite_bank, music_module, sound_sample,
+color_table, bobImage, spriteImage and gameobject_bank are all NULL terminated
+arrays. Meaning you can have multiple assets for each per level. For example,
+let's say you have 3 music tracks per level. You can access the pointer to the
+second track as:
+    current_level.music_module[1]  // 0 indexed
+
+Level struct also can keep track of currently selected asset for each asset type
+so it is better to access a music track as:
+    current_level.music_module[current_level.current.music_module]
+
+The number of assets for each asset type is also stored in the nested "num"
+struct.
+
+The two functions @{"loadLevel()" link "35-loadLevel"} and @{"unloadLevel()" link "79-unloadLevel"} handles all loading and freeing
+of the assets to be loaded from disk. It also updates the loading gauge
+implemented in display_loading.c during disk load.
+
+You can define the different assets to be loaded per each level in assets.h.
+Sevgi_Editor provides a tool called @{"Assets Editor" LINK Sevgi_Editor.guide/03_Editor_AssetsEditor} to manage your game assets
+avoiding mistakes.
+
+@{u}level.c exports these functions below:@{uu}
+@{"loadLevel" link "35-loadLevel"}
+@{"unloadLevel" link "79-unloadLevel"}
+
+@endnode
+
+@node "Concepts_18Functions" "Sevgi_Engine.guide/Concepts/Functions"
+@{b}Functions@{ub}
+=========
+
+All event control is desinged and managed by programmatic calls to two types of
+functions in Sevgi_Engine. These are animation and collision functions.
+
+@{u}Animation Functions:@{uu}
+The game developer implements all gameobject animations as functions declared
+in anims.c. These functions then should be listed on the global array:
+animFunction[NUM_ANIMS]
+
+To access this array from other .c files you can import it as:
+extern VOID (*animFunction[NUM_ANIMS])(struct GameObject*);
+
+This array has to hold a NULL pointer as its first element, meaning
+animFunction[0] is always 0. This makes it possible to store gameobjects on disk
+with the information of which anim function they will have during run time.
+So when a gameobject's anim_func property unset (or set to 0) in @{"Tiled" link "Concepts_00Tiled"}, will
+have a NULL animation pointer in runtime. And if the anim_func property is set
+to 1 in Tiled, that gameobject will have the pointer to the function listed in
+animFunction[1]. This function pointer will be called every frame (with every
+call to @{"updateGameObjects()" link "84-updateGameObjects"}). The function can be NULLified or changed with
+another one during gameplay programmatically as well.
+
+Since it is desinged to be called every frame, you can use it for testing
+and triggering other events with these functions.
+
+The developer also has to update the size of this array: NUM_ANIMS (defined in
+anims.h) with every new anim function implemented.
+
+Please examine the animation functions implemented in template games provided by
+Sevgi_Editor.
+
+@{u}Collision Functions:@{uu}
+collisions.c exports the following global arrays:
+
+gobjCollisionFunction[NUM_GOBJ_COLL_FUNCS]
+tileCollisionFunction[NUM_TILE_COLL_FUNCS]
+
+The same points in "Animation Functions" apply here as well. The array:
+gobjCollisionFunction lists the on collision functions between two gameobjects.
+
+The array tileCollisionFunction is to list the on collision functions between a
+gameobject and the tile it is colliding currently.
+
+Please examine the collision functions implemented in template games provided by
+Sevgi_Editor.
+
+@endnode
+
+@node "Concepts_00Tiled" "Sevgi_Engine.guide/Concepts/Tiled"
+@{b}Tiled@{ub}
+=====
+
+The current version of Sevgi_Engine makes use of the free software called Tiled
+to create @{"tilemap" link "Concepts_06Tilemaps"} and @{"gameobject" link "Concepts_16Gameobjects"} assets. Tiled can be obtained from
+@{u}mapeditor.org@{uu}. It is a very flexible and feature rich level editor that is being
+used for creating all sorts of games.
+
+The version of Tiled used at the time of creation of this document was: 1.11.0
+
+Of course we will use a very limited set of features from it to create levels
+and gameobject banks compatible with Sevgi_Engine.
+
+After installing and running Tiled, first you should do the following:
+
+- create a new project using the menu: File -> New -> New Project...
+- open from menu: View -> Custom Types Editor and click Import
+- select the json file provided in:
+  Sevgi_Editor/Extras/Sevgi_Engine_Gameobject_Properties.json
+
+The properties for Sevgi_Engine gameobjects will be listed. The property names
+here matches the members defined in struct GameObjectData in gameobject.h. This
+struct is used by @{"loadGameObjectBank()" link "33-loadGameObjectBank"}. If you wish to add more properties, you
+can add them in this window. Only valid types here are: bool, int and enums. You
+also have to add the same properties (with the same exact names) into
+struct GameObjectData in your project's gameobject.h to be able have them
+available in the engine (you should also edit the struct GameObject and
+re-implement the loadGameObjectBank() function to evaluate these new
+properties).
+
+Then you create a new @{"tileset" link "Concepts_05Tilesets"} using the menu: File -> New -> New Tileset...
+At this state you should have your PNG tileset sheet ready. Sevgi_Engine
+supports 16x16 pixel tilesets (engine theoretically supports 32x32 pixel tiles
+as well but that's never tested that). 16x16 is the most optimal tile size for
+Amiga hardware since blitter chip is designed to move 16 bit WORDs.
+
+Then you create a new tilemap using the menu: File -> New -> New Map...
+There are no limitations for map size (other than Amiga Fast Ram size targeted).
+Create a new map with the settings: Orthogonal, CSV, Bottom Right.
+
+Now you can paint your map using the tileset you've created. If you plan to have
+some tiles to be block tiles (the tiles where player can't pass through or
+explode when touched) you can consider sorting your tile sheet to have block
+tiles grouped together on one side of the sheet. So block tiles can be tested
+with a single '<' (smaller than) or '>' (bigger than) operator. Otherwise you
+may need another map layer with a pseudo tileset in which you can use to define
+properties for tiles.
+
+When your map is ready, you can place game entities (called @{"gameobjects" link "Concepts_16Gameobjects"} in
+Sevgi_Engine) onto your map creating an object layer. The name you give to the
+layer will turn into the filename of your gameobject bank so beware using
+non-ascii characters here.
+
+You can ONLY place rectangle and point objects. After placing an object you
+should click the button with a blue '+' sign on the bottom left side of the
+Properties column and select GameObject with the name exactly "GameObject".
+Now you will be able to select types and properties for your gameobject within
+Tiled.
+
+Finally you save your map as a .js file (JavaScript JSON format). Saving your
+maps into your Sevgi_Editor project's assets folder will make converting data
+easier.
+
+Finally in Sevgi_Editor while your project is open, you can convert this .js map
+into engine compatible .map file using the @{"Tilemap Creator" LINK Sevgi_Editor.guide/08_Editor_TilemapCreator} tool. Just give the
+.js file as source then click create. Each tilemap layer will be converted into
+a separate .map file and every object layer will be converted into a separate
+gameobject bank file using the layer's names.
+
+Please examine the map files in assets drawer of template games provided by
+Sevgi_Editor to grasp the concepts better.
+
+@endnode
+
+@node "Engine_05Workflow" "Sevgi_Engine.guide/Workflow"
+@{b}Workflow@{ub}
+========
+
+First of all, you should decide the genre of the game and features it will have
+and create a new game by choosing the template that best suits these features in
+Sevgi_Editor. The code to be created is ready to be compiled and tested.
+
+Then, collect the assets you will use in the game in the "assets" drawer in your
+project drawer. This will make the conversion stage easier. These assets are
+fonts, tilesets, tilemaps (created with Tiled), animation sheets, music modules,
+sound effects, ILBM files and similar files. All graphic assets should be
+pre-converted and sized according to the color depth you plan on the game
+screen. Sound effects should be in IFF and music should be in protracker module
+format.
+
+Then, you should convert the assets which require converting to formats
+Sevgi_Engine requires with the tools provided by Sevgi_Editor and save them to
+the data drawer. Copy the asset files that do not need to be converted directly
+to the data drawer.
+
+Now, using the "Game Settings" window of Sevgi_Editor, set the properties of the
+game's level_display according to your assets and the game's visual design and
+save them.
+
+At this stage, you can implement the artistic decoration and functionality of
+your game's main menu. This is achieved by writing code in the display_menu.c
+file.
+
+General events such as game start, game end, scoring, etc. in game levels can be
+implemented in the level_display_loop.c file, events based on gameobject
+animations in the anims.c file, and events based on collisions between
+gameobjects in the collisions.c file.
+
+Each asset to be used in each game level should be defined in the level.h file
+and the color palettes to be used each game level should be defined in the
+palletes.h file. Sevgi_Editor has tools which will prevent you from making
+mistakes for both.
+
+In addition, copper gradients that you can use in game levels (and the rainbow
+you will create from them) are allocated and deallocated in the
+level_display_gradients.c file.
+
+The template game code that Sevgi_Editor will create provides all of these and
+aims to make it easier for you to bootstrap.
+
+Whenever you need more displays (such as your game's splash display, a score
+board, or a credits screen etc.) you can use the display creator tool in
+Sevgi_Editor. It will generate all the boilerplate code for a new Sevgi_Engine
+display including a copperlist and a display loop function which you can edit to
+your hearts content.
+
+Since Sevgi_Engine is fully open source and comes with no pre-compiled modules,
+you always have the option to add features into level_display.c (the essential
+module which creates the level display) or even create a totally custom one. If
+go down that path and the defines your custom level_display.c is no more
+compatible with the ones in settings.h, un-commenting the define
+CUSTOM_LEVEL_DISPLAY in settings.h will disable Sevgi_Editor to edit display
+settings so that it won't mess up with your defines accidentally. And from then
+on you can use the file custom_display_settings.h to keep your display defines.
+
+@endnode
+
+@node "Engine_06Compiling" "Sevgi_Engine.guide/Compiling"
+@{b}Compiling@{ub}
+=========
+
+Sevgi_Engine code is written in mind to be compiled with any Amiga compiler.
+Makefiles for SAS/C and gcc are provided and these compilers are tested to work.
+
+Covering more compiling options and testing them is planned.
+
+The source code for Sevgi_Editor is developed to be compiled with gcc (bebbo's
+cross toolchains).
+
+@endnode
+
+@node "Engine_07Debugging" "Sevgi_Engine.guide/Debugging"
+@{b}Debugging@{ub}
+=========
+
+Sevgi_Engine code does not demand, favor or implement any debug methods or
+tools. This is entirely left to your preference.
+
+Yet, here are some tips for you to be able to debug your code.
+
+Since Sevgi_Engine is system friendy enough, you can output you debug
+information using printf(). Yet to debug at the stage after taking over the
+blitter (probably during level_display_loop) this option will not be available.
+
+If you're compiling with gcc (or cross compiling with gcc using one of Bebbo's
+toolchains probably), you can always add -ldebug into the LFLAGS of your game's
+makefile and include <clib/debug_protos.h> in your sources and make use of the
+function KPrintF() which can output formatted text to Amiga's serial port.
+
+To be able to see what's being printed on the serial port you can run your
+WinUAE with the -log -serlog arguments if you're using Windows. If you're on
+Linux just take a look at: fs-uae.net/docs/serial-port.
+
+If you are compiling with SAS/C natively, please refer to it's documentation on
+debugging. It has a lot of utilities to help you debug your game code.
+
+@endnode
+
+@node "Engine_09Function_Ref" "Sevgi_Engine.guide/Function Reference"
+@{b}Function Reference@{ub}
+==================
+
+@{" allocBitMap               " link "00-allocBitMap"}
+@{" allocBOBBackgroundBuffer  " link "00-allocBOBBackgroundBuffer"}
+@{" allocCopperList           " link "01-allocCopperList"}
+@{" allocRastPort             " link "02-allocRastPort"}
+@{" busyWaitBlit              " link "03-busyWaitBlit"}
+@{" changeFadeSteps           " link "04-changeFadeSteps"}
+@{" changeVolumeSteps         " link "05-changeVolumeSteps"}
+@{" checkHitBoxCollision      " link "06-checkHitBoxCollision"}
+@{" checkPointHitBoxCollision " link "07-checkPointHitBoxCollision"}
+@{" closeFonts                " link "08-closeFonts"}
+@{" createBlitMasks           " link "09-createBlitMasks"}
+@{" createEmptyRainbow        " link "10-createEmptyRainbow"}
+@{" createGradient            " link "11-createGradient"}
+@{" createRainbow             " link "12-createRainbow"}
+@{" detectChipset             " link "13-detectChipset"}
+@{" despawnGameObject         " link "14-despawnGameObject"}
+@{" destroyGameObject         " link "15-destroyGameObject"}
+@{" disposeTileMap            " link "16-disposeTileMap"}
+@{" disposeTileSet            " link "17-disposeTileSet"}
+@{" doKeyboardIO              " link "18-doKeyboardIO"}
+@{" endKeyboardAccess         " link "19-endKeyboardAccess"}
+@{" freeBOBSheet              " link "20-freeBOBSheet"}
+@{" freeColorTable            " link "21-freeColorTable"}
+@{" freeCopperList            " link "22-freeCopperList"}
+@{" freeGameObjectBank        " link "23-freeGameObjectBank"}
+@{" freeGradient              " link "27-freeGradient"}
+@{" freeRainbow               " link "29-freeRainbow"}
+@{" freeRastPort              " link "24-freeRastPort"}
+@{" freeSpriteBank            " link "25-freeSpriteBank"}
+@{" GF_Text                   " link "26-GF_Text"}
+@{" GF_TextLength             " link "28-GF_TextLength"}
+@{" giveBackSystem            " link "30-giveBackSystem"}
+@{" initGameObjects           " link "31-initGameObjects"}
+@{" keyState                  " link "32-keyState"}
+@{" loadBOBSheet              " link "33-loadBOBSheet"}
+@{" loadGameObjectBank        " link "33-loadGameObjectBank"}
+@{" loadILBMBitMap            " link "34-loadILBMBitMap"}
+@{" loadLevel                 " link "35-loadLevel"}
+@{" loadSpriteBank            " link "36-loadSpriteBank"}
+@{" loadTileMap               " link "36-loadTileMap"}
+@{" loadTileSet               " link "37-loadTileSet"}
+@{" moveGameObject            " link "38-moveGameObject"}
+@{" moveGameObjectClamped     " link "39-moveGameObjectClamped"}
+@{" moveGradient              " link "39-moveGradient"}
+@{" newColorTable             " link "40-newColorTable"}
+@{" newColorTable_CL          " link "41-newColorTable_CL"}
+@{" newColorTable_GRD         " link "42-newColorTable_GRD"}
+@{" newGameObjectBank         " link "43-newGameObjectBank"}
+@{" newRainbow                " link "44-newRainbow"}
+@{" newTileMap                " link "45-newTileMap"}
+@{" newTileSet                " link "46-newTileSet"}
+@{" openFonts                 " link "47-openFonts"}
+@{" PT_FreeModule             " link "48-PT_FreeModule"}
+@{" PT_FreeSFX                " link "49-PT_FreeSFX"}
+@{" PT_InitModule             " link "50-PT_InitModule"}
+@{" PT_InitPTPlayer           " link "51-PT_InitPTPlayer"}
+@{" PT_Load8SVX               " link "52-PT_Load8SVX"}
+@{" PT_LoadModule             " link "52-PT_LoadModule"}
+@{" PT_LoopSFX                " link "52-PT_LoopSFX"}
+@{" PT_PauseModule            " link "53-PT_PauseModule"}
+@{" PT_PlayModule             " link "54-PT_PlayModule"}
+@{" PT_PlaySFX                " link "55-PT_PlaySFX"}
+@{" PT_SetChannelMask         " link "56-PT_SetChannelMask"}
+@{" PT_SetModuleChannels      " link "57-PT_SetModuleChannels"}
+@{" PT_SetModuleVolume        " link "58-PT_SetModuleVolume"}
+@{" PT_SetSampleVolume        " link "59-PT_SetSampleVolume"}
+@{" PT_StopAudio              " link "60-PT_StopAudio"}
+@{" PT_StopSFX                " link "61-PT_StopSFX"}
+@{" PT_TerminatePTPlayer      " link "62-PT_TerminatePTPlayer"}
+@{" readMouse                 " link "63-readMouse"}
+@{" removeVBlankEvents        " link "64-removeVBlankEvents"}
+@{" scrollGradientDown        " link "64-scrollGradientDown"}
+@{" scrollGradientUp          " link "64-scrollGradientUp"}
+@{" setColor                  " link "65-setColor"}
+@{" setColors                 " link "66-setColors"}
+@{" setColorTable             " link "67-setColorTable"}
+@{" setColorTable_CL          " link "68-setColorTable_CL"}
+@{" setColorTable_GRD         " link "69-setColorTable_GRD"}
+@{" setColorTable_Partial     " link "70-setColorTable_Partial"}
+@{" setGameObjectImage        " link "71-setGameObjectImage"}
+@{" setGameObjectPos          " link "72-setGameObjectPos"}
+@{" setGradientScrollPos      " link "72-setGradientScrollPos"}
+@{" setKeyboardAccess         " link "73-setKeyboardAccess"}
+@{" setVBlankEvents           " link "74-setVBlankEvents"}
+@{" setVolume                 " link "75-setVolume"}
+@{" spawnGameObject           " link "76-spawnGameObject"}
+@{" switchToNullCopperList    " link "77-switchToNullCopperList"}
+@{" takeOverSystem            " link "78-takeOverSystem"}
+@{" unloadLevel               " link "79-unloadLevel"}
+@{" updateBOBs                " link "80-updateBOBs"}
+@{" updateColor               " link "81-updateColor"}
+@{" updateColorTable          " link "82-updateColorTable"}
+@{" updateColorTable_Partial  " link "83-updateColorTable_Partial"}
+@{" updateGameObjects         " link "84-updateGameObjects"}
+@{" updateRainbow             " link "85-updateRainbow"}
+@{" updateVolume              " link "85-updateVolume"}
+@{" waitTOF                   " link "86-waitTOF"}
+@{" waitVBeam                 " link "88-waitVBeam"}
+@{" WaitVBeam                 " link "89-WaitVBeam"}
+@{" WaitVBL                   " link "90-WaitVBL"}
+
+@endnode
+
+@node "00-allocBitMap" "Sevgi_Engine.guide/Function Reference/allocBitMap"
+NAME
+    allocBitMap -- Allocate a bitmap and attach bitplanes to it.
+
+SYNOPSIS
+    allocBitMap(sizex, sizey, depth, flags, friend_bitmap)
+
+    struct BitMap* allocBitMap(ULONG, ULONG, ULONG, ULONG, struct BitMap*);
+
+FUNCTION
+    Allocates and initializes a bitmap structure (respecting AGA requirements).
+    Allocates and initializes bitplane data, and sets the bitmap's planes to
+    point to it.
+
+INPUTS
+    sizex = the width (in pixels) desired for the bitmap data.
+
+    sizey = the height (in pixels) desired.
+
+    depth = the number of bitplanes deep for the allocation.
+      Pixels with AT LEAST this many bits will be allocated.
+
+    flags = BMF_CLEAR to specify that the allocated raster should be
+            filled with color 0.
+
+            BMF_DISPLAYABLE to specify that this bitmap data should
+            be allocated in such a manner that it can be displayed.
+            Displayable data has more severe alignment restrictions
+            than non-displayable data in some systems.
+
+            BMF_INTERLEAVED tells graphics that you would like your
+            bitmap to be allocated with one large chunk of display
+            memory for all bitplanes. This minimizes color flashing
+            on deep displays. If there is not enough contiguous RAM
+            for an interleaved bitmap, graphics.library will fall
+            back to a non-interleaved one.
+
+            BMF_MINPLANES causes graphics to only allocate enough space
+            in the bitmap structure for "depth" plane pointers. This
+            is for system use and should not be used by applications use
+            as it is inefficient, and may waste memory.
+
+    friend_bitmap = pointer to another bitmap, or NULL. If this pointer
+            is passed, then the bitmap data will be allocated in
+            the most efficient form for blitting to friend_bitmap.
+
+RESULTS
+    Returns a pointer to a bitmap if successful. Otherwise returns NULL.
+
+NOTES
+    This function is just a wrapper for the AllocBitMap() function from the API.
+    Only difference from it is ensuring the allocated bitmap's BytesPerRow to
+    be a multiple of 8 on all ROM versions of the original function, so that the
+    allocations will be compatible with all AGA features even without calling
+    SetPatch.
+
+SEE ALSO
+    @{"Displays" link "Concepts_07Displays"}, @{"allocRastPort()" link "02-allocRastPort"}
+
+@endnode
+
+@node "00-allocBOBBackgroundBuffer" "Sevgi_Engine.guide/Function Reference/allocBOBBackgroundBuffer"
+NAME
+    allocBOBBackgroundBuffer -- Allocate memory to store BOB backgrounds
+
+SYNOPSIS
+    allocBOBBackgroundBuffer(max_bob_width, max_bob_height, max_bob_depth)
+
+    struct BitMap* allocBOBBackgroundBuffer(UWORD max_bob_width,
+        UWORD max_bob_height, UWORD max_bob_depth);
+
+FUNCTION
+    Allocates the buffer to store the background when blitting BOB images onto
+    level bitmap so that they can be removed (unblitted) when moved.
+
+INPUTS
+    max_bob_width  - The width of the largest BOB image in the BOBSheets loaded
+                     for the level.
+    max_bob_height - The height of the tallest BOB image in the BOBSheets loaded
+                     for the level.
+    max_bob_depth  - The depth of the BOBSheet with the most planes in the
+                     BOBSheets loaded for the level.
+
+RESULTS
+    Returns a pointer to a bitmap if successful. Otherwise returns NULL.
+
+NOTES
+    The size of the buffer depends on the define NUM_BOBS.
+    This function is to be called by loadLevel().
+
+SEE ALSO
+    @{"Images" link "Concepts_13Images"}, @{"loadLevel()" link "35-loadLevel"}
+
+@endnode
+
+@node "01-allocCopperList" "Sevgi_Engine.guide/Function Reference/allocCopperList"
+NAME
+    allocCopperList -- Allocates a copperlist in ChipMem with extra features
+
+SYNOPSIS
+    allocCopperList(list, access, doubleBuf)
+
+    BOOL allocCopperList(ULONG* list, UWORD* access, BOOL double_buffer);
+
+FUNCTION
+    Every Sevgi_Engine display requires a copperlist allocated for it. So that
+    we can have different copper tricks like (vertical color gradients and
+    sprite multiplexing etc.) for every display. We create the copperlist
+    instructions as an aray of ULONGs, using the macros provided in
+    cop_inst_macros.h as the example below.
+    But a copperlist must be in chip memory and we may also need some access
+    pointers to some of the instructions on it to be able to alter them.
+    This function allocates the memory required for the copperlist in CHIP_MEM
+    and sets the access pointers to its placeholder instructions (marked with
+    _PH). Declarations must be in the form below:
+
+    STATIC UWORD* CopperList = (UWORD*) 0;
+    STATIC UWORD* CL_BPLCON1 = (UWORD*) 0;
+    ...
+    static ULONG copperList_Instructions[] = {
+        ...
+        MOVE_PH(BPLCON1, 0), // An instruction we want an access pointer set to
+        MOVE(BPLCON2, 0),    // A normal instruction
+        ...
+        END
+    };
+
+INPUTS
+    list      - the array of instructions (copperList_Instructions[])
+    access    - declared access pointer for the copperlist (CopperList)
+    doubleBuf - CL_SINGLE for a single copperlist
+                CL_DOUBLE for a double buffered copperlist
+
+RESULTS
+    Returns TRUE if the allocation is successful. Otherwise returns FALSE.
+
+NOTES
+    When you want to allocate a double buffered copper list all access pointers
+    must be declared in pairs. Declarations must be in the form below:
+
+    STATIC UWORD* CopperList   = (UWORD*) 0;
+    STATIC UWORD* CopperList1  = (UWORD*) 0;
+    STATIC UWORD* CopperList2  = (UWORD*) 0;
+    STATIC UWORD* CL_BPLCON1_1 = (UWORD*) 0;
+    STATIC UWORD* CL_BPLCON1_2 = (UWORD*) 0;
+    STATIC UWORD* CL_BPL1PTH_1 = (UWORD*) 0;
+    STATIC UWORD* CL_BPL1PTH_2 = (UWORD*) 0;
+    ...
+
+    STATIC ULONG copperList_Instructions[] = {
+        ...
+        MOVE_PH(BPLCON1, 0),
+        ...
+        MOVE_PH(BPL1PTH, 0),
+        ...
+        END
+    };
+
+    Access pointers to WAIT instructions point to the first word and access
+    pointers to MOVE and SKIP instructions point to the second word of the
+    instruction.
+
+SEE ALSO
+    @{"Copperlists" link "Concepts_09Copperlists"}, @{"freeCopperList()" link "22-freeCopperList"}
+
+@endnode
+
+@node "02-allocRastPort" "Sevgi_Engine.guide/Function Reference/allocRastPort"
+NAME
+    allocRastPort -- Allocates a fully fledged RastPort struct
+
+SYNOPSIS
+    allocRastPort(sizex, sizey, depth, bm_flags, friend, rp_flags, max_vectors);
+
+    struct RastPort* allocRastPort(ULONG sizex, ULONG sizey, ULONG depth,
+       ULONG bm_flags, struct BitMap *friend, ULONG rp_flags, LONG max_vectors);
+
+FUNCTION
+    This function will create you a RastPort with the components you want to be
+    allocated and initialized together with it, so that you can directly call
+    API graphics functions on it to draw graphics.
+
+INPUTS
+    sizex       - width of the BitMap to be allocated with the RastPort
+    sizey       - height of the BitMap to be allocated with the RastPort
+    depth       - depth of the BitMap to be allocated with the RastPort
+    bm_flags    - set the flags to be passed to AllocBitMap()
+    friend      - will be passed to AllocBitMap() as its friend_bitmap argument
+    rp_flags    - the flags to set for this argument are:
+        RPF_LAYER  : the rastport will have a Layer created with the sizes given
+        RPF_BITMAP : the rasport will have a BitMap created with the sizes and
+                     properties given
+        RPF_TMPRAS : the rastport will have the TmpRas allocated which is
+                     required for AreaDraw functions.
+        RPF_AREA   : the rasport will have its AreaInfo allocated with the
+                     max_vectors given, which is required for AreaDraw functions
+        RPF_ALL    : All of the above will be allocated and you will get a
+                     rastport ready to draw graphics
+    max_vectors - Determines the size of the buffer to be allocated for the
+                  AreaInfo of the RastPort to be created
+
+RESULTS
+    Returns a pointer to a RastPort if successful. Otherwise returns NULL.
+
+SEE ALSO
+    @{"Displays" link "Concepts_07Displays"}, @{"freeRastPort()" link "24-freeRastPort"}, @{"allocBitMap()" link "00-allocBitMap"}
+
+@endnode
+
+@node "03-busyWaitBlit" "Sevgi_Engine.guide/Function Reference/busyWaitBlit"
+NAME
+    busyWaitBlit - Waits until the blitter completes its job
+
+SYNOPSIS
+    busyWaitBlit()
+
+    VOID busyWaitBlit(VOID);
+
+FUNCTION
+    Checks custom.dmaconr for DMAF_BLTDONE in a loop.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}
+
+@endnode
+
+@node "04-changeFadeSteps" "Sevgi_Engine.guide/Function Reference/changeFadeSteps"
+NAME
+    changeFadeSteps - Changes the fade steps of the given color_table
+
+SYNOPSIS
+    changeFadeSteps(color_table, steps)
+
+    VOID changeFadeSteps(struct ColorTable* color_table, ULONG steps);
+
+FUNCTION
+    fade_steps is the number of frames a complete fade in/out to/from a color
+    palette will take (if updateColorTable() is being called every frame).
+    Determines the speed of the fade in/out. Valid values are between 2..256.
+    This function re-calculates the increment values for each color on the
+    color_table regarding the new fade_steps value given.
+
+INPUTS
+    color_table - the color table to update the fade speed
+    steps       - number of frames of a complete fade in/out (2..256)
+
+BUGS
+    A value of 1 will cause a division by zero error.
+
+NOTES
+    This is a very math heavy function. Calling it during gameplay is not
+    optimal.
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable()" link "67-setColorTable"}
+
+@endnode
+
+@node "05-changeVolumeSteps" "Sevgi_Engine.guide/Function Reference/changeVolumeSteps"
+NAME
+    changeVolumeSteps -- Changes the fade steps of the volume_table
+
+SYNOPSIS
+    changeVolumeSteps(steps)
+
+    VOID changeVolumeSteps(UWORD steps);
+
+FUNCTION
+    steps is how many frames (actually how many calls to updateVolume()) the
+    fade in/out to/from the volume set on the volume_table will take.
+
+INPUTS
+    steps - number of frames of a complete fade in/out (2..256)
+
+BUGS
+    A value of zero will cause a division by zero error.
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"updateVolume()" link "85-updateVolume"}, @{"setVolume()" link "75-setVolume"}
+
+@endnode
+
+@node "06-checkHitBoxCollision" "Sevgi_Engine.guide/Function Reference/checkHitBoxCollision"
+NAME
+    checkHitBoxCollision -- Checks hitbox collisions between two gameobjects
+
+SYNOPSIS
+    checkHitBoxCollision(go1, go2);
+
+    ULONG checkHitBoxCollision(struct GameObject* go1, struct GameObject* go2);
+
+FUNCTION
+    Checks the collisions of hitboxes on both gameobjects.
+    NOTE: The collision of the first encountered hitboxes of both GameObjects
+    will be on the return value. So order your hitboxes with this in mind.
+
+INPUTS
+    go1 - first gameobject to be tested
+    go2 - second gameobject to be tested
+
+RESULTS
+    In the case of a collision between hitboxes the return value will have the
+    first gameobject's (go1) hitbox index in the high-word and the second
+    gameobject's hitbox index in the low-word. If either one of the gameobjects
+    do not have hitboxes, collision will be tested for its image rectangle and
+    its word on the return value will be 0. If both do not have hitboxes or none
+    of the hitboxes collide will return 0. So for each specific collision you
+    will have a unique return value you can test against and initiate events.
+
+NOTES
+    The collision of the first encountered hitboxes of both GameObjects will be
+    on the return value. So order your hitboxes with this in mind.
+
+SEE ALSO
+    @{"Hitboxes" link "Concepts_14Hitboxes"}, @{"Gameobjects" link "Concepts_16Gameobjects"}, @{"checkPointHitBoxCollision()" link "07-checkPointHitBoxCollision"}
+
+@endnode
+
+@node "07-checkPointHitBoxCollision" "Sevgi_Engine.guide/Function Reference/checkPointHitBoxCollision"
+NAME
+    checkPointHitBoxCollision -- Checks hitboxes against a map coordinate
+
+SYNOPSIS
+    checkPointHitBoxCollision(go, x, y)
+
+    ULONG checkPointHitBoxCollision(struct GameObject* go, LONG x, LONG y);
+
+FUNCTION
+    Checks if a map coordinate collides with one of the hitboxes on the
+    gameobject.
+
+INPUTS
+    go - gameobject to be tested
+    x  - x coordinate on the map
+    y  - y coordinate on the map
+
+RESULTS
+    If a hitbox on the given gameobject collides with this point the return
+    value will be the index of the hitbox that collides. Returns 0 if there are
+    no hitboxes on the gameobject or none of them collides with the point.
+
+NOTES
+    The collision of the first encountered hitbox will be returned. So order
+    your hitboxes with this in mind.
+
+SEE ALSO
+    @{"Hitboxes" link "Concepts_14Hitboxes"}, @{"Gameobjects" link "Concepts_16Gameobjects"}, @{"checkHitBoxCollision()" link "06-checkHitBoxCollision"}
+
+@endnode
+
+@node "08-closeFonts" "Sevgi_Engine.guide/Function Reference/closeFonts"
+NAME
+    closeFonts - Closes the fonts opened by openFonts()
+
+SYNOPSIS
+    closeFonts()
+
+    VOID closeFonts(VOID);
+
+FUNCTION
+    Closes the Amiga Fonts opened by openFonts(). Frees all the gamefonts loaded
+    by openFonts().
+
+SEE ALSO
+    @{"Fonts" link "Concepts_04Fonts"}, @{"openFonts()" link "47-openFonts"}
+
+@endnode
+
+@node "09-createBlitMasks" "Sevgi_Engine.guide/Function Reference/createBlitMasks"
+NAME
+    createBltMasks - Creates a single plane mask for the given bitmap
+
+SYNOPSIS
+    createBltMasks(bit_map)
+
+    struct BitMap* createBltMasks(struct BitMap* bit_map);
+
+FUNCTION
+    Creates a single plane bitmap of the same size with the source bitmap and
+    creates a mask plane by anding all planes on the source bitmap. This plane
+    can be used as the mask plane in API graphics functions like
+    BltMaskBitMapRastPort(). To access the plane use ->Planes[0] on the returned
+    bitmap.
+
+INPUTS
+    bit_map - the source bitmap to create the mask plane for
+
+RESULTS
+    Returns a pointer to a bitmap if successful. Otherwise returns NULL.
+
+NOTES
+    This function is to be used by openFonts() but feel free to use it if you
+    find the need.
+
+SEE ALSO
+    @{"Fonts" link "Concepts_04Fonts"}, @{"openFonts()" link "47-openFonts"}
+
+@endnode
+
+@node "10-createEmptyRainbow" "Sevgi_Engine.guide/Function Reference/createEmptyRainbow"
+NAME
+    createEmptyRainbow - Allocates an empty rainbow
+
+SYNOPSIS
+    createEmptyRainbow()
+
+    struct Rainbow* createEmptyRainbow(VOID);
+
+FUNCTION
+    Creates a dummy rainbow with no color instructions but only with an
+    instruction to wait for the end of line 255 (the END instruction).
+    The DYNAMIC_COPPERLIST algorithm requires at least this to operate.
+
+RESULTS
+    Returns a new empty rainbow structure. Returns NULL if the allocation fails.
+
+SEE ALSO
+    @{"Rainbows" link "Concepts_12Rainbows"}, @{"createRainbow()" link "12-createRainbow"}, @{"updateRainbow()" link "85-updateRainbow"}, @{"freeRainbow()" link "29-freeRainbow"}
+
+@endnode
+
+@node "11-createGradient" "Sevgi_Engine.guide/Function Reference/createGradient"
+NAME
+    createGradient - Creates movable/scrollable color gradient
+
+SYNOPSIS
+    createGradient(type, col_reg, num_colors, scr_pos, vis, pos, flags, huelist)
+
+    struct Gradient* createGradient(UBYTE type, UBYTE col_reg, UWORD num_colors,
+        UWORD scr_pos, UWORD vis, UWORD pos, ULONG flags, UBYTE* huelist);
+
+FUNCTION
+    Creates a scrollable gradient of Amiga hardware color values to be blitted
+    into rainbows. AGA gradients use twice the size and every other color
+    value is to be set with LOCT bit set.
+    The gradient is created between the colors passed in huelist. A huelist is
+    similar to palettes used for creating ColorTables. First byte is the number
+    of colors in the huelist. Following bytes are 24bit RGB values which define
+    the start (,middle) and end colors that define the gradient.
+
+INPUTS
+    type       - will this be an OCS/ECS gradient or an AGA compliant gradient
+                 valid values are GRD_TYPE_OCS or GRD_TYPE_AGA
+    col_reg    - the color register this gradient will apply
+    num_colors - number of colors on the gradient (height of the gradient)
+    scr_pos    - the rasterline this gradient will start (as screen coordinate)
+    vis        - visible height of the gradient
+    pos        - position of the visible part of a scrollable gradient
+    flags      - valid flags to set here are:
+                 GRD_SCROLLABLE: implies pos can be changed
+                 GRD_MOVABLE   : implies scr_pos can be changed
+                 GRD_BLITABLE  : gradient can be blitted on to a rainbow
+                 GRD_DITHERED  : -- NOT IMPLEMENTED --
+    huelist    - pointer to a huelist
+
+RESULTS
+    Returns a new gradient. Returns NULL if allocation fails.
+
+NOTES
+    Dithering algorithm is NOT implemented yet!
+
+BUGS
+    A valid huelist MUST always contain at least 2 colors. A division by zero
+    will occur Otherwise.
+
+SEE ALSO
+    @{"Rainbows" link "Concepts_12Rainbows"}, @{"freeGradient()" link "27-freeGradient"}, @{"createRainbow()" link "12-createRainbow"}, @{"updateRainbow()" link "85-updateRainbow"}
+
+@endnode
+
+@node "12-createRainbow" "Sevgi_Engine.guide/Function Reference/createRainbow"
+NAME
+    createRainbow - Creates a rainbow required to display gradients
+
+SYNOPSIS
+    createRainbow(gradList, end_insts)
+
+    struct Rainbow* createRainbow(struct Gradient** gradList, ULONG* end_insts);
+
+FUNCTION
+    Creates the rainbow CopOps from the given list of gradients (which is a
+    NULL terminated array of gradient pointers). Can only be used with
+    DYNAMIC_COPPERLIST. This function can create structurally different CopOp
+    lists depending on the properties of the gradients passed in to not waste
+    valuable Copper DMA time during display. It does this by analyzing the given
+    gradients in many iterations, so it should NOT be called during gameplay
+    loop. Only call it at level init phase.
+
+INPUTS
+    gradList  - pointer to an array of Gradient pointers
+    end_insts - instructions to be placed in the terminating end CopOp
+
+RESULTS
+    Returns a newly allocated and initialized rainbow struct capable to display
+    move and/or scroll the gradients given. Returns NULL if the allocations
+    fail.
+
+NOTES
+    The array of end instructions doesn't need to be a single END instruction.
+    i.e you can set a bottom of screen dash board in this array but still HAS TO
+    BE terminated with an END instruction always! If ommited, the created CopOps
+    list and so the copperlist it points to will be terminated with a single END
+    instruction.
+
+SEE ALSO
+    @{"Rainbows" link "Concepts_12Rainbows"}, @{"newRainbow()" link "44-newRainbow"}, @{"updateRainbow()" link "85-updateRainbow"}, @{"freeRainbow()" link "29-freeRainbow"}
+
+@endnode
+
+@node "13-detectChipset" "Sevgi_Engine.guide/Function Reference/detectChipset"
+NAME
+    detectChipset -- Detect the chipset of the machine the game is running
+
+SYNOPSIS
+    detectChipset()
+
+    VOID detectChipset(VOID);
+
+FUNCTION
+    This function queries the runtime hardware for graphics chipset and saves
+    the result in the global variable 'chipset'. So you can either make your
+    activate/deactivate features supported by the chipset or give a message that
+    your game is not compatible with the hardware.
+
+    chipset wil be set to one of the following values:
+    CHIPSET_OCS, CHIPSET_ECS, CHIPSET_AGA
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}
+
+@endnode
+
+@node "14-despawnGameObject" "Sevgi_Engine.guide/Function Reference/despawnGameObject"
+NAME
+    despawnGameObject - Removes a gameobject from the gameObjectList
+
+SYNOPSIS
+    despawnGameObject(go)
+
+    VOID despawnGameObject(struct GameObject* go);
+
+FUNCTION
+    Removes a gameobject spawned with spawnGameObject() from the current
+    gameobject bank's gameObjectList.
+
+INPUTS
+    go - the gameobject to be despawned
+
+RESULTS
+    The gameobject's pointer will be removed from the current gameObjectList.
+
+NOTES
+    Only call this on spawned gameobjects. NEVER call this on a gameobject from
+    a gameobject bank. You can use destroyGameObject() for them if you have to.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"spawnGameObject()" link "76-spawnGameObject"}, @{"destroyGameObject()" link "15-destroyGameObject"}
+
+@endnode
+
+@node "15-destroyGameObject" "Sevgi_Engine.guide/Function Reference/destroyGameObject"
+NAME
+    destroyGameObject - Removes a gameobject from the gameObjectList
+
+SYNOPSIS
+    destroyGameObject(go)
+
+    VOID destroyGameObject(struct GameObject* go);
+
+FUNCTION
+    Every gameobject bank has a sortable list of gameobject pointers. When
+    initialized with initGameObjects() the global gameObjectList points to such
+    a list on current_level's current gameobject bank. This list holds all the
+    gameobjects on a level map which are updated every frame by the call to
+    updateGameObjects(). This function removes the given gameobject from the
+    the list. Which means that gameobject won't be on the level map anymore, it
+    won't be updated every frame, and it won't trigger any collisions. Imagine
+    collecting a coin or destroying an enemy that won't respawn ever again.
+    This function can be called to get rid of the gameobject and its effects
+    from the map. You should use this function only for gameobjects that has to
+    be destroyed permanently. For gameobjects which you wan't to be able to
+    re-appear later, better implement the effect on gameobject's states. Or
+    alternatively you can use the spawnable gameobjects using spawnGameObject()
+    and despawnGameObject() functions.
+
+INPUTS
+    go - the gameobject to be removed from level map
+
+RESULTS
+    The gameobject's pointer will be removed from the current gameObjectList.
+    The actual gameobject will still be available on the bank.
+
+NOTES
+    The remove will not change the state of the bank on disk. It will only
+    affect the bank on memory. So a re-load of the bank file will re-introduce
+    every gameobject.
+
+    This function will cause a big re-sort on the gameObjectList. This may cause
+    a performance hit if too many gameobjects gets to be destroyed on the same
+    frame.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"despawnGameObject()" link "14-despawnGameObject"}, @{"initGameObjects()" link "31-initGameObjects"}, @{"updateGameObjects()" link "84-updateGameObjects"}
+
+@endnode
+
+@node "16-disposeTileMap" "Sevgi_Engine.guide/Function Reference/disposeTileMap"
+NAME
+    disposeTileMap - Frees a tilemap allocated by newTileMap()
+
+SYNOPSIS
+    disposeTileMap(map)
+
+    VOID disposeTileMap(struct TileMap *map);
+
+FUNCTION
+    Returns the memory allocated for the map by newTileMap() back to system.
+
+INPUTS
+    map - the tilemap to free
+
+NOTES
+    unloadLevel() function will handle the necessary calls to this function.
+
+SEE ALSO
+    @{"Tilemaps" link "Concepts_06Tilemaps"}, @{"newTileMap()" link "45-newTileMap"}, @{"loadTileMap()" link "36-loadTileMap"}, @{"unloadLevel()" link "79-unloadLevel"}
+
+@endnode
+
+@node "17-disposeTileSet" "Sevgi_Engine.guide/Function Reference/disposeTileSet"
+NAME
+    disposeTileSet - Frees a tileset allocated by newTileSet()
+
+SYNOPSIS
+    disposeTileSet(tileset)
+
+    VOID disposeTileSet(struct TileSet* tileset);
+
+FUNCTION
+    Returns the memory allocated for the tileset by newTileSet() back to system.
+
+INPUTS
+    tileset - the tileset to free
+
+NOTES
+    unloadLevel() function will handle the necessary calls to this function.
+
+SEE ALSO
+    @{"Tilesets" link "Concepts_05Tilesets"}, @{"newTileSet()" link "46-newTileSet"}, @{"loadTileSet()" link "37-loadTileSet"}, @{"unloadLevel()" link "79-unloadLevel"}
+
+@endnode
+
+@node "18-doKeyboardIO" "Sevgi_Engine.guide/Function Reference/doKeyboardIO"
+NAME
+    doKeyboardIO - Updates the keymatrix on keyboard.o
+
+SYNOPSIS
+    doKeyboardIO()
+
+    VOID doKeyboardIO(VOID);
+
+FUNCTION
+    Calling this once per frame in your display loop will get the current state
+    of the keyboard into a keymatrix on keyboard.o. So you can query the pressed
+    keys using the function keyState().
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"setKeyboardAccess()" link "73-setKeyboardAccess"}, @{"keyState()" link "32-keyState"}
+
+@endnode
+
+@node "19-endKeyboardAccess" "Sevgi_Engine.guide/Function Reference/endKeyboardAccess"
+NAME
+    endKeyboardAccess - Closes the keyboard.device opened by setKeyboardAccess()
+
+SYNOPSIS
+    endKeyboardAccess()
+
+    VOID endKeyboardAccess(VOID);
+
+FUNCTION
+    Closes the keyboard.device opened by setKeyboardAccess() and frees all the
+    other resources required for it.
+
+NOTES
+    This function is to be called by giveBackSystem().
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"setKeyboardAccess()" link "73-setKeyboardAccess"}, @{"giveBackSystem()" link "30-giveBackSystem"}
+
+@endnode
+
+@node "20-freeBOBSheet" "Sevgi_Engine.guide/Function Reference/freeBOBSheet"
+NAME
+    freeBOBSheet - Frees a BOB sheet loaded by loadBOBSheet()
+
+SYNOPSIS
+    freeBOBSheet(bob_sheet)
+
+    VOID freeBOBSheet(struct BOBSheet* bob_sheet);
+
+FUNCTION
+    Frees all the memory allocated for the sheet properties, the image data and
+    the sheet bitmap allocated by loadBOBSheet().
+
+INPUTS
+    bob_sheet - the BOBSheet to free
+
+NOTES
+    unloadLevel() function will handle the necessary calls to this function.
+
+SEE ALSO
+    @{"Images" link "Concepts_13Images"}, @{"Levels" link "Concepts_17Levels"}, @{"loadBOBSheet()" link "33-loadBOBSheet"}, @{"unloadLevel()" link "79-unloadLevel"}
+
+@endnode
+
+@node "21-freeColorTable" "Sevgi_Engine.guide/Function Reference/freeColorTable"
+NAME
+    freeColorTable - Deallocates the given color_table from memory
+
+SYNOPSIS
+    freeColorTable(color_table)
+
+    VOID freeColorTable(struct ColorTable* color_table);
+
+FUNCTION
+    Frees the memory allocated for the given color_table.
+
+INPUTS
+    color_table - pointer to the color table to be freed
+
+NOTES
+    unloadLevel() function will handle the necessary calls to this function.
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"unloadLevel()" link "79-unloadLevel"}
+
+@endnode
+
+@node "22-freeCopperList" "Sevgi_Engine.guide/Function Reference/freeCopperList"
+NAME
+    freeCopperList - Frees a copperlist allocated by allocCopperList()
+
+SYNOPSIS
+    freeCopperList(cl)
+
+    VOID freeCopperList(UWORD* cl)
+
+FUNCTION
+    Frees the Chip Memory allocated for a copperlist allocated by
+    allocCopperList().
+
+INPUTS
+    cl - declared access pointer for the copperlist (CopperList)
+
+NOTES
+    On double buffered copperlists use the access pointer CopperList1 to free
+    the allocation. CopperList1 points to the start of the allocated chip memory
+    for the two buffers. The access pointer CopperList will be used to switch
+    between the two buffers pointing to the current buffer.
+
+SEE ALSO
+    @{"Copperlists" link "Concepts_09Copperlists"}, @{"allocCopperList()" link "01-allocCopperList"}
+
+@endnode
+
+@node "23-freeGameObjectBank" "Sevgi_Engine.guide/Function Reference/freeGameObjectBank"
+NAME
+    freeGameObjectBank - Frees the memory allocated by newGameObjectBank()
+
+SYNOPSIS
+    freeGameObjectBank(bank)
+
+    VOID freeGameObjectBank(struct GameObjectBank* bank);
+
+FUNCTION
+    Frees the memory allocated for a gameobject bank by newGameObjectBank() or
+    loadGameObjectBank().
+
+INPUTS
+    bank - pointer to the gameobject bank to be freed
+
+NOTES
+    unloadLevel() function will handle the necessary calls to this function.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"newGameObjectBank()" link "43-newGameObjectBank"}, @{"loadGameObjectBank()" link "33-loadGameObjectBank"}, @{"unloadLevel()" link "79-unloadLevel"}
+
+@endnode
+
+@node "29-freeRainbow" "Sevgi_Engine.guide/Function Reference/freeRainbow"
+NAME
+    freeRainbow - Frees a rainbow allocated by newRainbow() or createRainbow()
+
+SYNOPSIS
+    freeRainbow(rb)
+
+    VOID freeRainbow(struct Rainbow* rb);
+
+FUNCTION
+    Frees all the memory allocated for a rainbow allocated by newRainbow() or
+    createRainbow()
+
+INPUTS
+    rb - the pointer to the rainbow to be freed
+
+NOTES
+
+SEE ALSO
+    @{"Rainbows" link "Concepts_12Rainbows"}, @{"newRainbow()" link "44-newRainbow"}, @{"createRainbow()" link "12-createRainbow"}
+
+@endnode
+
+@node "24-freeRastPort" "Sevgi_Engine.guide/Function Reference/freeRastPort"
+NAME
+    freeRastPort - Frees a rastport created with allocRastPort().
+
+SYNOPSIS
+    freeRastPort(rastport, free_flags)
+
+    VOID freeRastPort(struct RastPort* rastport, ULONG free_flags);
+
+FUNCTION
+    Frees the rastport created with allocRastPort(). free_flags determine which
+    components to be freed along with the rastport. For example, you can create
+    a rastport with RPF_ALL, draw graphics on its BitMap using rasport
+    functions, then free it with (RPF_ALL & ~RPF_BITMAP) so that the bitmap
+    allocated remains but the RastPort, Layer, TmpRas and AreaInfo are freed.
+    Use RPF_ALL to free it with all of its components.
+
+INPUTS
+    rastport   - pointer to the rastport to be freed
+    free_flags - RPF_LAYER
+                 RPF_BITMAP
+                 RPF_TMPRAS
+                 RPF_AREA
+                 RPF_ALL
+
+NOTES
+    Do not forget to take pointers to components excluded from freeing
+    beforehand. Otherwise you'll have no way to free them later and so there
+    will be a memory leak!
+
+SEE ALSO
+    @{"Displays" link "Concepts_07Displays"}, @{"allocRastPort()" link "02-allocRastPort"}
+
+@endnode
+
+@node "25-freeSpriteBank" "Sevgi_Engine.guide/Function Reference/freeSpriteBank"
+NAME
+    freeSpriteBank - Frees a sprite bank loaded by loadSpriteBank()
+
+SYNOPSIS
+    freeSpriteBank(sprite_bank)
+
+    VOID freeSpriteBank(struct SpriteBank* sprite_bank);
+
+FUNCTION
+    Frees the memory allocated for a sprite bank which includes all tables,
+    image data and hitboxes.
+
+INPUTS
+    sprite_bank - pointer to the sprite bank to be freed
+
+SEE ALSO
+    @{"Images" link "Concepts_13Images"}, @{"loadSpriteBank()" link "36-loadSpriteBank"}
+
+@endnode
+
+@node "26-GF_Text" "Sevgi_Engine.guide/Function Reference/GF_Text"
+NAME
+    GF_Text - Draws a string to a rastport with the given gamefont
+
+SYNOPSIS
+    GF_Text(rp, gr, str, count)
+
+    VOID GF_Text(struct RastPort* rp, struct GameFont* gf, STRPTR str,
+        ULONG count);
+
+FUNCTION
+    Analogous to the API graphics function Text, draws the string given onto the
+    rasport given using the gamefont given. count is the length of the string.
+
+INPUTS
+    rp     - a pointer to the RastPort which describes where the text is to be
+             drawn
+    gf     - a pointer to the gamefont to draw the text with
+    string - the address of the string to draw
+    count  - the number of characters in the string
+             If zero, there are no characters to be drawn
+
+NOTES
+    The color depth and palette used in the gamefont should be compatible with
+    the bitmap on the rastport because this function simply blits the letter
+    images onto rastport's bitmap.
+
+SEE ALSO
+    @{"Fonts" link "Concepts_04Fonts"}, @{"openFonts()" link "47-openFonts"}, @{"GF_TextLength()" link "28-GF_TextLength"}
+
+@endnode
+
+@node "27-freeGradient" "Sevgi_Engine.guide/Function Reference/freeGradient"
+NAME
+    freeGradient - Frees a gradient allocated by createGradient()
+
+SYNOPSIS
+    freeGradient(grd)
+
+    VOID freeGradient(struct Gradient* grd);
+
+FUNCTION
+    Frees all the memory allocated for a gradient allocated by createGradient().
+
+INPUTS
+    grd - the pointer to the gradient to be freed
+
+NOTES
+    Will deallocate the colortable attached.
+
+SEE ALSO
+    @{"Rainbows" link "Concepts_12Rainbows"}, @{"createGradient()" link "11-createGradient"}
+
+@endnode
+
+@node "28-GF_TextLength" "Sevgi_Engine.guide/Function Reference/GF_TextLength"
+NAME
+    GF_TextLength - Determines raster length of a string for a gamefont
+
+SYNOPSIS
+    GF_TextLength(gamefont, string, count)
+
+    ULONG GF_TextLength(struct GameFont* gf, STRPTR str, ULONG count);
+
+FUNCTION
+    Analogous to the API graphics function TextLength, this function returns the
+    estimated length (in pixels) of a string on the rastport when drawn with the
+    given gamefont. count is the length of the string.
+
+INPUTS
+    gamefont - a pointer to the gamefont to get the letter lengths from
+    string   - adress of the string to determine the raster length of
+    count    - the string length
+
+RESULTS
+    length - the number of pixels this text would occupy horizontally.
+
+SEE ALSO
+    @{"Fonts" link "Concepts_04Fonts"}, @{"openFonts()" link "47-openFonts"}, @{"GF_Text()" link "26-GF_Text"}
+
+@endnode
+
+@node "30-giveBackSystem" "Sevgi_Engine.guide/Function Reference/giveBackSystem"
+NAME
+    giveBackSystem - Return the control back to AmigaOS
+
+SYNOPSIS
+    giveBackSystem()
+
+    VOID giveBackSystem(VOID);
+
+FUNCTION
+    In the case of a successful system takeover with a call to takeOverSystem(),
+    a call to giveBackSystem() will undo everything done there and safely return
+    the control back to the operating system.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"takeOverSystem()" link "78-takeOverSystem"}
+
+@endnode
+
+@node "31-initGameObjects" "Sevgi_Engine.guide/Function Reference/initGameObjects"
+NAME
+    initGameObjects - Initializes the facilities in gameobject.o
+
+SYNOPSIS
+    initGameObjects(blitBOBFunc, unBlitBOBFunc, max_bob_width, max_go_height)
+
+    VOID initGameObjects(VOID* blitBOBFunc, VOID* unBlitBOBFunc,
+        ULONG max_bob_width, ULONG max_go_height);
+
+FUNCTION
+    Initializes the facilities in gameobject.o to appropriate initial values
+    set by loadLevel() for a specific display.
+
+INPUTS
+    blitBOBFunc    - pointer to the function to blit BOBs on the display
+    unBlitBOBFunc  - pointer to the function to remove BOBs from the display
+    max_bob_width  - The width of the largest BOB image in the BOBSheets loaded
+                     for the level.
+    max_bob_height - The height of the tallest BOB image in the BOBSheets loaded
+                     for the level.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"Displays" link "Concepts_07Displays"}, @{"loadLevel()" link "35-loadLevel"}
+
+@endnode
+
+@node "32-keyState" "Sevgi_Engine.guide/Function Reference/keyState"
+NAME
+    keyState - Returns the pressed state of a key on the Amiga keyboard
+
+SYNOPSIS
+    keyState(rawkey)
+
+    BOOL keyState(UBYTE rawkey);
+
+FUNCTION
+    Call this with the rawkey value to query if that key on the keyboard was
+    pressed at the time doKeyboardIO() was called. All rawkey values for all of
+    the keys on the Amiga keyboard are defined in keyboard.h header for your
+    convenience.
+
+INPUTS
+    rawkey - A value between RAW_GRAVE (0x00) and RAW_AMIGA_R (0x67)
+
+RESULTS
+    Returns TRUE if the key was pressed. Otherwise returns FALSE.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"setKeyboardAccess()" link "73-setKeyboardAccess"}, @{"endKeyboardAccess()" link "19-endKeyboardAccess"}, @{"doKeyboardIO()" link "18-doKeyboardIO"}
+
+@endnode
+
+@node "33-loadBOBSheet" "Sevgi_Engine.guide/Function Reference/loadBOBSheet"
+NAME
+    loadBOBSheet - Loads a Sevgi_Engine BOBSheet file from disk
+
+SYNOPSIS
+    loadBOBSheet(fileName)
+
+    struct BOBSheet* loadBOBSheet(STRPTR fileName);
+
+FUNCTION
+    Loads a Sevgi_Engine BOBSheet file from disk. This function will load all
+    the data that defines the images and their hitboxes on the (.sht) file into
+    a newly allocated struct BOBSheet. It also loads the ILBM sheet file
+    indicated by the .sht file as an interleaved bitmap on chip memory (suitable
+    to be blitted onto level display) and creates the masks for the images
+    contained.
+
+INPUTS
+    file - filename of the BOBSheet file (.sht) to load from disk
+
+RESULTS
+    Returns a pointer to a newly allocated struct BOBSheet. Returns NULL if
+    the allocation fails, any of the files was not found or there was an error
+    on the files. The specific error message will be written to stdout.
+
+NOTES
+    The filename path should be relative to the data drawer inside the game
+    directory. loadLevel() function will make the necessary calls to this
+    function.
+
+SEE ALSO
+    @{"Images" link "Concepts_13Images"}, @{"freeBOBSheet()" link "20-freeBOBSheet"}, @{"loadLevel()" link "35-loadLevel"}
+
+@endnode
+
+@node "33-loadGameObjectBank" "Sevgi_Engine.guide/Function Reference/loadGameObjectBank"
+NAME
+    loadGameObjectBank - Loads a Sevgi_Engine gameobject bank from disk
+
+SYNOPSIS
+    loadGameObjectBank(file)
+
+    struct GameObjectBank* loadGameObjectBank(STRPTR file);
+
+FUNCTION
+    Loads a Sevgi_Engine gameobject bank from disk.
+
+INPUTS
+    file - filename of the gameobject file to load from disk
+
+RESULTS
+    Returns a pointer to a newly allocated gameobject bank. Returns NULL if
+    the allocation fails or the file was not found.
+
+    This function will also allocate a big enough gameObjectList array to hold
+    pointers to all gameobjects on the bank and the spawnable gameobjects which
+    is set by the define NUM_GAMEOBJECTS.
+
+NOTES
+    The filename path should be relative to the data drawer inside the game
+    directory. loadLevel() function will make the necessary calls to this
+    function.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"Levels" link "Concepts_17Levels"}, @{"freeGameObjectBank()" link "23-freeGameObjectBank"}, @{"loadLevel()" link "35-loadLevel"}
+
+@endnode
+
+@node "34-loadILBMBitMap" "Sevgi_Engine.guide/Function Reference/loadILBMBitMap"
+NAME
+    loadILBMBitMap - Loads the BODY chunk of an ILBM file into memory
+
+SYNOPSIS
+    loadILBMBitMap(filename, type)
+
+    struct BitMap* loadILBMBitMap(STRPTR filename, ULONG type);
+
+FUNCTION
+    The function to load the BODY chunk of ILBM files into memory. It supports
+    RLE compressed ILBM files. Using the type argument you can specify the
+    properties of the bitmap returned.
+
+INPUTS
+    filename - filename of the ILBM file to load from disk
+    type     - BM_TYPE_BITMAP:
+                   BitMap returned will be on Fast Mem if available
+               BM_TYPE_DISPLAYABLE
+                   BitMap returned will be on Chip Mem
+               BM_TYPE_INTERLEAVED
+                   BitMap returned will be an interleaved BitMap
+               BM_TYPE_GAMEFONT
+                   The type to use when loading Sevgi_Engine gamefont files
+               BM_TYPE_BOBSHEET
+                   The type to use when loading Sevgi_Engine BOB sheet files
+                   It will allocate an interleaved BitMap on Chip Memory,
+                   twice the height, creating the image masks on the bottom half
+                   for fast masked blit operations.
+
+RESULTS
+    Returns a newly allocated bitmap if successful. Returns NULL otherwise.
+
+NOTES
+    The filename path should be relative to the data drawer inside the game
+    directory.
+
+SEE ALSO
+    @{"Images" link "Concepts_13Images"}, AllocBitMap(), FreeBitMap()
+
+@endnode
+
+@node "35-loadLevel" "Sevgi_Engine.guide/Function Reference/loadLevel"
+NAME
+    loadLevel - Loads all the assets for a game level
+
+SYNOPSIS
+    loadLevel(num)
+
+    struct Level* loadLevel(ULONG num);
+
+FUNCTION
+    Loads all the assets defined in assets.h for the game level given in num.
+    It will update the gauge on the loading_display per loaded asset.
+    All loaded assets can be accessed using the global current_level struct.
+    The assets to be loaded for each level are defined in assets.h by the
+    developer. Sevgi_Editor should be used to edit assets.h to avoid mistakes.
+
+INPUTS
+    num - level number. Ranging from 0 to NUM_LEVELS. Level 0 is used for main
+          menu, so this function can also be used for loading main menu assets.
+
+RESULTS
+    Returns a pointer to the level loaded or NULL if loading an asset fails.
+    The cause of failure will be printed to stdout.
+
+NOTES
+    The returned level pointer will always be the address of the global
+    current_level. It is a singleton so there is no need to allocate/deallocate
+    it. loadLevel() and unloadLevel() will just update its content.
+
+SEE ALSO
+    @{"Levels" link "Concepts_17Levels"}, @{"loadLevel()" link "35-loadLevel"}, @{"unloadLevel()" link "79-unloadLevel"}
+
+@endnode
+
+@node "36-loadSpriteBank" "Sevgi_Engine.guide/Function Reference/loadSpriteBank"
+NAME
+    loadSpriteBank - Loads a Sevgi_Engine sprite bank file from disk
+
+SYNOPSIS
+    loadSpriteBank(fileName)
+
+    struct SpriteBank* loadSpriteBank(STRPTR fileName);
+
+FUNCTION
+    Loads a Sevgi_Engine sprite bank file from disk. This function will load all
+    the values that define the images and their hitboxes on the (.spr) file into
+    a newly allocated struct SpriteBank. The sprite image data will be loaded
+    into properly structured chip memory.
+
+INPUTS
+    file - filename of the sprite bank file (.spr) to load from disk
+
+RESULTS
+    Returns a pointer to a newly allocated struct SpriteBank. Returns NULL if
+    the allocation fails, or the file was not found. The specific error message
+    will be written to stdout.
+
+NOTES
+    Sprite banks are created regarding the sprite fetch mode planned to be used.
+    Therefore, the sprite fetch mode on the display intended to display these
+    sprites has to match the sprite fetch mode selected as the bank was created.
+    This function does not check if they match (allowing the developer to use
+    multiple sprite fetch modes on a display).
+
+    The filename path should be relative to the data drawer inside the game
+    directory. loadLevel() function will make the necessary calls to this
+    function.
+
+SEE ALSO
+    @{"Images" link "Concepts_13Images"}, @{"freeSpriteBank()" link "25-freeSpriteBank"}, @{"loadLevel()" link "35-loadLevel"}
+
+@endnode
+
+@node "36-loadTileMap" "Sevgi_Engine.guide/Function Reference/loadTileMap"
+NAME
+    loadTileMap - Loads a Sevgi_Engine tilemap file from disk
+
+SYNOPSIS
+    struct TileMap* loadTileMap(filename, scr_width, scr_height)
+
+    struct TileMap *loadTileMap(STRPTR filename,
+        UWORD scr_width, UWORD scr_height);
+
+FUNCTION
+    Loads the given map file (created by Sevgi_Editor) into memory.
+    So the width and height values on the returned map struct will be one higher
+    than the values in the read map file!
+
+INPUTS
+    filename   - filename of the tileset file to load from disk
+    scr_width  - Width of the screen this map will be displayed (in pixels)
+    scr_height - Height of the screen this map will be displayed (in pixels)
+
+RESULTS
+    Returns a newly allocated tilemap if successful. Returns NULL otherwise.
+
+NOTES
+    This function will add an empty row at the top and an empty column at the
+    left (because the scroll routine in display.c can not display column 0 and
+    row 0 of the map but has to have them there for the most optimizes scroll
+    algorithm). Which means the width and height values on the returned map
+    struct will be one higher than the values in map file read!!
+
+    Sevgi_Engine tilemaps can easily be created by converting JSON map files
+    created by Tiled Editor using Sevgi_Editor.
+
+    loadLevel() function will make the necessary calls to this function.
+
+SEE ALSO
+    @{"Tilemaps" link "Concepts_06Tilemaps"}, @{"disposeTileMap()" link "16-disposeTileMap"}, @{"loadLevel()" link "35-loadLevel"}
+
+@endnode
+
+@node "37-loadTileSet" "Sevgi_Engine.guide/Function Reference/loadTileSet"
+NAME
+    loadTileSet - Loads a Sevgi_Engine tileset from disk
+
+SYNOPSIS
+    struct TileSet* loadTileSet(filename, friend_bitmap)
+
+    struct TileSet* loadTileSet(STRPTR filename, struct BitMap* friend_bitmap);
+
+FUNCTION
+    Loads a Sevgi_Engine tileset from disk into a newly allocated tileset.
+
+INPUTS
+    filename      - filename of the tileset file to load from disk
+    friend_bitmap - UNUSED
+
+RESULTS
+    Returns a newly allocated tileset if successful. Returns NULL otherwise.
+
+NOTES
+    Sevgi_Engine tilesets can easily be created from ILBM tile sheets using
+    Sevgi_Editor.
+
+    loadLevel() function will make the necessary calls to this function.
+
+SEE ALSO
+    @{"Tilesets" link "Concepts_05Tilesets"}, @{"disposeTileSet()" link "17-disposeTileSet"}, @{"loadLevel()" link "35-loadLevel"}
+
+@endnode
+
+@node "38-moveGameObject" "Sevgi_Engine.guide/Function Reference/moveGameObject"
+NAME
+    moveGameObject - Moves a game object in respect to its current position
+
+SYNOPSIS
+    moveGameObject(go, dx, dy)
+
+    VOID moveGameObject(struct GameObject* go, LONG dx, LONG dy);
+
+FUNCTION
+    The proper way to move a gameobject to a new position on the map. dx and dy
+    are delta values. For example a -5 for dx will move the gameobject 5 pixels
+    to the left. It also updates the image rectangle on the gameobject struct so
+    collisions work as expected.
+
+INPUTS
+    dx - horizontal distance to move the gameobject to.
+    dy - vertical distance to move the gameobject to.
+
+NOTES
+    This function is to be called from an animation function to animate the
+    movement of a gameobject.
+
+SEE ALSO
+    @{"Gameobjects" link "Concepts_16Gameobjects"}
+
+@endnode
+
+@node "39-moveGameObjectClamped" "Sevgi_Engine.guide/Function Reference/moveGameObjectClamped"
+NAME
+    moveGameObjectClamped - Moves a game object with restrictions
+
+SYNOPSIS
+    moveGameObject(go, dx, dy, clampX1, clampY1, clampX2, clampY2)
+
+    VOID moveGameObjectClamped(struct GameObject* go, LONG dx, LONG dy,
+      LONG clampX1, LONG clampY1, LONG clampX2, LONG clampY2);
+
+FUNCTION
+    Same as moveGameObject() but restricts the movement to the rectangle defined
+    by clampX1, clampY1, clampX2, clampY2 arguments.
+    dx and dy are signed delta values. For example a -5 for dx will move the
+    gameobject 5 pixels to the left. It also updates the image rectangle on the
+    gameobject struct so collisions work as expected.
+
+INPUTS
+    dx - horizontal distance to move the gameobject to.
+    dy - vertical distance to move the gameobject to.
+    clampX1 - map coordinates for the restricting rectangle
+    clampY1 -  "      "        "   "       "          "
+    clampX2 -  "      "        "   "       "          "
+    clampY2 -  "      "        "   "       "          "
+
+NOTES
+    This function is to be called from an animation function to animate the
+    movement of a gameobject.
+
+SEE ALSO
+    @{"Gameobjects" link "Concepts_16Gameobjects"}, @{"moveGameObject()" link "38-moveGameObject"}
+
+@endnode
+
+@node "39-moveGradient" "Sevgi_Engine.guide/Function Reference/moveGradient"
+NAME
+    moveGradient - Sets the screeen position a gradient is displayed
+
+SYNOPSIS
+    moveGradient(grd, scr_pos);
+
+    VOID moveGradient(struct Gradient* grd, UWORD scr_pos);
+
+FUNCTION
+    Sets the starting vertical screen coordinate of a movable a gradient.
+
+INPUTS
+    grd     - a struct Gradient pointer created by createGradient() to move
+    scr_pos - new position the gradient to be displayed (screen coordinate)
+
+NOTES
+    Use this only on movable gradients.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"createGradient()" link "11-createGradient"}
+
+@endnode
+
+@node "40-newColorTable" "Sevgi_Engine.guide/Function Reference/newColorTable"
+NAME
+    newColorTable - Allocates a new color table for the given palette
+
+SYNOPSIS
+    newColorTable(palette, fade_steps, step)
+
+    struct ColorTable* newColorTable(UBYTE* palette, UWORD fade_steps,
+        ULONG step);
+
+FUNCTION
+    Allocates a new ColorTable an initializes it with the color values on the
+    given palette. Size of the ColorTable is defined by the number of colors on
+    the palette (the first byte of it holds number of colors - 1). fade_steps
+    value determines the number of frames a complete fade in/out with this
+    ColorTable takes (if you call updateColorTable() every frame). This value
+    can later be changed using changeFadeSteps() function. The step value
+    initializes the ColorTable to a specific frame of fade in/out.
+
+INPUTS
+    palette    - the palette array to create the ColorTable for
+    fade_steps - the number of frames to completely fade in/out the palette
+    step       - the initial step of the ColorTable
+                 step = 0          : all black
+                 step = fade_steps : actual palette colors
+
+RESULTS
+    Returns a newly allocated and initialized ColorTable.
+
+NOTES
+    Can be freed by freeColorTable().
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"freeColorTable()" link "21-freeColorTable"}, @{"updateColor()" link "81-updateColor"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable()" link "67-setColorTable"}, @{"changeFadeSteps()" link "04-changeFadeSteps"}
+
+@endnode
+
+@node "41-newColorTable_CL" "Sevgi_Engine.guide/Function Reference/newColorTable_CL"
+NAME
+    newColorTable_CL - Allocates a new color table for the given copperlist
+
+SYNOPSIS
+    newColorTable_CL(copperlist, fade_steps, step)
+
+    struct ColorTable* newColorTable_CL(UWORD* copperlist, UWORD fade_steps,
+        ULONG step);
+
+FUNCTION
+    Same as newColorTable() but modified to work for the color instructions on
+    a copperlists. Traverses the given copperlist and counts the color
+    instructions on it and creates a ColorTable to be able to fade the copper
+    color changes.
+
+INPUTS
+    copperlist - the copperlist with color changing move instructions
+    fade_steps - the number of frames to completely fade in/out the colors
+    step       - the initial step of the ColorTable
+                 step = 0          : all black
+                 step = fade_steps : actual copperlist colors
+
+RESULTS
+    Returns a newly allocated and initialized ColorTable specific for a
+    copperlist.
+
+NOTES
+    A table created with this variant of the function can be updated with
+    updateColorTable(), freed by freeColorTable() but MUST only be set calling
+    setColorTable_CL(). You also cannot use updateColor() as well.
+    Never use on a DYNAMIC_COPPERLIST which has scrollable/movable gradients on
+    its rainbow. Use the newColorTable_GRD() variant on its gradients instead.
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"freeColorTable()" link "21-freeColorTable"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable_CL()" link "68-setColorTable_CL"}, @{"newColorTable_GRD()" link "42-newColorTable_GRD"}
+
+@endnode
+
+@node "42-newColorTable_GRD" "Sevgi_Engine.guide/Function Reference/newColorTable_GRD"
+NAME
+    newColorTable_GRD - Allocates a new color table for the given gradient
+
+SYNOPSIS
+    newColorTable_GRD(grd, fade_steps, step)
+
+    struct ColorTable* newColorTable_GRD(struct Gradient* grd, UWORD fade_steps,
+        ULONG step);
+
+FUNCTION
+    Same as newColorTable() but modified to work for the color instructions on
+    a gradient. Refer to struct Gradient on color.h.
+
+INPUTS
+    grd        - the gradient to create the ColorTable for
+    fade_steps - the number of frames to completely fade in/out the gradient
+    step       - the initial step of the ColorTable
+                 step = 0          : all black
+                 step = fade_steps : actual palette colors
+
+RESULTS
+    Returns a newly allocated and initialized ColorTable specific for a
+    gradient.
+
+NOTES
+    A color table created with this variant of the function can be updated with
+    updateColorTable(), freed by freeColorTable(). But MUST only be set calling
+    setColorTable_GRD(). You also cannot use updateColor() as well.
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"freeColorTable()" link "21-freeColorTable"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable_GRD()" link "69-setColorTable_GRD"}
+
+@endnode
+
+@node "43-newGameObjectBank" "Sevgi_Engine.guide/Function Reference/newGameObjectBank"
+NAME
+    newGameObjectBank - Allocates a new GameObjectBank
+
+SYNOPSIS
+    newGameObjectBank(size)
+
+    struct GameObjectBank* newGameObjectBank(ULONG size);
+
+FUNCTION
+    Allocates the memory required by a GameObjectBank for 'size' gameobjects.
+
+INPUTS
+    size - number of gameobjects to store in this gameobject bank.
+
+NOTES
+    loadLevel() function will handle the necessary calls to this function.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"freeGameObjectBank()" link "23-freeGameObjectBank"}, @{"loadGameObjectBank()" link "33-loadGameObjectBank"}, @{"loadLevel()" link "35-loadLevel"}
+
+@endnode
+
+@node "44-newRainbow" "Sevgi_Engine.guide/Function Reference/newRainbow"
+NAME
+    newRainbow - Allocates and initializes a new rainbow
+
+SYNOPSIS
+    newRainbow(num_ops, op_size, num_insts, blitable, num_end_insts)
+
+    struct Rainbow* newRainbow(UWORD num_ops, UWORD op_size, UWORD num_insts,
+        BOOL blitable, UWORD num_end_insts);
+
+FUNCTION
+    Allocates the fast and chip memory required for a rainbow of a given size
+    and does the necessary initializations.
+
+INPUTS
+    num_ops       - number of CopOps for the rainbow (excluding the end CopOp).
+    op_size       - number of instructions per each CopOp. When this is given,
+                    every CopOp.pointer member will be initialized to the chip
+                    address allocated. Otherwise you will have to set each one
+                    programmatically. Ommiting (giving a value of 0) implies you
+                    want CopOps with varying op_size.
+    num_insts     - total number of instructions in all of the CopOps
+                    (including the end instruction). This has to be given if the
+                    CopOps will be of varying sizes.
+    blittable     - allows gradient blits into the copperlist of this rainbow.
+                    If you want the gradients using this rainbow to be
+                    scrollable set this to TRUE.
+    num_end_insts - number of instructions in the terminating end CopOp.
+
+RESULTS
+    Returns a newly allocated and initialized rainbow struct. All the
+    instructions in its CopOps are going to be NOOP. Returns NULL if the
+    allocations fail.
+
+NOTES
+    This function allocates an empty rainbow. For a fully functional rainbow
+    with color gradients use createRainbow().
+
+SEE ALSO
+    @{"Rainbows" link "Concepts_12Rainbows"}, @{"createRainbow()" link "12-createRainbow"}, @{"updateRainbow()" link "85-updateRainbow"}, @{"freeRainbow()" link "29-freeRainbow"}
+
+@endnode
+
+@node "45-newTileMap" "Sevgi_Engine.guide/Function Reference/newTileMap"
+NAME
+    newTileMap - Allocates a new tilemap
+
+SYNOPSIS
+    newTileMap(width, height, scr_width, scr_height)
+
+    struct TileMap *newTileMap(ULONG width, ULONG height, UWORD scr_width,
+        UWORD scr_height);
+
+FUNCTION
+    Allocates memory (in Fast Memory where available) big enough to store a
+    tilemap in the given sizes. Unit for width and height is number of tiles.
+    scr_with, and scr_height are the sizes of the screen the map will be
+    displayed on in pixels. They will be used in calculating the coordinates of
+    the visible rectangle of the map displayed by the screen and the maximum
+    values for it.
+
+INPUTS
+    width      - map width (in tiles)
+    height     - map height (in tiles)
+    scr_with   - screen width (in pixels)
+    scr_height - screen height (in pixels)
+
+RESULTS
+    Returns a newly allocated and initialized tilemap.
+
+SEE ALSO
+    @{"Tilemaps" link "Concepts_06Tilemaps"}, @{"disposeTileMap()" link "16-disposeTileMap"}, @{"loadTileMap()" link "36-loadTileMap"}
+
+@endnode
+
+@node "46-newTileSet" "Sevgi_Engine.guide/Function Reference/newTileSet"
+NAME
+    newTileSet - Allocates a new tileset
+
+SYNOPSIS
+    newTileSet(size, friend)
+
+    struct TileSet* newTileSet(ULONG size, struct BitMap *friend);
+
+FUNCTION
+    Allocates enough Chip Memory to store a tileset.
+    Argument size is the number of tiles in the tileset.
+
+INPUTS
+    size   - number of tiles
+    friend - friend bitmap to blit these tiles in to (UNUSED)
+
+RESULTS
+    Returns a newly allocated tileset in chip memory.
+
+NOTES
+    friend_bitmap is yet UNUSUED.
+
+SEE ALSO
+    @{"Tilesets" link "Concepts_05Tilesets"}, @{"disposeTileSet()" link "17-disposeTileSet"}, @{"loadTileSet()" link "37-loadTileSet"}
+
+@endnode
+
+@node "47-openFonts" "Sevgi_Engine.guide/Function Reference/openFonts"
+NAME
+    openFonts - Opens the fonts defined in game assets
+
+SYNOPSIS
+    openFonts()
+
+    BOOL openFonts(VOID);
+
+FUNCTION
+    Opens all the AmigaFonts and loads all the gamefonts defined in settings.h
+    and assets.h. Fills the the globals textFonts[] and gameFonts[] global
+    arrays which will be used to access them.
+
+SEE ALSO
+    @{"Fonts" link "Concepts_04Fonts"}, @{"closeFonts()" link "08-closeFonts"}
+
+@endnode
+
+@node "48-PT_FreeModule" "Sevgi_Engine.guide/Function Reference/PT_FreeModule"
+NAME
+    PT_FreeModule - Frees a Protracker Module
+
+SYNOPSIS
+    PT_FreeModule(mod)
+
+    VOID PT_FreeModule(struct PT_Module* mod);
+
+FUNCTION
+    Frees all allocations made by PT_LoadModule() for a Protracker module.
+
+INPUTS
+    mod - the module pointer to free
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_LoadModule()" link "52-PT_LoadModule"}
+
+@endnode
+
+@node "49-PT_FreeSFX" "Sevgi_Engine.guide/Function Reference/PT_FreeSFX"
+NAME
+    PT_FreeSFX - Frees a sound sample
+
+SYNOPSIS
+    PT_FreeSFX(sfx)
+
+    VOID PT_FreeSFX(struct SfxStructure* sfx);
+
+FUNCTION
+    Frees a struct SfxStructure loaded by PT_Load8SVX().
+
+INPUTS
+    sfx - sound sample to free
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_Load8SVX()" link "52-PT_Load8SVX"}
+
+@endnode
+
+@node "50-PT_InitModule" "Sevgi_Engine.guide/Function Reference/PT_InitModule"
+NAME
+    PT_InitModule - Inits the ptplayer for a Protracker Module
+
+SYNOPSIS
+    PT_InitModule(mod, pos)
+
+    VOID PT_InitModule(struct PT_Module* mod, UBYTE pos);
+
+FUNCTION
+    Initializes the ptplayer to play the given Protracker Module in mod at the
+    starting from the pattern given in pos. Does not start playback.
+
+INPUTS
+    mod - the Protracker module to initialize the ptplayer for
+    pos - pattern number to start playing the module
+
+NOTES
+    Resets speed to 6, tempo to 125 and master volume at 64 (maximum).
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_PlayModule()" link "54-PT_PlayModule"}, @{"PT_PauseModule()" link "53-PT_PauseModule"}, @{"PT_StopAudio()" link "60-PT_StopAudio"}
+
+@endnode
+
+@node "51-PT_InitPTPlayer" "Sevgi_Engine.guide/Function Reference/PT_InitPTPlayer"
+NAME
+    PT_InitPTPlayer - Installs ptplayer to system
+
+SYNOPSIS
+    PT_InitPTPlayer()
+
+    VOID PT_InitPTPlayer(VOID);
+
+FUNCTION
+    Intalls ptplayer's vertical blanking interrupt. Also initializes the volume
+    table to be able to fade in/out music volume.
+
+NOTES
+    This function is to be called by takeOverSystem().
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"System" link "Concepts_01System"}
+
+@endnode
+
+@node "52-PT_Load8SVX" "Sevgi_Engine.guide/Function Reference/PT_Load8SVX"
+NAME
+    PT_Load8SVX - Loads an 8SVX sound sample file from disk
+
+SYNOPSIS
+    PT_Load8SVX(fileName)
+
+    struct SfxStructure* PT_Load8SVX(STRPTR fileName);
+
+FUNCTION
+    Loads a sound sample file in 8SVX format from disk into an SfxStructure
+    which is directly playable by ptplayer.
+
+INPUTS
+    fileName - filename of the 8SVX file to load
+
+RESULTS
+    Returns a pointer to a newly allocated struct SfxStructure ready to be
+    played with the functions PT_PlaySFX(), PT_LoopSFX(). Returns NULL if
+    the allocation fails, or the file was not found.
+
+    The channel (sfx_cha) and priority (sfx_pri) values on the SfxStructure are
+    set to SFX_DEFAULT_CHANNEL and SFX_DEFAULT_PRIORITY respectively. You shall
+    set your prefered values to these struct members programmatically.
+
+NOTES
+    8SVX files with Fibonacci-delta lossy data compression are supported.
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_FreeSFX()" link "49-PT_FreeSFX"}, @{"PT_PlaySFX()" link "55-PT_PlaySFX"}, @{"PT_LoopSFX()" link "52-PT_LoopSFX"}, @{"PT_StopSFX()" link "61-PT_StopSFX"}
+
+@endnode
+
+@node "52-PT_LoadModule" "Sevgi_Engine.guide/Function Reference/PT_LoadModule"
+NAME
+    PT_LoadModule - Loads an Protracker music module file from disk
+
+SYNOPSIS
+    PT_LoadModule(filename)
+
+    struct PT_Module* PT_LoadModule(STRPTR filename);
+
+FUNCTION
+    Loads a Protracker music module file to memory.
+
+INPUTS
+    filename - filename of the protracker module file to load
+
+RESULTS
+    Returns a pointer to a newly allocated struct PT_Module ready to be played
+    with the functions PT_InitModule() and PT_PlayModule(). Returns NULL if
+    the allocations fail, the file was not found or something wrong with the
+    file. The specific error message will be written to stdout.
+
+NOTES
+    This function will place the appropriate components of the module into fast
+    memory where available.
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_FreeModule()" link "48-PT_FreeModule"}, @{"PT_InitModule()" link "50-PT_InitModule"}, @{"PT_PlayModule()" link "54-PT_PlayModule"}
+
+@endnode
+
+@node "52-PT_LoopSFX" "Sevgi_Engine.guide/Function Reference/PT_LoopSFX"
+NAME
+    PT_LoopSFX - Plays a sound sample in a loop
+
+SYNOPSIS
+    PT_LoopSFX(sfx)
+
+    VOID PT_LoopSFX(struct SfxStructure* sfx);
+
+FUNCTION
+    Loops a sound sample on a fixed channel which will be blocked for music
+    until the effect is stopped by PT_StopSFX().
+    It uses the same struct SfxStructure as PT_PlaySFX(), but you have to set
+    sfx_cha member and the priority on sfx_pri is ignored. A looped sound sample
+    has always highest priority and will replace a previous sample being played
+    on the same channel.
+
+INPUTS
+    sfx - sound sample to loop
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_Load8SVX()" link "52-PT_Load8SVX"}, @{"PT_PlaySFX()" link "55-PT_PlaySFX"}, @{"PT_StopSFX()" link "61-PT_StopSFX"}
+
+@endnode
+
+@node "53-PT_PauseModule" "Sevgi_Engine.guide/Function Reference/PT_PauseModule"
+NAME
+    PT_PauseModule - Pauses currently playing Protracker module
+
+SYNOPSIS
+    PT_PauseModule()
+
+    VOID PT_PauseModule(VOID);
+
+FUNCTION
+    Pauses the currently playing module.
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_LoadModule()" link "52-PT_LoadModule"}, @{"PT_PlayModule()" link "54-PT_PlayModule"}, @{"PT_StopAudio()" link "60-PT_StopAudio"}
+
+@endnode
+
+@node "54-PT_PlayModule" "Sevgi_Engine.guide/Function Reference/PT_PlayModule"
+NAME
+    PT_PlayModule() - Plays the currenty initialized Protracker module
+
+SYNOPSIS
+    PT_PlayModule()
+
+    VOID PT_PlayModule(VOID);
+
+FUNCTION
+    Plays the Protracker module initialized by PT_InitModule().
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_LoadModule()" link "52-PT_LoadModule"}, @{"PT_InitModule()" link "50-PT_InitModule"}, @{"PT_PauseModule()" link "53-PT_PauseModule"}, @{"PT_StopAudio()" link "60-PT_StopAudio"}
+
+@endnode
+
+@node "55-PT_PlaySFX" "Sevgi_Engine.guide/Function Reference/PT_PlaySFX"
+NAME
+    PT_PlaySFX - Plays a sound sample
+
+SYNOPSIS
+    PT_PlaySFX(sfx)
+
+    struct SfxChanStatus* PT_PlaySFX(struct SfxStructure*);
+
+FUNCTION
+    Plays a sound sample (given in sfx as struct SfxStructure*) either on a
+    fixed channel or on the most unused one by the currently playing module.
+    The member sfx_cha on struct SfxStructure determines the channel. -1 selects
+    the most unused channel. The member sfx_vol will determine the volume of the
+    playback ranging 0 to 64 (regardless of the module volume). The member
+    sfx_pri will determine the priority of the sound effect. Sound effects with
+    the higher priority will play over the sound effects with lower priority
+    stopping them if they are to be played on the same channel.
+
+INPUTS
+    sfx - sound sample to be played
+
+RESULTS
+    Returns information on how the sample is being played in a struct below:
+
+    struct SfxChanStatus {
+        UWORD n_note;
+        UWORD n_cmd;
+        UBYTE n_index;   /* channel index 0..3 */
+        UBYTE n_sfxpri;  /* sfx_pri when playing, becomes 0 when done */
+    } SfxChanStatus;
+
+NOTES
+    You can simply ignore the value returned if you've set the module channels
+    using PT_SetModuleChannels().
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_Load8SVX()" link "52-PT_Load8SVX"}, @{"PT_LoopSFX()" link "52-PT_LoopSFX"}, @{"PT_SetModuleChannels()" link "57-PT_SetModuleChannels"}
+
+@endnode
+
+@node "56-PT_SetChannelMask" "Sevgi_Engine.guide/Function Reference/PT_SetChannelMask"
+NAME
+    PT_SetChannelMask - Mute/Unmute channels on the playing Protracker module
+
+SYNOPSIS
+    PT_SetChannelMask(mask)
+
+    VOID PT_SetChannelMask(UBYTE mask);
+
+FUNCTION
+    Sets the mute/unmute state of the audio channels for the Protracker Module
+    initialized with PT_InitModule(). You can mute/unmute channels before or
+    during module playback. PT_InitModule() and PT_StopAudio() will unmute all
+    channels. The first 4 bits on mask is a bitfield where bits set mean the
+    channel is unmuted. 0xF means all channels unmuted, 0x0 means all chanells
+    muted.
+
+INPUTS
+    mask - a bitfield defining the unmuted audio channels for music
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_InitModule()" link "50-PT_InitModule"}, @{"PT_PlayModule()" link "54-PT_PlayModule"}, @{"PT_PauseModule()" link "53-PT_PauseModule"}, @{"PT_StopAudio()" link "60-PT_StopAudio"}
+
+@endnode
+
+@node "57-PT_SetModuleChannels" "Sevgi_Engine.guide/Function Reference/PT_SetModuleChannels"
+NAME
+    PT_SetModuleChannels - Allocate channels for module playback
+
+SYNOPSIS
+    PT_SetModuleChannels(chns)
+
+    VOID PT_SetModuleChannels(UBTE chns);
+
+FUNCTION
+    Sets the number of channels which should be dedicated for playing module
+    music ranging 0 to 4. So sound effects will never use more than 4 minus chns
+    channels at the same time. Defaults to 0.
+
+INPUTS
+    chns - number of channels (0..4)
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_InitModule()" link "50-PT_InitModule"}, @{"PT_PlayModule()" link "54-PT_PlayModule"}, @{"PT_PlaySFX()" link "55-PT_PlaySFX"}
+
+@endnode
+
+@node "58-PT_SetModuleVolume" "Sevgi_Engine.guide/Function Reference/PT_SetModuleVolume"
+NAME
+    PT_SetModuleVolume - Set music volume
+
+SYNOPSIS
+    PT_SetModuleVolume(vol)
+
+    VOID PT_SetModuleVolume(UBYTE vol);
+
+FUNCTION
+    Sets the playback volume for the Protracker module being played.
+
+INPUTS
+    vol - music volume (0..64)
+
+NOTES
+    If you plan to use a fade out on the playback, do not use this function.
+    Use setVolume() instead.
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"setVolume()" link "75-setVolume"}
+
+@endnode
+
+@node "59-PT_SetSampleVolume" "Sevgi_Engine.guide/Function Reference/PT_SetSampleVolume"
+NAME
+    PT_SetSampleVolume - Set module sample volume
+
+SYNOPSIS
+    PT_SetSampleVolume(sample, vol)
+
+    VOID PT_SetSampleVolume(UWORD sample, UBYTE vol);
+
+FUNCTION
+    Sets the playback volume of a sample on the Protracker Module initialized
+    with PT_InitModule(). You can do this while the music is playing.
+    sample ranges from 0 to 31. vol ranges from 0 to 64.
+
+INPUTS
+    sample - sample number on the module (0..31)
+    vol    - playback volume for the sample (0..64)
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_InitModule()" link "50-PT_InitModule"}, @{"PT_PlayModule()" link "54-PT_PlayModule"}, @{"setVolume()" link "75-setVolume"}
+
+@endnode
+
+@node "60-PT_StopAudio" "Sevgi_Engine.guide/Function Reference/PT_StopAudio"
+NAME
+    PT_StopAudio - Stops all audio playback
+
+SYNOPSIS
+    PT_StopAudio()
+
+    VOID PT_StopAudio(VOID);
+
+FUNCTION
+    Stops all audio playback, including the music, playing or looping samples.
+    Also cleans up the Protracker Module initialized with PT_InitModule() from
+    ptplayer.
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_InitModule()" link "50-PT_InitModule"}, @{"PT_PlayModule()" link "54-PT_PlayModule"}, @{"PT_PlaySFX()" link "55-PT_PlaySFX"}, @{"PT_LoopSFX()" link "52-PT_LoopSFX"}
+
+@endnode
+
+@node "61-PT_StopSFX" "Sevgi_Engine.guide/Function Reference/PT_StopSFX"
+NAME
+    PT_StopSFX - Stops currently playing sound sample
+
+SYNOPSIS
+    PT_StopSFX(channel)
+
+    VOID PT_StopSFX(UBYTE channel);
+
+FUNCTION
+    Immediately stops a currently playing sound effect on an audio channel
+    and makes it available for music module playback, or other effects.
+    This is the only way to stop a looped sound effect played by PT_LoopSFX(),
+    besides stopping audio playback completely with PT_StopAudio().
+
+INPUTS
+    channel - audio channel number (0..3)
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_PlaySFX()" link "55-PT_PlaySFX"}, @{"PT_LoopSFX()" link "52-PT_LoopSFX"}
+
+@endnode
+
+@node "62-PT_TerminatePTPlayer" "Sevgi_Engine.guide/Function Reference/PT_TerminatePTPlayer"
+NAME
+    PT_TerminatePTPlayer - Uninstalls ptplayer from system
+
+SYNOPSIS
+    PT_TerminatePTPlayer()
+
+    VOID PT_TerminatePTPlayer(VOID);
+
+FUNCTION
+    Unintalls ptplayer's vertical blanking interrupt installed by
+    PT_InitPTPlayer().
+
+NOTES
+    This functions is to be called by giveBackSystem()
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"PT_InitPTPlayer()" link "51-PT_InitPTPlayer"}
+
+@endnode
+
+@node "63-readMouse" "Sevgi_Engine.guide/Function Reference/readMouse"
+NAME
+    readMouse - Read current mouse state
+
+SYNOPSIS
+    readMouse(port)
+
+    ULONG readMouse(ULONG port);
+
+FUNCTION
+    This function will return the current state of the mouse plugged in the port
+    given. Possible values for port is 0 (the mouse port) or 1 (the joystick
+    port).
+
+INPUTS
+    port - port number to read (0..1)
+
+RESULTS
+    The value returned should be casted into struct MouseState which is defined
+    as:
+
+    struct MouseState {
+        UBYTE buttons;
+        UBYTE pad;
+        BYTE deltaX;
+        BYTE deltaY;
+    };
+
+    buttons - holds the state of the mouse buttons which can be:
+              LEFT_MOUSE_BUTTON
+              MIDDLE_MOUSE_BUTTON
+              RIGHT_MOUSE_BUTTON
+
+              these values can be bitwise or'ed to check for two buttons being
+              pressed at the same time.
+    deltaX  - how much the mouse has been moved horizontally since the last call
+    deltaY  - how much the mouse has been moved vertically since the last call
+
+SEE ALSO
+    @{"Input" link "Concepts_02Input"}
+
+@endnode
+
+@node "64-removeVBlankEvents" "Sevgi_Engine.guide/Function Reference/removeVBlankEvents"
+NAME
+    removeVBlankEvents - Installs a null function into the vblank handler
+
+SYNOPSIS
+    removeVBlankEvents()
+
+    VOID removeVBlankEvents(VOID);
+
+FUNCTION
+    Installs a null function (which does nothing) into the vblank handler.
+
+NOTES
+    Has to be called before closing a display which has installed it's vblank
+    events function.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"setVBlankEvents()" link "74-setVBlankEvents"}
+
+@endnode
+
+@node "64-scrollGradientDown" "Sevgi_Engine.guide/Function Reference/scrollGradientDown"
+NAME
+    scrollGradientDown - Scrolls a gradient down
+
+SYNOPSIS
+    scrollGradientDown(grd, pixels)
+
+    VOID scrollGradientDown(struct Gradient* grd, UWORD pixels);
+
+FUNCTION
+    Scrolls a scrollable gradient down the given pixels clamping to the valid
+    boundaries.
+
+INPUTS
+    grd    - a struct Gradient pointer created by createGradient() to scroll
+    pixels - number of pixels to scroll down
+
+NOTES
+    Use this only on scrollable gradients.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"createGradient()" link "11-createGradient"}, @{"scrollGradientUp()" link "64-scrollGradientDown"}, @{"setGradientScrollPos()" link "72-setGradientScrollPos"},
+
+@endnode
+
+@node "64-scrollGradientUp" "Sevgi_Engine.guide/Function Reference/scrollGradientUp"
+NAME
+    scrollGradientUp - Scrolls a gradient up
+
+SYNOPSIS
+    scrollGradientUp(grd, pixels)
+
+    VOID scrollGradientUp(struct Gradient* grd, UWORD pixels);
+
+FUNCTION
+    Scrolls a scrollable gradient up the given pixels clamping to the valid
+    boundaries.
+
+INPUTS
+    grd    - a struct Gradient pointer created by createGradient() to scroll
+    pixels - number of pixels to scroll up
+
+NOTES
+    Use this only on scrollable gradients.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"createGradient()" link "11-createGradient"}, @{"scrollGradientDown()" link "64-scrollGradientDown"}, @{"setGradientScrollPos()" link "72-setGradientScrollPos"},
+
+@endnode
+
+@node "65-setColor" "Sevgi_Engine.guide/Function Reference/setColor"
+NAME
+    setColor - Sets a color register to an RGB value
+
+SYNOPSIS
+    setColor(index, R, G, B)
+
+    VOID setColor(ULONG index, UBYTE R, UBYTE G, UBYTE B);
+
+FUNCTION
+    Directly sets the given color register to the given RGB value. Can set 24
+    bit AGA colors when CT_AGA is defined.
+
+INPUTS
+    index - color register number (0..31 on OCS/ECS) (0..255 on AGA)
+
+NOTES
+    Does not update a ColorTable and is not optimized to be called from a loop.
+    This function isn't a part of the fade routine. It is just an utility
+    function. See updateColor().
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"updateColor()" link "81-updateColor"}
+
+@endnode
+
+@node "66-setColors" "Sevgi_Engine.guide/Function Reference/setColors"
+NAME
+    setColors - Sets the colors of a palette to the color registers
+
+SYNOPSIS
+    setColors(palette)
+
+    VOID setColors(UBYTE* palette);
+
+FUNCTION
+    Sets the colors in the given palette directly into the color registers.
+    Can set 24 bit AGA colors when CT_AGA is defined.
+
+INPUTS
+    palette - a pointer to an UBYTE palette array
+
+NOTES
+    Does not update a ColorTable and is not optimized to be called from a loop.
+    This function isn't a part of the fade routine. It is just an utility
+    function. See setColorTable().
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"setColorTable()" link "67-setColorTable"}
+
+@endnode
+
+@node "67-setColorTable" "Sevgi_Engine.guide/Function Reference/setColorTable"
+NAME
+    setColorTable - Sets the color state on a color table to color registers
+
+SYNOPSIS
+    setColorTable(color_table)
+
+    VOID setColorTable(struct ColorTable* color_table);
+
+FUNCTION
+    Updates the color registers with the current state of the given color_table.
+    For the colors not to change mid screen this function should be called
+    during the VBL. It is comptatible to be called from a VBL interrupt. Can
+    handle AGA colors when CT_AGA is defined.
+
+INPUTS
+    color_table - the color table to set the color registers to
+
+NOTES
+    If you want to set not all colors but some part of the color table to the
+    color registers, you can call the setColorTable_Partial() variant.
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable_Partial()" link "70-setColorTable_Partial"}
+
+@endnode
+
+@node "68-setColorTable_CL" "Sevgi_Engine.guide/Function Reference/setColorTable_CL"
+NAME
+    setColorTable_CL - Fades the color instructions on a copperlist
+
+SYNOPSIS
+    setColorTable_CL(color_table)
+
+    VOID setColorTable_CL(struct ColorTable* color_table);
+
+FUNCTION
+    Updates the CopperList with the current state of the color_table. The
+    color_table should be a table created with newColorTable_CL().
+    Should be called during the VBL for proper effect.
+
+INPUTS
+    color_table - the color table of the copperlist to fade
+
+NOTES
+    Is not designed to fade as smooth as AGA is capable (24 bits). Fades will be
+    as smooth as OCS fades (12 bits). So better have a quick fade in/out for a
+    nice effect (use a lower value for steps).
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable_CL()" link "41-newColorTable_CL"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable_CL()" link "68-setColorTable_CL"}
+
+@endnode
+
+@node "69-setColorTable_GRD" "Sevgi_Engine.guide/Function Reference/setColorTable_GRD"
+NAME
+    setColorTable_GRD - Fades the color instructions on a gradient
+
+SYNOPSIS
+    setColorTable_GRD(color_table)
+
+    VOID setColorTable_GRD(struct ColorTable* color_table);
+
+FUNCTION
+    Updates the gradient with the current state of the ColorTable. The
+    color_table should be a table created with newColorTable_GRD(). It is
+    designed to do the smooth AGA (24 bits) fades. Since this function has no
+    immediate effect on the copper list, it does not have to be called during
+    the VBL.
+
+INPUTS
+    color_table - the color table of the gradient to fade
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable_GRD()" link "42-newColorTable_GRD"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable_GRD()" link "69-setColorTable_GRD"}
+
+@endnode
+
+@node "70-setColorTable_Partial" "Sevgi_Engine.guide/Function Reference/setColorTable_Partial"
+NAME
+    setColorTable_Partial - Sets a color table to color registers partially
+
+SYNOPSIS
+    setColorTable_Partial(color_table, start, end)
+
+    VOID setColorTable_Partial(struct ColorTable* color_table, ULONG start,
+        ULONG end);
+
+FUNCTION
+    Same as setColorTable() but sets the colors on the table to color registers
+    between some index to another.
+
+INPUTS
+    start - the first color to be set in the table (zero indexed).
+    end   - the last color to be set PLUS ONE!!!
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"setColorTable()" link "67-setColorTable"}
+
+@endnode
+
+@node "71-setGameObjectImage" "Sevgi_Engine.guide/Function Reference/setGameObjectImage"
+NAME
+    setGameObjectImage - Replaces a gameobjects image with another
+
+SYNOPSIS
+    setGameObjectImage(go, img)
+
+    VOID setGameObjectImage(struct GameObject* go, struct ImageCommon* img);
+
+FUNCTION
+    The proper way to set the image a gameobject uses. It updates the image
+    rectangle on the gameobject struct so collisions work as expected.
+
+INPUTS
+    go  - gameobject to change the image of
+    img - image pointer to set
+
+NOTES
+    This function is to be called from an animation function to animate the
+    image of a gameobject.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"setGameObjectPos()" link "72-setGameObjectPos"}
+
+@endnode
+
+@node "72-setGameObjectPos" "Sevgi_Engine.guide/Function Reference/setGameObjectPos"
+NAME
+    setGameObjectPos - Move a gameobject to a new coordinate
+
+SYNOPSIS
+    setGameObjectPos(go, x, y)
+
+    VOID setGameObjectPos(struct GameObject* go, LONG x, LONG y);
+
+FUNCTION
+    The proper way to set a gameobjects position on the map. x and y are the map
+    coordinates of the gameobject hotspot. It updates the image rectangle on the
+    gameobject struct so collisions work as expected.
+
+INPUTS
+    go - gameobject to move
+    x  - new x coordinate of the gameobject's hotspot
+    y  - new y coordinate of the gameobject's hotspot
+
+NOTES
+    This function is to be called from an animation function to animate the
+    movement of a gameobject.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"setGameObjectImage()" link "71-setGameObjectImage"}
+
+@endnode
+
+@node "72-setGradientScrollPos" "Sevgi_Engine.guide/Function Reference/setGradientScrollPos"
+NAME
+    setGradientScrollPos - Sets the scroll position of a gradient
+
+SYNOPSIS
+    setGradientScrollPos(grd, pos)
+
+    VOID setGradientScrollPos(struct Gradient* grd, UWORD pos);
+
+FUNCTION
+    Sets the scroll value of of a gradient (pos) to the given position clamping
+    to its boundaries.
+
+INPUTS
+    grd - a struct Gradient pointer created by createGradient() to scroll
+    pos - the new scroll pos to set
+
+NOTES
+    Use only on scrollable gradients.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"createGradient()" link "11-createGradient"}, @{"scrollGradientUp()" link "64-scrollGradientUp"}, @{"scrollGradientDown()" link "64-scrollGradientDown"}
+
+@endnode
+
+@node "73-setKeyboardAccess" "Sevgi_Engine.guide/Function Reference/setKeyboardAccess"
+NAME
+    setKeyboardAccess - Creates an IORequest to query the keyboard state
+
+SYNOPSIS
+    setKeyboardAccess()
+
+    BOOL setKeyboardAccess(VOID);
+
+FUNCTION
+    Does all the allocations necessary to access the keyboard matrix.
+
+RESULTS
+    Returns TRUE if the allocations are successful. Returns FALSE otherwise.
+
+NOTES
+    This function is to be called by takeOverSystem().
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"endKeyboardAccess()" link "19-endKeyboardAccess"}, @{"keyState()" link "32-keyState"}, @{"takeOverSystem()" link "78-takeOverSystem"}
+
+@endnode
+
+@node "74-setVBlankEvents" "Sevgi_Engine.guide/Function Reference/setVBlankEvents"
+NAME
+    setVBlankEvents - Sets the function to be called at every VBlank
+
+SYNOPSIS
+    setVBlankEvents(function)
+
+    VOID setVBlankEvents(VOID (*function)(VOID));
+
+FUNCTION
+    Every display shall define a function that takes care of the events that
+    will be carried out during every vblank. This function sets that function to
+    be called at every vblank interrupt in our customVBlankHandler().
+    The function pointer to be set has to be of VOID (*function)(VOID) type.
+
+INPUTS
+    function - A function pointer of type: VOID function(VOID).
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"removeVBlankEvents()" link "64-removeVBlankEvents"}
+
+@endnode
+
+@node "75-setVolume" "Sevgi_Engine.guide/Function Reference/setVolume"
+NAME
+    setVolume - Sets music playback volume
+
+SYNOPSIS
+    setVolume(vol)
+
+    VOID setVolume(UBYTE vol);
+
+FUNCTION
+    Recalculates the volume_table's increment values according to a new
+    (maximum) volume. Playback volume will also be immediately set to this new
+    value.
+
+INPUTS
+    vol - new volume (0..64)
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"updateVolume()" link "85-updateVolume"}, @{"changeVolumeSteps()" link "05-changeVolumeSteps"}
+
+@endnode
+
+@node "76-spawnGameObject" "Sevgi_Engine.guide/Function Reference/spawnGameObject"
+NAME
+    spawnGameObject - Adds a new spawnable gameobject into gameObjectList
+
+SYNOPSIS
+    spawnGameObject(go)
+
+    struct GameObject* spawnGameObject(struct GameObject* go);
+
+FUNCTION
+    Every gameobject bank has a sortable list of gameobject pointers. When
+    initialized with initGameObjects() the global gameObjectList points to such
+    a list on current_level's current gameobject bank. This list holds all the
+    gameobjects on a level map which will be updated every frame by the call to
+    updateGameObjects(). When the define NUM_GAMEOBJECTS is set to a value more
+    than 0, an extra memory will be allocated to store that much gameobjects.
+    And also, every GameObjectList on every loaded gameobject bank will have
+    that much additional pointers on their gameObjectLists to be able store new
+    gameobjects spawned during game play. This function allocates an available
+    gameobject storage for the spawned gameobject and puts its pointer into the
+    gameObjectList of the current_level's current gameobject bank in a very
+    optimized fashion.
+    This function is not to be used for gameobject that are to be always present
+    throughout the level. This should be used for objects like bullets,
+    enemies, collectibles, transient effects etc. which spawn and later
+    dissapear (despawn).
+
+INPUTS
+    go - the spawned gameobject will have the exact properties with the
+         gameobject pointed by this
+
+RESULTS
+    It will return the pointer to the spawned gameobject which is also inserted
+    into the gameObjectList of the current_level's current gameobject bank.
+    Will return NULL if there is no available storage left. There are maximum
+    NUM_GAMEOBJECTS gameobjects available for spawning.
+
+NOTES
+    This function will cause a big re-sort on the gameObjectList. This may cause
+    a performance hit if too many gameobjects gets spawned on the same frame.
+    You can make calls to this function from animation or collision functions of
+    other gameobjects.
+    A spawned gameobject can only be despawned using despawnGameObject().
+    DO NOT MISTAKE IT WITH destroyGameObject().
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"despawnGameObject()" link "14-despawnGameObject"}, @{"destroyGameObject()" link "15-destroyGameObject"}, @{"initGameObjects()" link "31-initGameObjects"}, @{"updateGameObjects()" link "84-updateGameObjects"}
+
+@endnode
+
+@node "77-switchToNullCopperList" "Sevgi_Engine.guide/Function Reference/switchToNullCopperList"
+NAME
+    switchToNullCopperList - Display a blank black screen
+
+SYNOPSIS
+    switchToNullCopperList()
+
+    VOID switchToNullCopperList(VOID);
+
+FUNCTION
+    Whenever you want to display a black empty screen, immediately and without
+    any glitches, calling this will handle it for you.
+
+NOTES
+    Calls removeVBlankEvents().
+
+SEE ALSO
+    @{"Displays" link "Concepts_07Displays"}, @{"removeVBlankEvents()" link "64-removeVBlankEvents"}
+
+@endnode
+
+@node "78-takeOverSystem" "Sevgi_Engine.guide/Function Reference/takeOverSystem"
+NAME
+    takeOverSystem - Takes over the system from AmigaOS
+
+SYNOPSIS
+    takeOverSystem()
+
+    BOOL takeOverSystem(VOID);
+
+FUNCTION
+    This is the first function to be called by every Sevgi_Engine game project
+    in your main function. It stores the critical values for the current state
+    of the system for a safe clean up. It basically takes the following actions:
+
+    - Locks and assign ADDs the fonts directory inside the game directory as
+      FONTS: if it exists. This will come very handy if you plan to use some
+      Amiga fonts in your game. You can easily publish your game with the Amiga
+      fonts you like in this fonts directory and the user will not have to
+      install them to play your game.
+    - Change directory into the 'data' directory inside your game directory
+      where all the game assets will be loaded from.
+    - Open the keyboard.device
+    - Creates the NULL Display (which is the black welcome screen with minimal
+      memory use)
+    - Stores the current view and its current state of the system for safe exit
+    - Installs the custom vblank handler
+    - Installs a null input handler
+    - Installs the ptplayer's vblank handler
+    - And activates the NULL Display
+
+RESULTS
+    Returns TRUE if all actions are successful.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"giveBackSystem()" link "30-giveBackSystem"}
+
+@endnode
+
+@node "79-unloadLevel" "Sevgi_Engine.guide/Function Reference/unloadLevel"
+NAME
+    unloadLevel - Deallocates all allocations made by loadLevel()
+
+SYNOPSIS
+    unloadLevel()
+
+    VOID unloadLevel(VOID);
+
+FUNCTION
+    Frees all the assets on the current_level loaded by loadLevel().
+
+SEE ALSO
+    @{"Levels" link "Concepts_17Levels"}, @{"loadLevel()" link "35-loadLevel"}
+
+@endnode
+
+@node "80-updateBOBs" "Sevgi_Engine.guide/Function Reference/updateBOBs"
+NAME
+    updateBOBs - Updates the currenty visible BOBs on display
+
+SYNOPSIS
+    updateBOBs()
+
+    VOID updateBOBs(VOID);
+
+FUNCTION
+    Updates all the BOBs currenty visible which are filled into bobList[] by
+    updateGameObjects(). All BOBs will be removed from the display's bitmap
+    and re-drawn if needed. A complex algorithm will respect the display
+    priority member on the gameobject struct while removing and re-drawing.
+
+NOTES
+    This function is to be called every frame on your display's display loop.
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"updateGameObjects()" link "84-updateGameObjects"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"updateVolume()" link "85-updateVolume"}
+
+@endnode
+
+@node "81-updateColor" "Sevgi_Engine.guide/Function Reference/updateColor"
+NAME
+    updateColor - Updates the currenty visible BOBs on display
+
+SYNOPSIS
+    updateColor(ct, R, G, B)
+
+    VOID updateColor(struct ColorTable* ct, ULONG index,
+        UBYTE R, UBYTE G, UBYTE B);
+
+FUNCTION
+    Sets the color at the given index on the given ColorTable to the given RGB
+    value. This includes recalculating the increment and state values for the
+    color.
+    It also updates the color value on the linked palette and directly sets
+    the color on the corresponding color register as well.
+
+NOTES
+    This function isn't optimized to be called from a loop. It is designed to
+    set just a single color index to a different color.
+    Fade engine uses updateColorTable() and setColorTable() functions instead.
+    WARNING: Do NOT use this function on ColorTables that are specific to
+    other structures like Gradients or CopperLists.
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable()" link "67-setColorTable"}
+
+@endnode
+
+@node "82-updateColorTable" "Sevgi_Engine.guide/Function Reference/updateColorTable"
+NAME
+    updateColorTable - Updates a color table
+
+SYNOPSIS
+    updateColorTable(ct)
+
+    VOID updateColorTable(struct ColorTable* ct);
+
+FUNCTION
+    Updates the color states on the given ColorTable according to the state it
+    is in. It will return immediately if the state is CT_IDLE. It will get all
+    the colors on the table to their next step if the state is CT_FADE_IN. And
+    vice versa if it is CT_FADE_OUT. Since this does not alter color registers
+    it does not have to be called during the VBL.
+
+INPUTS
+    ct - the color table to update
+
+NOTES
+    The color table's state (ct->state) can be in one of the values below:
+    - CT_IDLE
+    - CT_FADE_IN
+    - CT_FADE_OUT
+
+    As long as setColorTable() is being called every display frame, setting the
+    state to one of these states will start the fade animation immediately.
+    It will automatically reset to CT_IDLE when the fade completes.
+
+    If you want to fade not all colors but some part of the color table you can
+    call the updateColorTable_Partial() variant.
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"updateColorTable_Partial()" link "83-updateColorTable_Partial"}, @{"newColorTable()" link "40-newColorTable"}, @{"setColorTable()" link "67-setColorTable"}, @{"updateColor()" link "81-updateColor"}
+
+@endnode
+
+@node "83-updateColorTable_Partial" "Sevgi_Engine.guide/Function Reference/updateColorTable_Partial"
+NAME
+    updateColorTable_Partial - Update a color table partially
+
+SYNOPSIS
+    updateColorTable_Partial(ct, start, end)
+
+    VOID updateColorTable_Partial(struct ColorTable* ct, ULONG start,
+        ULONG end);
+
+FUNCTION
+    Same as updateColorTable() but updates the colors on the table between some
+    index to another.
+
+INPUTS
+    ct    - the color table to update
+    start - the first color to start from updating in the table (zero indexed)
+    end   - the last color to be updated PLUS ONE!!!
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable()" link "67-setColorTable"}
+
+@endnode
+
+@node "84-updateGameObjects" "Sevgi_Engine.guide/Function Reference/updateGameObjects"
+NAME
+    updateGameObjects - Updates gameobjects
+
+SYNOPSIS
+    updateGameObjects()
+
+    VOID updateGameObjects(VOID);
+
+FUNCTION
+    Not only calls updateGameObject() (which will apply the animation functions
+    they have on themselves and assign image mediums for gameobjects that went
+    into the visible display area of the map) on each gameobject on the
+    gameobjectList but also does an insertion sort on them (against their y2)
+    in the same traversion and calls checkGameObjectCollisions() (which will get
+    a sorted list of gameobjects quickly test collisions for all gameobjects on
+    the level map).
+
+SEE ALSO
+    @{"Gradients" link "Concepts_11Gradients"}, @{"initGameObjects()" link "31-initGameObjects"}
+
+@endnode
+
+@node "85-updateRainbow" "Sevgi_Engine.guide/Function Reference/updateRainbow"
+NAME
+    updateRainbow - Updates a rainbow
+
+SYNOPSIS
+    updateRainbow(rb)
+
+    VOID updateRainbow(struct Rainbow* rb);
+
+FUNCTION
+    Updates the latests states of the gradients on a rainbow to itself by
+    blitting the new instruction values in case of a move or scroll of the
+    gradients.
+
+INPUTS
+    rb - the rainbow to update
+
+SEE ALSO
+    @{"Rainbows" link "Concepts_12Rainbows"}, @{"createRainbow()" link "12-createRainbow"}, @{"freeRainbow()" link "29-freeRainbow"}
+
+@endnode
+
+@node "85-updateVolume" "Sevgi_Engine.guide/Function Reference/updateVolume"
+NAME
+    updateVolume - Updates music volume
+
+SYNOPSIS
+    updateVolume()
+
+    VOID updateVolume(VOID);
+
+FUNCTION
+    This function is to be called every frame on your display loop to be able to
+    do fade in/out on the playing Protracker module. Setting the member state on
+    the global volume_table will determine the direction of the fade and start
+    it.
+
+NOTES
+    The volume_table's state (volume_table.state) can be in one of the values
+    below:
+    - PTVT_IDLE
+    - PTVT_FADE_IN
+    - PTVT_FADE_OUT
+
+    As long as updateVolume() is being called every display frame, setting the
+    state to one of these states will start the fade immediately.
+    It will automatically reset to PTVT_IDLE when the fade completes.
+
+SEE ALSO
+    @{"Audio" link "Concepts_03Audio"}, @{"setVolume()" link "75-setVolume"}, @{"changeVolumeSteps()" link "05-changeVolumeSteps"}, @{"updateVolume()" link "85-updateVolume"}
+
+@endnode
+
+@node "86-waitTOF" "Sevgi_Engine.guide/Function Reference/waitTOF"
+NAME
+    waitTOF - Wait for the top of the next video frame
+
+SYNOPSIS
+    waitTOF()
+
+    VOID waitTOF(VOID);
+
+FUNCTION
+    Analogous to what API function WaitTOF() does, but this version will use the
+    global new_frame_flag's value to determine if the current video frame has
+    ended and a new one has started.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"new_frame_flag" link "Concepts_01System" 9}, WaitTOF(), @{"waitVBeam()" link "88-waitVBeam"}
+
+@endnode
+
+@node "88-waitVBeam" "Sevgi_Engine.guide/Function Reference/waitVBeam"
+NAME
+    waitVBeam - Wait for the beam to reach a specific hardware coordinate
+
+SYNOPSIS
+    waitVBeam(line)
+
+    VOID waitVBeam(ULONG line);
+
+FUNCTION
+    Busy waits until the video beam reaches the given raster line on the current
+    frame. Returns immediatelly if it has already passed that line (being aware
+    that the beam could have flewback to start a new frame).
+
+INPUTS
+    line - raster line to wait (0..2047)
+           The range above is the valid range. But on a LowRes Amiga game
+           display on a PAL Amiga the beam counter will be between (0..297)
+
+NOTES
+    Do not mistake with WaitVBeam(). This implementation utilizes the global
+    new_frame_flag.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"new_frame_flag" link "Concepts_01System" 9}, WaitTOF(), @{"WaitVBeam()" link "89-WaitVBeam"}
+
+@endnode
+
+@node "89-WaitVBeam" "Sevgi_Engine.guide/Function Reference/WaitVBeam"
+NAME
+    WaitVBeam - Wait for the beam to reach to an exact vertical coordinate
+
+SYNOPSIS
+    WaitVBeam(line)
+
+    VOID WaitVBeam(ULONG line);
+
+FUNCTION
+    This version of the function returns control exactly at the vertical beam
+    passed. This wait may pass over a vblank so it resets new_frame_flag as
+    well. This version of the function is to be used for timing
+    switchToCopperList() functions.
+
+INPUTS
+    line - raster line to wait (0..2047)
+           The range above is the valid range. But on a LowRes Amiga game
+           display on a PAL Amiga the beam counter will be between (0..297)
+
+NOTES
+    Do not mistake with waitVBeam(). This implementation queries the hardware
+    registers for the beam counters.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, WaitTOF(), @{"waitVBeam()" link "88-waitVBeam"}
+
+@endnode
+
+@node "90-WaitVBL" "Sevgi_Engine.guide/Function Reference/WaitVBL"
+NAME
+    WaitVBL - Wait for the vertical blank
+
+SYNOPSIS
+    WaitVBL()
+
+    VOID WaitVBL(VOID);
+
+FUNCTION
+    The standard implementation to busy wait until the video beam reaches the
+    bottom of the display.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, WaitTOF(), @{"WaitVBeam()" link "89-WaitVBeam"}
+
+@endnode
+
+@node "Engine_10Licence" "Sevgi_Engine.guide/Licence"
+@{b}Licence@{ub}
+=======
+
+Copyright (c) 2025 Ibrahim Alper Sonmez
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+@endnode

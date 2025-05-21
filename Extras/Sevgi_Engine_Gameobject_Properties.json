@@ -1,0 +1,106 @@
+[
+    {
+        "color": "#ffa0a0a4",
+        "drawFill": true,
+        "id": 4,
+        "members": [
+            {
+                "name": "anim_frame",
+                "type": "int",
+                "value": 0
+            },
+            {
+                "name": "anim_func",
+                "type": "int",
+                "value": 0
+            },
+            {
+                "name": "anim_state",
+                "type": "int",
+                "value": 0
+            },
+            {
+                "name": "anim_type",
+                "type": "int",
+                "value": 0
+            },
+            {
+                "name": "bank",
+                "type": "int",
+                "value": 0
+            },
+            {
+                "name": "collide_func",
+                "type": "int",
+                "value": 0
+            },
+            {
+                "name": "collide_tile_func",
+                "type": "int",
+                "value": 0
+            },
+            {
+                "name": "hit_mask",
+                "type": "int",
+                "value": 0
+            },
+            {
+                "name": "image",
+                "type": "int",
+                "value": 0
+            },
+            {
+                "name": "me_mask",
+                "type": "int",
+                "value": 0
+            },
+            {
+                "name": "priority",
+                "type": "int",
+                "value": 0
+            },
+            {
+                "name": "state",
+                "propertyType": "state",
+                "type": "string",
+                "value": "GOB_ALIVE"
+            },
+            {
+                "name": "type",
+                "propertyType": "type",
+                "type": "int",
+                "value": 0
+            }
+        ],
+        "name": "Gameobject",
+        "type": "class",
+        "useAs": [
+            "property",
+            "object"
+        ]
+    },
+    {
+        "id": 5,
+        "name": "state",
+        "storageType": "string",
+        "type": "enum",
+        "values": [
+            "GOB_ALIVE",
+            "GOB_DEAD",
+            "GOB_INACTIVE"
+        ],
+        "valuesAsFlags": false
+    },
+    {
+        "id": 7,
+        "name": "type",
+        "storageType": "int",
+        "type": "enum",
+        "values": [
+            "INVISIBLE_OBJECT",
+            "SPRITE_OBJECT",
+            "BOB_OBJECT"
+        ],
+        "valuesAsFlags": false
+    }
+]

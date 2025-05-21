@@ -1,0 +1,636 @@
+@database Sevgi_Editor.guide
+@database Sevgi_Engine.guide
+
+@node main "Sevgi_Editor.guide"
+
+                             Sevgi_Editor
+
+                Asset creator and manager for Sevgi_Engine
+
+                             Version 0.137
+
+                          User Documentation
+
+                © Copyright 2025 by Ibrahim Alper Sönmez
+
+
+@{" What is...          " link "Editor_WhatIs"}        Sevgi_Editor?
+@{" System Requirements " link "Editor_SystemRequirements"}        Which hardware does it run on?
+@{" Features            " link "Editor_Features"}        What can it do?
+
+@{" Engine              " LINK Sevgi_Engine.guide/main}        Sevgi_Engine
+
+@{" Licence             " link "Editor_Licence"}        Terms of use and copyright.
+
+@endnode
+
+@node "Editor_WhatIs" "Sevgi_Editor.guide/What is..."
+@{b}What is Sevgi_Editor@{ub}
+====================
+
+Sevgi_Editor is a GUI interface to help create code and assets for @{"Sevgi_Engine" LINK Sevgi_Engine.guide/main}.
+
+@endnode
+
+@node "Editor_SystemRequirements" "Sevgi_Editor.guide/System Requirements"
+@{b}System Requirements@{ub}
+===================
+
+Sevgi_Editor requires MUI 3.8+. Fast Ram and an RTG screen is recommended.
+
+@endnode
+
+@node "Editor_Features" "Sevgi_Editor.guide/Features"
+@{b}Features@{ub}
+========
+
+@{" Templates           " link "01_Editor_Templates"}
+@{" Game Settings       " link "02_Editor_GameSettings"}
+@{" Assets Editor       " link "03_Editor_AssetsEditor"}
+@{" Palette Editor      " link "04_Editor_PaletteEditor"}
+@{" Display Creator     " link "05_Editor_DisplayCreator"}
+
+@{" Open in IDE         " link "06_Editor_IDE"}
+
+@{" Gamefont Creator    " link "07_Editor_GamefontCreator"}
+@{" Tileset Creator     " link "08_Editor_TilesetCreator"}
+@{" Tilemap Creator     " link "09_Editor_TilemapCreator"}
+@{" BOB Sheet Creator   " link "10_Editor_BOBSheetCreator"}
+@{" Sprite Bank Creator " link "11_Editor_SpriteBankCreator"}
+
+@{" Image Editor        " link "12_Editor_ImageEditor"}
+
+@endnode
+
+@node "01_Editor_Templates" "Sevgi_Editor.guide/Features/Templates"
+@{b}Templates@{ub}
+=========
+
+Sevgi_Editor comes with ready to compile game templates in different genres.
+
+Click the "New Game" button, give a name to your game project and select one of
+the templates that most closely matches the genre of the game you intend to
+create. This will create the source code with specific features implemented for
+the genre and this cannot be changed later.
+
+If this is the first time running Sevgi_Editor please first choose your prefered
+compiler and IDE from the Settings -> Editor Settings menu.
+
+@endnode
+
+@node "02_Editor_GameSettings" "Sevgi_Editor.guide/Features/GameSettings"
+@{b}Game Settings@{ub}
+=============
+
+Once you create a new project (or open a previously created project) you can set
+the main features of the game clicking the "Game Settings" button.
+
+The settings in the "Video" group mostly define the properties of the game level
+screen (implemented in display_level.c).
+
+@{b}AGA:@{ub}
+    Makes the color tables and the functions which apply them to the hardware
+    compatible with 24 bit AGA colors.
+
+@{b}Dynamic Copperlist:@{ub}
+    Select this if you plan to have a copper gradient sky to the level
+    background.
+
+@{b}Smart Sprites:@{ub}
+    Select this if you want to enable hardware sprites to be used multiple times
+    on the level display. This option also provides proper cropping for tall
+    sprites from the top and bottom of the display.
+
+@{b}Dualplayfield:@{ub}
+    Will set up a dualplayfield level display. When activated Screen Depth will
+    define the color depth of the foreground playfield (the one with the
+    tilemap). Will activate the disabled gadgets so you can set the depth to be
+    used for the background playfield.
+
+@{b}Video System:@{ub}
+    - NOT IMPLEMENTED -
+
+@{b}Screen Width:@{ub}
+@{b}Screen Height:@{ub}
+@{b}Screen Depth:@{ub}
+    These three define the level displays properties.
+    @{b}Playfield 2 Depth:@{ub}
+        Defines the depth of the background playfield in dualplayfield mode.
+    @{b}Playfield 2 Height:@{ub}
+        Height of the parallaxing background bitmap in dualplayfield mode. The
+        value here must be compatible with the ILBM image to be loaded for the
+        background.
+
+@{b}Top Panel Height:@{ub}
+    Most Amiga games have a stationary bitmap on top of the game screen which is
+    used to display lives, score, items etc. Setting this to will create such a
+    panel for your level display. This changes the CopperList display_level.c
+    uses drastically. You should later look for the global "top_panel_rastport"
+    in the code to make your changes for its allocation and drawing.
+
+@{b}Bottom Panel Height:@{ub}
+    Some game designers prefer the panel below the game map. Setting this to a
+    reasonable value will create such a panel for you. This again changes the
+    CopperList in display_level.c drastically. You can set both a top and a
+    bottom panel together. Setting a top panel higher than 40 pixels is not
+    possible! Look for the global "bottom_panel_rastport" in the code to make
+    your changes to the way it is allocated and drawn.
+
+@{b}Bitplane Fetch Mode:@{ub}
+    You can select the bitplane fetch modes available in AGA chipsets for the
+    level display. Higher fetch modes disable some of the sprites!
+    Fetch Mode 1 is recommended
+
+@{b}Sprite Fetch Mode:@{ub}
+    Select the sprite fetch modes which makes wider sprites possible on AGA
+    chipsets. Select wisely:
+        @{i}Fetch Mode 1@{ui} is the default OCS/ECS compatible mode where hardware
+        sprites can be maximum 16 pixels wide. Sevgi_Engine will glue multiple
+        hardware sprites to display wider sprite images.
+
+        @{i}Fetch Mode 2@{ui} (AGA) enables a hardware sprite to be maximum 32 pixels
+        wide. Sevgi_Engine will again glue multiple hardware sprites to display
+        wider sprite images.
+
+        @{i}Fetch Mode 4@{ui} (AGA) enables a hardware sprite to be maximum 64 pixels
+        wide. Sevgi_Engine can still glue multiple hardware sprites to display
+        even wider sprite images.
+
+@{b}Fade In/Out Speed:@{ub}
+    The default fade in/out speed for color tables. The value is the number of
+    video frames a complete fade in/out would take. Which means lower values
+    faster and higher values slower.
+
+
+The settings in the "Audio" group define the default values for audio playback
+by ptplayer.
+
+@{b}Paula Cycles:@{ub}
+    Fixes the music module playback settings for different video systems. NTSC
+    is not tested.
+
+@{b}Default Music Volume:@{ub}
+    Default music module playback volume for all loaded modules.
+
+@{b}Default Fade Speed:@{ub}
+    The number of video frames a fade/in out for the music to complete. Which
+    means lower values faster and higher values slower.
+
+@{b}Default SFX Channel:@{ub}
+    The default audio channel to play all loaded sound samples. You can later
+    change this channel for specific samples programmatically. A value of -1
+    will let ptplayer choose the best available sound channel.
+
+@{b}Default SFX Priority:@{ub}
+    The default priority to play all loaded sound samples. ptplayer prioritizes
+    playing samples with higher priority values.
+
+
+The settings in the "Gameobjects" group let's you select some very important
+values for gameobject.c module.
+
+@{b}Small sizes:@{ub} defines SMALL_IMAGE_SIZES
+@{b}Big sizes:@{ub} defines BIG_IMAGE_SIZES
+@{b}Small hitbox sizes:@{ub} defines SMALL_HITBOX_SIZES
+
+@{b}Max. BOBs:@{ub}
+    Sets the number of BOB Mediums on level display. Which means the maximum
+    number of BOB images displayable on screen at the same time. You can
+    optimize the value testing your game's performance without glitching.
+    This is actually the value of the define NUM_BOBS.
+
+@{b}Max. Sprites:@{ub}
+    Sets the number of Sprite Mediums on level display. Which means the maximum
+    number of sprite images displayable on screen at the same time. When
+    "Smart Sprites" is not set Amiga hardware can display maximum 8 single
+    sprites and maximum 4 attached (16 color) sprites. When sprites need to be
+    glued horizontally to be able to display wider sprite images this numbers
+    cut in half. With "Smart Sprites" set more can be displayed. So set this
+    value accordingly. A value of 8 is an optimal value.
+    This is actually the value of the define NUM_SPRITES.
+
+@{b}Num. Gameobjects:@{ub}
+    The number of spawnable gameobjects on level display. This value is
+    independent from number of gameobjects loaded from gameobject banks.
+    This is actually the value of the define NUM_GAMEOBJECTS.
+
+@endnode
+
+@node "03_Editor_AssetsEditor" "Sevgi_Editor.guide/Features/AssetsEditor"
+@{b}Assets Editor@{ub}
+=============
+
+In this window you can set the Amiga Fonts and Gamefonts to be loaded for the
+game globally.
+
+The "Level Data" group let's you manage the initial map position, assets and
+color palette for each game level you designed.
+
+You can also put names to your levels here.
+
+@endnode
+
+@node "04_Editor_PaletteEditor" "Sevgi_Editor.guide/Features/PaletteEditor"
+@{b}Palette Editor@{ub}
+==============
+
+This tool will help you create the color palettes of your game defined in
+palettes.h.
+
+You can set the names for the arrays that defines each palette here. The
+palletes defined here will be available in asset editor.
+
+Using the "Import" button you can quickly import color palettes from the ILBM
+sheets you will probably be using for your tilesets.
+
+@endnode
+
+@node "05_Editor_DisplayCreator" "Sevgi_Editor.guide/Features/DisplayCreator"
+@{b}Display Creator@{ub}
+===============
+
+In this window you can create a new Sevgi_Engine display with the specifications
+you want.
+
+The name you enter in the Name gadget will be used in filenames, defines and
+function names in different letter casings. You can use either snake or camel
+case if your display name consists of more than one word.
+
+All the options you make here will define the copperlist and the way the bitmap
+allocations will be done.
+
+To define the color palette this display will use you must select a pallete from
+palettes.h which is compatible to the depth selected. You can create an edit
+this palette using the Palette Editor.
+
+Your new display will be created as a .c and a .h file ready to be included in
+your source and makefile. They will contain all the boilerplate code required
+for a Sevgi_Engine display where you can implement your art design and
+functionality.
+
+@endnode
+
+@node "06_Editor_IDE" "Sevgi_Editor.guide/Features/IDE"
+@{b}Open in IDE@{ub}
+===========
+
+Clicking this button opens the game code you saved in the IDE you prefered
+(in the Settings -> Editor Settings) so you can start implementing your own
+game features.
+
+For the changes you made in the "Game Settings", "Assets Editor" and "Palette
+Editor" to reflect into the code, you have to click the save button before
+opening in IDE.
+
+@endnode
+
+@node "07_Editor_GamefontCreator" "Sevgi_Editor.guide/Features/GamefontCreator"
+@{b}Gamefont Creator@{ub}
+================
+
+Sevgi_Engine provides a multi color bitmap gamefont engine to let you write
+fancy game texts in the menu and level screens. This tool will help you create
+the engine compatible gamefont files.
+
+Gamefonts are actually ILBM strips of letters in alphabetical order.
+
+@{b}Strip file:@{ub}
+    This is the ILBM strip file to create the gamefont from. Putting your sheets
+    into the assets drawer of your project directory can speed things up. Click
+    the popup button to open a file requester that lists all ILBM files in the
+    drawer. You can click the "Strip file:" label to view the strip file
+    selected.
+
+@{b}Width:@{ub}
+    Pixel width of each gamefont character including the space character.
+    If the this is a "proportional" width gamefont (where every character can be
+    in different widths) this will only define the width of the space character.
+
+@{b}Height:@{ub}
+    Height of the gamefont characters. Matches with the ILBM sheet's height.
+
+@{b}Spacing:@{ub}
+    Spacing between characters when writing text.
+
+@{b}Start:@{ub}
+@{b}End:@{ub}
+    Sevgi_Engine gamefonts do not have to cover all ASCII characters. Select the
+    first and last characters drawn on the ILBM sheet.
+
+@{b}Type:@{ub}
+    Fixed Width:  All characters on the sheet are the same width
+    Proportional: Each character has a different width
+                  You can set the widths for each character using the gadgets
+                  in the "Character Sizes and Offsets" group
+
+
+You can make your game load the gamefonts created here by listing them in the
+"Gamefonts" group in "Assets Editor".
+
+@endnode
+
+@node "08_Editor_TilesetCreator" "Sevgi_Editor.guide/Features/TilesetCreator"
+@{b}Tileset Creator@{ub}
+===============
+
+Converts tileset sheets in ILBM format into engine compatible tileset files.
+
+@{b}Source:@{ub}
+    This is the source ILBM sheet file to convert to a Sevgi_Engine tileset.
+    Source tile sheets must contain square tiles. Sevgi_Engine does not support
+    rectangular tiles. Putting your sheets into the assets drawer of your
+    project directory beforehand can speed things up. Click the popup button to
+    open a file requester that lists all ILBM files in the project's assets
+    drawer. Clicking the "Source:" label will view the sheet file selected.
+
+@{b}Depth:@{ub}
+    Shows the color depth of the ILBM sheet. This must match the color depth of
+    your level screen.
+
+@{b}Tilesize:@{ub}
+    Tileset Creator can create tilesizes bigger then 16x16. And the engine
+    supports them theoretically, yet these bigger sizes not been tested. 16x16
+    is most optimal tile size for the Amiga anyway.
+
+@{b}Margin:@{ub}
+    If your tile sheet has some empty space on the top and left side of it you
+    can set this value to skip those pixels. This of course assumes the top
+    space and left space are the same size. You can always click the "Source:"
+    label to check the layout of the tile sheet.
+
+@{b}Spacing:@{ub}
+    The number of pixels that separate the tiles on the tilesheet. If your tile
+    sheet does not separate the tiles leave this at 0. This assumes the
+    separation between tile rows and columns to be the same number of pixels.
+    You can always click the "Source:" label to check the layout of the tile
+    sheet.
+
+@{b}Add zero:@{ub}
+    Every tileset in Sevgi_Engine should have an empty tile at index 0. So the
+    screen can be cleared using the tileset. If your sheet file does not have
+    this empty tile at start, selecting this will create one in the tileset.
+
+@{b}Number of tiles:@{ub}
+    Number of tiles to get from this sheet. Tileset Creator will try to get all
+    the rows from the tile sheet. But in most cases the the tiles at the last
+    row will fill it entirely. For example imagine a tile sheet layed out as:
+    ----------
+    |********|  This sheet has 8 columns and 3 rows of tiles. But has only 19
+    |********|  tiles drawn. So setting "Number of tiles" to 19 will skip the
+    |***     |  last 5 empty tiles on the last row. If you're lazy like me to
+    ----------  count the tiles drawn, setting this value to -5 will have the
+    same effect.
+
+The "Create" button will not activate until the values entered match the actual
+layout on the tile sheet file. You can click the "Source:" label to see what's
+wrong with the tileset. You may need to edit the sheet in a paint program like
+Deluxe Paint or Personal Paint to fit the specifications described above.
+
+@endnode
+
+@node "09_Editor_TilemapCreator" "Sevgi_Editor.guide/Features/TilemapCreator"
+@{b}Tilemap Creator@{ub}
+===============
+
+Converts tilemaps created in Tiled (mapeditor.org) into Sevgi_Engine compatible
+tilemap files. The tilemap file from Tiled shoud be saved in JSON (.js) format.
+
+Each tilemap layer on the source (.js) file will be saved as a separate
+Sevgi_Engine tilemap file (.map).
+
+Each object layer on the source (.js) file will be saved as a separate
+Sevgi_Engine gameobject bank (.obj).
+
+@{b}NOTE:@{ub} You should avoid using non-ASCII and non-DOS characters while naming your
+      layers on Tiled.
+
+@endnode
+
+@node "10_Editor_BOBSheetCreator" "Sevgi_Editor.guide/Features/BOBSheetCreator"
+@{b}BOB Sheet Creator@{ub}
+=================
+
+Converts ILBM sprite sheets into Sevgi_Engine compatible BOB sheets. A BOB sheet
+is consist of two files. The first file is still an ILBM file but rearranged to
+a layout optimized for quick blitting. Second file (.sht) contains the data
+required to define each image as a Sevgi_Engine BOBImage. Namely the width and
+heights, offsets of the images on the sheet, the offets of their hot spots,
+offests and sizes of the hitboxes (if they have hitboxes) etc.
+
+The placement of the hot spot and hitboxes can be edited later using the
+"Image Editor" tool.
+
+@{b}Source:@{ub}
+    The ILBM sprite sheet to create the BOBSheet from. You can click the
+    "Source:" label to check the sheet layout.
+
+@{b}Columns:@{ub}
+    Number of separate images on each row on the sheet.
+
+@{b}Rows:@{ub}
+    Number of rows the images are layed out on the sheet.
+
+Images on the source sheet must be layed out in a way that they do not violate
+other columns and rows. For example:
+ Proper Layout         Improper Layout
+-----------------     -----------------
+| ***  *     *  |     | ***  **** *** |   **** <- This image overreachs the next
+| ***  ***  *** |     | ***  **** *** |   ****    row. Such big images need to
+| ***  ***  *** |     |      ***      |   ***     be in a separate source ILBM.
+|               |     | ***  **   *** |   **
+| ***  ***  *** |     | ***  ***  * * |   ***
+| ***  **   * * |     |           *** |
+|      ***  *** |     | **   **       |
+-----------------     -----------------
+
+All images to be grabbed from the sheet must be in equal sized hypothetical
+rectangles layed out as columns and rows.
+
+These sizes determine the size of these hypothetical rectangles.
+
+@{b}Width:@{ub}
+    Pixel width of image columns.
+@{b}Height:@{ub}
+    Pixel height of image rows.
+
+@{b}Margin X, Y:@{ub}
+    Pixel spacings at the top and left of the ILBM before image rows.
+
+@{b}Spacing X, Y:@{ub}
+    X is pixel spacing between columns
+    Y is pixel spacing between rows
+
+@{b}Hotspot:@{ub}
+    The offset of the hot spot for every image from the left corner of their
+    hypothetical image rectangles. If images have to have different hot spot
+    offsets, edit the BOBSheet in "Image Editor" after creation.
+
+@{b}Reverse X, Y:@{ub}
+    Grab images in reverse order.
+    X grabs images from left to right instead.
+    Y grabs images from bottom to top instead.
+
+@{b}Columns first:@{ub}
+    By default images are grabbed row by row. Selecting this grabs images
+    column by column.
+
+@{b}Compress:@{ub}
+    RLE compresses the resulting BOBSheet's ILBM file.
+
+@{b}Small Sizes:@{ub}
+    Uses BYTEs instead of WORDs to store image hot spot offset information.
+    This is the default setting. Turning this off will enable bigger hot spot
+    offset values. The engine has to be compiled with SMALL_IMAGE_SIZES which is
+    defined by default.
+
+@{b}Big sizes:@{ub}
+    Uses UWORDs instead of UBYTEs to store image width and height information.
+    A BOBSheet created with this requires the engine to be compiled with
+    BIG_IMAGE_SIZES.
+
+@endnode
+
+@node "11_Editor_SpriteBankCreator" "Sevgi_Editor.guide/Features/SpriteBankCreator"
+@{b}Sprite Bank Creator@{ub}
+===================
+
+Sevgi_Engine's sprite engine uses a file format called a Sprite Bank, which
+is a data structure in which images are organized into simple sprites that can
+be set directly into sprite registers. This tool converts images drawn in ILBM
+sprite sheets into Sprite Bank files.
+
+The file format also store required information like image width, height, hot
+spot, hitboxes ect. for every sprite image.
+
+The placement of the hot spot and hitboxes can be edited later using the
+"Image Editor" tool.
+
+@{b}Source:@{ub}
+    The ILBM sprite sheet to create the Sprite Bank from. You can click the
+    "Source:" label to check the sheet layout.
+
+@{b}Columns:@{ub}
+    Number of separate images on each row on the sheet.
+
+@{b}Rows:@{ub}
+    Number of rows the images are layed out on the sheet.
+
+All images to be grabbed from the sheet must be in equal sized hypothetical
+rectangles layed out as columns and rows and they must not violate other columns
+and rows.
+
+These sizes determine the size of these hypothetical rectangles.
+
+@{b}Width:@{ub}
+    Pixel width of image columns.
+@{b}Height:@{ub}
+    Pixel height of image rows.
+
+@{b}Margin X, Y:@{ub}
+    Pixel spacings at the top and left of the ILBM before image rows.
+
+@{b}Spacing X, Y:@{ub}
+    X is pixel spacing between columns
+    Y is pixel spacing between rows
+
+@{b}Hotspot:@{ub}
+    The offset of the hot spot for every image from the left corner of their
+    hypothetical image rectangles. If images have to have different hot spot
+    offsets, edit the Sprite Bank in "Image Editor" after creation.
+
+@{b}Reverse X, Y:@{ub}
+    Grab images in reverse order.
+    X grabs images from left to right instead.
+    Y grabs images from bottom to top instead.
+
+@{b}Columns first:@{ub}
+    By default images are grabbed row by row. Selecting this grabs images
+    column by column.
+
+@{b}Colors:@{ub}
+    Simple hardware sprites on Amiga have 4 colors (1 transparent 3 visible).
+    Attached sprites can display 16 color (1 transparent 15 visible) images.
+    Setting this to 16 will imply all sprite images on this Sprite Bank will
+    be displayed using attached sprites.
+
+@{b}Fetch Mode:@{ub}
+    On OCS/ECS Amigas can be maximum 16 pixels wide. Sprite Bank Creator will
+    create glued sprites (multiple hardware sprites put side by side) to display
+    wider sprite images.
+
+    AGA Amiga's sprites can be wider. So wider images can be displayed without
+    the need to glue multiple hardware sprites.
+
+    Fetch Mode 2 enables a hardware sprite to be maximum 32 pixels wide.
+    Sprite Bank Creator will still create glued sprites to display even wider
+    images.
+
+    Fetch Mode 4 enables a hardware sprite to be maximum 64 pixels wide.
+    Sprite Bank Creator will still create glued sprites to display even wider
+    images.
+
+@{b}Small Sizes:@{ub}
+    Uses BYTEs instead of WORDs to store image hot spot offset information.
+    This is the default setting. Turning this off will enable bigger hot spot
+    offset values. The engine has to be compiled with SMALL_IMAGE_SIZES which is
+    defined by default.
+
+@{b}Big sizes:@{ub}
+    Uses UWORDs instead of UBYTEs to store image width and height information.
+    A BOBSheet created with this requires the engine to be compiled with
+    BIG_IMAGE_SIZES.
+
+@endnode
+
+@node "12_Editor_ImageEditor" "Sevgi_Editor.guide/Features/ImageEditor"
+@{b}Image Editor@{ub}
+============
+
+This tool helps editing the hot spot offsets and hitboxes for images on
+BOBSheets and Sprite Banks. You can also see a preview of the images before
+loading them on the engine.
+
+Because Sprite Banks do not store color palette data, images from Sprite Banks
+will be displayed in arbitrary colors.
+
+@{b}Scale:@{ub}
+    Helps you zoom in/out on images to better set up offsets and hitboxes.
+
+@{b}Image:@{ub}
+    The index of the image displayed on the BOBSheet/Sprite Bank.
+
+@{b}h_offs:@{ub}
+@{b}v_offs:@{ub}
+    Offset of the image hot spot from the top left corner of the image. Helps
+    you set the proper placement of different sized images of an animation.
+
+@{b}Hitbox:@{ub}
+    You can set multiple hitboxes for each image using the buttons in this
+    group. Red box is the currently selected hitbox being edited.
+
+@endnode
+
+@node "Editor_Licence" "Sevgi_Editor.guide/Licence"
+@{b}Licence@{ub}
+=======
+
+Copyright (c) 2025 Ibrahim Alper Sonmez
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+@endnode

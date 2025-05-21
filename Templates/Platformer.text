@@ -1,0 +1,26 @@
+Name: Platformer Template
+Version: 0.2
+Author: Ibrahim Alper Sönmez
+Features:
+- Limitless 8 way scrolling tilemap on a dual playfield
+  single buffered display with video splitting (refer to
+  Scroller_XYUnlimited2_64 algorithm from ScrollingTrick.lha)
+- Parallaxing background playfield from the given ILBM file
+  (scrolls half the speed of the foreground playfield)
+- Parallaxing sky copper gradient
+- Basic character movement and animation
+- Basic platform tile implementations (with slopes)
+- Basic background sounds and sound effects
+Supports:
+- AGA
+- Top and bottom panel dashboards
+- Multi copper gradients (Dynamic Copperlist)
+- Hardware sprite re-use and clipping (Smart Sprites)
+- In game music and sound effects
+Requires:
+- OCS/ECS Amiga
+Assets:
+- Tileset and background art by: Amatnieks (aamatniekss.itch.io)
+- Player sprite image art by: Legnops (legnops.itch.io)
+- Forest ambience sounds by: klankbeeld (freesound.org)
+- Character sounds by: maxmakessounds and lunchmoney (freesound.org)

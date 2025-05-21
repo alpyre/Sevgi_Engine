@@ -1,6 +1,6 @@
 ![Sevgi Engine](https://s14.gifyu.com/images/bsCeR.gif)
 
-Sevgi Engine is a new open source video game engine for classic Amiga computers which provides the required tools and generates the boilerplate code to create high performaning Amiga games using only the C programming language. It is built around the great [ScrollingTricks](https://aminet.net/package/dev/src/ScrollingTrick) by Georg Steger.
+Sevgi Engine is a new open source video game engine for classic Amiga computers which provides the required tools and generates the boilerplate code to create high performing Amiga games using only the C programming language. It is built around the great [ScrollingTricks](https://aminet.net/package/dev/src/ScrollingTrick) by Georg Steger.
 
 ### Features
 * **Performance**
@@ -12,7 +12,7 @@ Sevgi Engine is a new open source video game engine for classic Amiga computers 
 * **No limitations**
   <br>Designed to support all the well known visual tricks known by the popular Amiga video game titles while not limiting more experimental effects to be implemented.</br>
 * **Easy development**
-  <br>A native editor program is provided to generate code, manage game assets, edit color palettes etc. called **Sevgi Editor**. Other elements like game logic, animation and events require programming knowledge in C. The programming and compiling can be made natively (on the Amiga OS - using native compilers) or cross platfrom (on Windows or Linux PCs - using cross development tools). Sevgi Editor can import game maps made in [Tiled](mapeditor.org).</br>
+  <br>A native editor program is provided to generate code, manage game assets, edit color palettes etc. called **Sevgi Editor**. Other elements like game logic, animation and events require programming knowledge in C. The programming and compiling can be made natively (on the Amiga OS - using native compilers) or cross platfrom (on Windows or Linux PCs - using cross development tools). Sevgi Editor can import game maps made in [Tiled](https://www.mapeditor.org/).</br>
 * **Templates**
   <br>Generates ready to compile and run game code from template genres which aims to ease bootstrapping. The templates include test assets.</br>
 * **ptplayer**
@@ -39,7 +39,7 @@ To compile for 68k[^3] target:
 
 `make`
 
-Compiled binaries can also be acquired from [aminet](aminet.net).
+Compiled binaries can also be acquired from [aminet](https://aminet.net/).
 
 Sevgi Engine code is suitable to be compiled with any Amiga compiler. Makefiles for SAS/C and gcc are provided and these compilers are tested to work. It includes and uses SDI_headers, so (hopefully) it is compiler agnostic.
 

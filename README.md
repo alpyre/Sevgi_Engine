@@ -39,7 +39,7 @@ To compile for 68k[^3] target:
 
 `make`
 
-Compiled binaries can also be acquired from [aminet](https://aminet.net/).
+Compiled binaries can also be acquired from [aminet](https://aminet.net/package/dev/c/Sevgi_Engine).
 
 Sevgi Engine code is suitable to be compiled with any Amiga compiler. Makefiles for SAS/C and gcc are provided and these compilers are tested to work. It includes and uses SDI_headers, so (hopefully) it is compiler agnostic.
 

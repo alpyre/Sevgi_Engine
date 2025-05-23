@@ -473,7 +473,7 @@ struct Palette {
                When it is 255 there are 256 colors in the palette.
       This way we can store the size of a 256 color (full AGA palette) in a
       single UBYTE. So that the data type for a palette can just be an UBYTE
-      array of size: num_colors * 3 + 1.
+      array of size: (num_colors + 1) * 3 + 1.
 
 All palettes to be used in a game should be defined in the file palettes.h
 All these palettes defined in palettes.h can be edited using the

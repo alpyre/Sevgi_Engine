@@ -1956,8 +1956,11 @@ SYNOPSIS
     struct Rainbow* createEmptyRainbow(VOID);
 
 FUNCTION
-    Creates a dummy rainbow with no color instructions but only with an
-    instruction to wait for the end of line 255 (the END instruction).
+    Creates a dummy rainbow with no color instructions but only with a single
+    instruction to wait for the end of line 255 (hardware coordinate) on
+    displays which go beyond rasterline 255 (plus the END instruction). If the
+    level screen does not go beyond rasterline 255, there will be no
+    instructions but only the terminating END CopOp.
     The DYNAMIC_COPPERLIST algorithm requires at least this to operate.
 
 RESULTS
@@ -2046,9 +2049,9 @@ RESULTS
 
 NOTES
     The array of end instructions doesn't need to be a single END instruction.
-    i.e you can set a bottom of screen dash board in this array but still HAS TO
+    i.e you can set a bottom of screen dashboard in this array but still HAS TO
     BE terminated with an END instruction always! If ommited, the created CopOps
-    list and so the copperlist it points to will be terminated with a single END
+    list and the copperlist it points to will be terminated with a single END
     instruction.
 
 SEE ALSO

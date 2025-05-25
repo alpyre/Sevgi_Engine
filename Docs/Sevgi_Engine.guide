@@ -109,7 +109,7 @@ applications, an IDE application (like CubicIDE or CodeCraft), a compiler (like
 SAS/C or Amiga GCC) and programs like Personal Paint and Protracker will be
 enough. Unfortunately we lack a system friendly map editor we can use on the
 AmigaOS (yet), so as of now the developing process relies on @{"Tiled" link "Concepts_00Tiled"} for map
-creation, and that sofware has no Amiga version (yet).
+creation, and that software has no Amiga version (yet).
 
 Since the engine is entirely written in C language, cross developing and
 compiling is entirely possible. Yet carrying the entire development process onto
@@ -134,7 +134,7 @@ tools needed (which is planned).
 - A beam chasing BOB update engine.
 - Management of gameobjects (aka. entities), their spawn, images, animations and
   collisions.
-- Support for scrollable copper gradients for multipe color registers
+- Support for scrollable copper gradients for multiple color registers
 - Implementations for very quick access to keyboard, mice and joystick ports.
 - A non-FPU, hue based color fade engine which can also fade copper gradients
 - Easy management of loading level assets.
@@ -343,7 +343,7 @@ pointers.
 
 Tiles in Sevgi_Engine are square blocks of interleaved bitmap graphics with the
 size of TILESIZE and color depth of TILEDEPTH defined in settings.h. And a
-tileset is simply an array of these blocks in contigous chip memory. The purpose
+tileset is simply an array of these blocks in contiguous chip memory. The purpose
 of using interleaved bitmap structure is to be able draw them on screen using a
 single blit for each tile. Naturally this obligates the level display to also be
 an interleaved bitmap.
@@ -376,7 +376,7 @@ the struct defined stores values for size, position and boundaries.
 struct TileMap {
   ULONG width;      // width of the tilemap (in tiles)
   ULONG height;     // height of the tilemap (in tiles)
-  ULONG size;       // how many tiles (width*heigth)
+  ULONG size;       // how many tiles (width*height)
   LONG mapPosX;     // the coordinates defining the rectangle...
   LONG mapPosY;     // ...on the map which is currently shown...
   LONG mapPosX2;    // ...by the screen. Scrolling will...
@@ -578,7 +578,7 @@ The the macros used in the example above are defined in cop_inst_macros.h which
 every display should include.
 
 @{b}cop_inst_macros.h@{ub}
-    The macros defined in this file provide an easy and readible way to create
+    The macros defined in this file provide an easy and readable way to create
     your copperlists avoiding mistakes.
 
 WAIT(x,y)
@@ -603,7 +603,7 @@ NOOP
     Creates a copper instruction which basically does nothing.
 
 All these macros have their placeholder counterparts which end with _PH, which
-are desinged to be identified by @{"allocCopperList()" link "01-allocCopperList"} function to set access
+are designed to be identified by @{"allocCopperList()" link "01-allocCopperList"} function to set access
 pointers to the instructions they create.
 
 If you want more information on how to program a copper list please refer to the
@@ -630,7 +630,7 @@ in the copperlist.
 Since all these instructions has to be on Chip Memory, running a conventional
 sort algorithm would cause a great performance hit.
 
-To solve this issue Sevgi_Engine intruduces the concept of CopOps. A "CopOp"
+To solve this issue Sevgi_Engine introduces the concept of CopOps. A "CopOp"
 (short for Copper Operation) is basically a wrapper struct for a number of
 copper instructions.
 
@@ -975,7 +975,7 @@ when the gameobject gets out of display or the gameobject is inactivated
 
 You can refer to gameobject.h to for the definitions of struct Sprite and
 struct BOB to get an idea on how complex it can be to animate images on screen
-in a managable way. Fortunately it is all covered for you by Sevgi_Engine. All
+in a manageable way. Fortunately it is all covered for you by Sevgi_Engine. All
 you need to do is to create your gameobjects in @{"Tiled" link "Concepts_00Tiled"} and set their properties
 there.
 
@@ -1101,11 +1101,11 @@ bank as reference while spawning them.
 
 By the way, you can also use only one big gameobject bank per level which
 contains all the collectibles, spawners etc. and set just their state flag
-GOB_INACTIVE when collected (which will cause them to dissaper from display),
+GOB_INACTIVE when collected (which will cause them to disappear from display),
 later re-active them removing the flag. But beware, all game objects present on
 the map (even the ones on the out of display sections) will be updated and
 checked for collisions every single frame. So this approach can cause a drop in
-performance. Spawning/despawning can provide great optimization when desinged
+performance. Spawning/despawning can provide great optimization when designed
 properly.
 
 You shall examine the code on template games provided by Sevgi_Editor to get an
@@ -1141,7 +1141,7 @@ each level.
 
 The implementation is in level.c file and it exports the global "current_level"
 to help you access all assets required for a game level. current_level level is
-a staticly allocated singleton. Meaning it can be accessed with the dot (.)
+a statically allocated singleton. Meaning it can be accessed with the dot (.)
 operator and its content gets updated at every level load.
 
 To access level assets you shall import the global in your other .c files as:
@@ -1214,7 +1214,7 @@ avoiding mistakes.
 @{b}Functions@{ub}
 =========
 
-All event control is desinged and managed by programmatic calls to two types of
+All event control is designed and managed by programmatic calls to two types of
 functions in Sevgi_Engine. These are animation and collision functions.
 
 @{u}Animation Functions:@{uu}
@@ -1235,7 +1235,7 @@ animFunction[1]. This function pointer will be called every frame (with every
 call to @{"updateGameObjects()" link "84-updateGameObjects"}). The function can be NULLified or changed with
 another one during gameplay programmatically as well.
 
-Since it is desinged to be called every frame, you can use it for testing
+Since it is designed to be called every frame, you can use it for testing
 and triggering other events with these functions.
 
 The developer also has to update the size of this array: NUM_ANIMS (defined in
@@ -1655,7 +1655,7 @@ FUNCTION
     Every Sevgi_Engine display requires a copperlist allocated for it. So that
     we can have different copper tricks like (vertical color gradients and
     sprite multiplexing etc.) for every display. We create the copperlist
-    instructions as an aray of ULONGs, using the macros provided in
+    instructions as an array of ULONGs, using the macros provided in
     cop_inst_macros.h as the example below.
     But a copperlist must be in chip memory and we may also need some access
     pointers to some of the instructions on it to be able to alter them.
@@ -2050,7 +2050,7 @@ RESULTS
 NOTES
     The array of end instructions doesn't need to be a single END instruction.
     i.e you can set a bottom of screen dashboard in this array but still HAS TO
-    BE terminated with an END instruction always! If ommited, the created CopOps
+    BE terminated with an END instruction always! If omitted, the created CopOps
     list and the copperlist it points to will be terminated with a single END
     instruction.
 
@@ -2074,7 +2074,7 @@ FUNCTION
     activate/deactivate features supported by the chipset or give a message that
     your game is not compatible with the hardware.
 
-    chipset wil be set to one of the following values:
+    chipset will be set to one of the following values:
     CHIPSET_OCS, CHIPSET_ECS, CHIPSET_AGA
 
 SEE ALSO
@@ -2130,7 +2130,7 @@ FUNCTION
     collecting a coin or destroying an enemy that won't respawn ever again.
     This function can be called to get rid of the gameobject and its effects
     from the map. You should use this function only for gameobjects that has to
-    be destroyed permanently. For gameobjects which you wan't to be able to
+    be destroyed permanently. For gameobjects which you want to be able to
     re-appear later, better implement the effect on gameobject's states. Or
     alternatively you can use the spawnable gameobjects using spawnGameObject()
     and despawnGameObject() functions.
@@ -2490,7 +2490,7 @@ FUNCTION
 
 INPUTS
     gamefont - a pointer to the gamefont to get the letter lengths from
-    string   - adress of the string to determine the raster length of
+    string   - address of the string to determine the raster length of
     count    - the string length
 
 RESULTS
@@ -3065,7 +3065,7 @@ INPUTS
     op_size       - number of instructions per each CopOp. When this is given,
                     every CopOp.pointer member will be initialized to the chip
                     address allocated. Otherwise you will have to set each one
-                    programmatically. Ommiting (giving a value of 0) implies you
+                    programmatically. Omitting (giving a value of 0) implies you
                     want CopOps with varying op_size.
     num_insts     - total number of instructions in all of the CopOps
                     (including the end instruction). This has to be given if the
@@ -3142,7 +3142,7 @@ RESULTS
     Returns a newly allocated tileset in chip memory.
 
 NOTES
-    friend_bitmap is yet UNUSUED.
+    friend_bitmap is yet UNUSED.
 
 SEE ALSO
     @{"Tilesets" link "Concepts_05Tilesets"}, @{"disposeTileSet()" link "17-disposeTileSet"}, @{"loadTileSet()" link "37-loadTileSet"}
@@ -3243,7 +3243,7 @@ SYNOPSIS
     VOID PT_InitPTPlayer(VOID);
 
 FUNCTION
-    Intalls ptplayer's vertical blanking interrupt. Also initializes the volume
+    Installs ptplayer's vertical blanking interrupt. Also initializes the volume
     table to be able to fade in/out music volume.
 
 NOTES
@@ -3277,7 +3277,7 @@ RESULTS
 
     The channel (sfx_cha) and priority (sfx_pri) values on the SfxStructure are
     set to SFX_DEFAULT_CHANNEL and SFX_DEFAULT_PRIORITY respectively. You shall
-    set your prefered values to these struct members programmatically.
+    set your preferred values to these struct members programmatically.
 
 NOTES
     8SVX files with Fibonacci-delta lossy data compression are supported.
@@ -3361,7 +3361,7 @@ SEE ALSO
 
 @node "54-PT_PlayModule" "Sevgi_Engine.guide/Function Reference/PT_PlayModule"
 NAME
-    PT_PlayModule() - Plays the currenty initialized Protracker module
+    PT_PlayModule() - Plays the currently initialized Protracker module
 
 SYNOPSIS
     PT_PlayModule()
@@ -4013,7 +4013,7 @@ FUNCTION
     This function is not to be used for gameobject that are to be always present
     throughout the level. This should be used for objects like bullets,
     enemies, collectibles, transient effects etc. which spawn and later
-    dissapear (despawn).
+    disappear (despawn).
 
 INPUTS
     go - the spawned gameobject will have the exact properties with the
@@ -4116,7 +4116,7 @@ SEE ALSO
 
 @node "80-updateBOBs" "Sevgi_Engine.guide/Function Reference/updateBOBs"
 NAME
-    updateBOBs - Updates the currenty visible BOBs on display
+    updateBOBs - Updates the currently visible BOBs on display
 
 SYNOPSIS
     updateBOBs()
@@ -4124,7 +4124,7 @@ SYNOPSIS
     VOID updateBOBs(VOID);
 
 FUNCTION
-    Updates all the BOBs currenty visible which are filled into bobList[] by
+    Updates all the BOBs currently visible which are filled into bobList[] by
     updateGameObjects(). All BOBs will be removed from the display's bitmap
     and re-drawn if needed. A complex algorithm will respect the display
     priority member on the gameobject struct while removing and re-drawing.
@@ -4139,7 +4139,7 @@ SEE ALSO
 
 @node "81-updateColor" "Sevgi_Engine.guide/Function Reference/updateColor"
 NAME
-    updateColor - Updates the currenty visible BOBs on display
+    updateColor - Updates the currently visible BOBs on display
 
 SYNOPSIS
     updateColor(ct, R, G, B)
@@ -4333,7 +4333,7 @@ SYNOPSIS
 
 FUNCTION
     Busy waits until the video beam reaches the given raster line on the current
-    frame. Returns immediatelly if it has already passed that line (being aware
+    frame. Returns immediately if it has already passed that line (being aware
     that the beam could have flewback to start a new frame).
 
 INPUTS

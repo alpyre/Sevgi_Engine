@@ -40,7 +40,7 @@ extern APTR g_MemoryPool;
 extern STRPTR g_Program_Directory;
 extern Object* g_Settings;
 extern struct FileRequester* g_FileReq;
-
+extern Object* App;
 extern struct MUI_CustomClass *MUIC_PopASLString;
 
 struct {
@@ -421,51 +421,55 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
     replaceChars(FilePart(project_path), " ", '_');
 
     lock = Lock(project_path, SHARED_LOCK);
-    if (!lock) lock = CreateDir(project_path);
     if (lock) {
-      STRPTR srcDir = makePath(g_Program_Directory, CODE_DIR, NULL);
+      MUI_Request(App, obj, NULL, "New Project", "*_OK", "A project with this name already exists!");
+    }
+    else {
+      STRPTR srcDir;
+      UnLock(lock);
+
+      srcDir = makePath(g_Program_Directory, CODE_DIR, NULL);
       if (srcDir) {
         DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
-        CopyDir(srcDir, project_path);
-        if (ti) {
-          STRPTR template_path = makePath(TEMPLATES_DIR, ti->drawer, NULL);
-          if (template_path) {
-            CopyDir(template_path, project_path);
-            freeString(template_path);
+        if (CopyDir(srcDir, project_path)) { // This creates the project dir
+          if (ti) {
+            STRPTR template_path = makePath(TEMPLATES_DIR, ti->drawer, NULL);
+            if (template_path) {
+              CopyDir(template_path, project_path);
+              freeString(template_path);
+            }
           }
+          if (!strcmp(FilePart(IDE), "Cubic IDE")) {
+            createCubicIDEoptions(project_path, compiler);
+          }
+          if (compiler == COMPILER_SAS_C) {
+            STRPTR src_makefile_name = makePath(g_Program_Directory, EXTRAS_DIR "/" EXTRAS_SASC_MAKEFILE, NULL);
+            STRPTR dest_makefile_name = makePath(project_path, "makefile", NULL);
+            STRPTR src_ptplayer_name = makePath(g_Program_Directory, EXTRAS_DIR "/" EXTRAS_SASC_PTPLAYER, NULL);
+            STRPTR dst_ptplayer_name = makePath(project_path, "ptplayer.o", NULL);
+
+            CopyFile(src_makefile_name, dest_makefile_name);
+            CopyFile(src_ptplayer_name, dst_ptplayer_name);
+
+            freeString(dst_ptplayer_name);
+            freeString(src_ptplayer_name);
+            freeString(dest_makefile_name);
+            freeString(src_makefile_name);
+          }
+
+          setProjectNameInMakefile(project_path);
+          setProjectNameInVersionFile(project_path, name);
+
+          DoMethod(obj, MUIM_Set, MUIA_Window_Open, FALSE);
+          DoMethod(obj, MUIM_Set, MUIA_NewProject_Create, TRUE);
         }
-        if (!strcmp(FilePart(IDE), "Cubic IDE")) {
-          createCubicIDEoptions(project_path, compiler);
-        }
-        if (compiler == COMPILER_SAS_C) {
-          STRPTR src_makefile_name = makePath(g_Program_Directory, EXTRAS_DIR "/" EXTRAS_SASC_MAKEFILE, NULL);
-          STRPTR dest_makefile_name = makePath(project_path, "makefile", NULL);
-          STRPTR src_ptplayer_name = makePath(g_Program_Directory, EXTRAS_DIR "/" EXTRAS_SASC_PTPLAYER, NULL);
-          STRPTR dst_ptplayer_name = makePath(project_path, "ptplayer.o", NULL);
-
-          CopyFile(src_makefile_name, dest_makefile_name);
-          CopyFile(src_ptplayer_name, dst_ptplayer_name);
-
-          freeString(dst_ptplayer_name);
-          freeString(src_ptplayer_name);
-          freeString(dest_makefile_name);
-          freeString(src_makefile_name);
-        }
-
-        setProjectNameInMakefile(project_path);
-        setProjectNameInVersionFile(project_path, name);
-
         DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
         freeString(srcDir);
       }
-
-      UnLock(lock);
     }
+
     freeString(project_path);
   }
-
-  DoMethod(obj, MUIM_Set, MUIA_Window_Open, FALSE);
-  DoMethod(obj, MUIM_Set, MUIA_NewProject_Create, TRUE);
 
   return 0;
 }

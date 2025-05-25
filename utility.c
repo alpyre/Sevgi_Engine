@@ -800,7 +800,7 @@ BOOL locateArrayStart(BPTR fh)
 /******************************************************************************
  * Reads a string of characters from the current location of a file, stopping *
  * at comma, } or " characters. This function is to read c style strings or   *
- * variable names from c sytle arays. Returns TRUE if there is more elements. *
+ * variable names from c sytle arrays. Returns TRUE if there is more elements.*
  * The function expects file position to be at the first character of the     *
  * string to be read. If the file position is on an opening double quotes it  *
  * will skip it and read the enclosed string without skipping spaces.         *

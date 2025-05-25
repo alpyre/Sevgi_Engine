@@ -651,7 +651,7 @@ BOOL locateArrayEnd(BPTR fh)
 /******************************************************************************
  * Reads a string of characters from the current location of a file, stopping *
  * at comma, ; or } characters. This function is to read c style strings or   *
- * variable names from c style arays. Returns MORE_VARIABLES if there are     *
+ * variable names from c style arrays. Returns MORE_VARIABLES if there are    *
  * more elements. The function expects file position to be at the first       *
  * character of the string to be read, but if there is whitespace it will     *
  * skip it. If the file position is on an opening double quotes it will read  *

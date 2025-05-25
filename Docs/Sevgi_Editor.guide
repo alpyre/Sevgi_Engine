@@ -238,7 +238,7 @@ This tool will help you create the color palettes of your game defined in
 palettes.h.
 
 You can set the names for the arrays that defines each palette here. The
-palletes defined here will be available in asset editor.
+palettes defined here will be available in asset editor.
 
 Using the "Import" button you can quickly import color palettes from the ILBM
 sheets you will probably be using for your tilesets.

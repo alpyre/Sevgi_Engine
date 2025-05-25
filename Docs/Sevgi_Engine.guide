@@ -1372,7 +1372,7 @@ gameobjects in the collisions.c file.
 
 Each asset to be used in each game level should be defined in the level.h file
 and the color palettes to be used each game level should be defined in the
-palletes.h file. Sevgi_Editor has tools which will prevent you from making
+palettes.h file. Sevgi_Editor has tools which will prevent you from making
 mistakes for both.
 
 In addition, copper gradients that you can use in game levels (and the rainbow

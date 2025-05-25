@@ -10,7 +10,7 @@
 //Public Functions
 struct MUI_CustomClass* MUI_Create_AckString(void);
 
-//Some very useful definitions that are ommited in mui.h
+//Some very useful definitions that are omitted in mui.h
 #ifndef MUI_OMMITED_H
 #define MUI_OMMITED_H
   #define MUIM_GoActive          0x8042491a

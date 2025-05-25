@@ -347,7 +347,7 @@ VOID fillCorrespondanceTable(struct Rainbow* rb)
  * The array of end instructions that will terminate the copperlist to be     *
  * created should be passed in end_insts. It doesn't need to be a single END  *
  * instruction. i.e you can set a bottom of screen dash board in this array   *
- * but still HAS TO BE terminated with an END instruction always! If ommited, *
+ * but still HAS TO BE terminated with an END instruction always! If omitted, *
  * the created CopOps list and so the copperlist it points to will be         *
  * terminated with a single END instruction.                                  *
  ******************************************************************************/

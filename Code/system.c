@@ -320,7 +320,7 @@ INLINE VOID waitTOF()
 ///waitVBeam(line)
 /******************************************************************************
  * Busy waits until the video beam reaches the given raster line on the       *
- * current frame. Returns immediatelly if it has already passed that line     *
+ * current frame. Returns immediately if it has already passed that line      *
  * (being aware that the beam could have flewback to start a new frame).      *
  * Reads both VPOSR and VPOSHR, masks the bits that represent vertical beam   *
  * position and compares it with the given value left shifted to match the    *

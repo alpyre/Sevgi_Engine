@@ -1353,11 +1353,11 @@ screen. Sound effects should be in IFF and music should be in protracker module
 format.
 
 Then, you should convert the assets which require converting to formats
-Sevgi_Engine requires with the tools provided by Sevgi_Editor and save them to
+Sevgi_Engine requires with the tools provided by @{"Sevgi_Editor" LINK Sevgi_Editor.guide/Editor_Features} and save them to
 the data drawer. Copy the asset files that do not need to be converted directly
 to the data drawer.
 
-Now, using the "Game Settings" window of Sevgi_Editor, set the properties of the
+Now, using the @{"Game Settings" LINK Sevgi_Editor.guide/02_Editor_GameSettings} window of Sevgi_Editor, set the properties of the
 game's level_display according to your assets and the game's visual design and
 save them.
 
@@ -1367,26 +1367,26 @@ file.
 
 General events such as game start, game end, scoring, etc. in game levels can be
 implemented in the level_display_loop.c file, events based on gameobject
-animations in the anims.c file, and events based on collisions between
+@{"animations" link "Concepts_18Functions" 7} in the anims.c file, and events based on @{"collisions" link "Concepts_18Functions" 37} between
 gameobjects in the collisions.c file.
 
-Each asset to be used in each game level should be defined in the level.h file
-and the color palettes to be used each game level should be defined in the
+Each @{"asset" LINK Sevgi_Editor.guide/03_Editor_AssetsEditor} to be used in each game level should be defined in the level.h file
+and the @{"color palettes" LINK Sevgi_Editor.guide/04_Editor_PaletteEditor} to be used each game level should be defined in the
 palettes.h file. Sevgi_Editor has tools which will prevent you from making
 mistakes for both.
 
-In addition, copper gradients that you can use in game levels (and the rainbow
+In addition, copper gradients that you can use in game levels (and the @{"rainbow" link "Concepts_12Rainbows"}
 you will create from them) are allocated and deallocated in the
 level_display_gradients.c file.
 
-The template game code that Sevgi_Editor will create provides all of these and
+The template game code that @{"Sevgi_Editor" LINK Sevgi_Editor.guide/01_Editor_Templates} will create provides all of these and
 aims to make it easier for you to bootstrap.
 
 Whenever you need more displays (such as your game's splash display, a score
-board, or a credits screen etc.) you can use the display creator tool in
+board, or a credits screen etc.) you can use the @{"display creator" LINK Sevgi_Editor.guide/05_Editor_DisplayCreator} tool in
 Sevgi_Editor. It will generate all the boilerplate code for a new Sevgi_Engine
 display including a copperlist and a display loop function which you can edit to
-your hearts content.
+your heart's content.
 
 Since Sevgi_Engine is fully open source and comes with no pre-compiled modules,
 you always have the option to add features into level_display.c (the essential

@@ -7,8 +7,8 @@
 ///defines
 #define PROGRAMNAME     "Sevgi Editor"
 #define VERSION         0
-#define REVISION        142
-#define VERSIONSTRING   "0.142"
+#define REVISION        143
+#define VERSIONSTRING   "0.143"
 #define AUTHOR          "Ibrahim Alper Sönmez"
 #define COPYRIGHT       "@ 2024 " AUTHOR
 #define CONTACT         "amithlondestek@gmail.com"
@@ -1129,22 +1129,34 @@ VOID openInIDE()
   get(window.settings, MUIA_EditorSettings_IDE, &ide_program);
   main_c_path = makePath(g_Project.directory, "main.c", NULL);
   if (main_c_path && ide_program) {
-    cmd_str_len = strlen(cmd) + 2 + strlen(ide_program) + 3 + strlen(main_c_path) + 2;
-    cmd_str = AllocPooled(g_MemoryPool, cmd_str_len);
+    if (strlen(ide_program)) {
+      if (Exists(ide_program)) {
+        cmd_str_len = strlen(cmd) + 2 + strlen(ide_program) + 3 + strlen(main_c_path) + 2;
+        cmd_str = AllocPooled(g_MemoryPool, cmd_str_len);
 
-    if (cmd_str) {
-      strcpy(cmd_str, cmd);
-      strcat(cmd_str, " \"");
-      strcat(cmd_str, ide_program);
-      strcat(cmd_str, "\" \"");
-      strcat(cmd_str, main_c_path);
-      strcat(cmd_str, "\"");
+        if (cmd_str) {
+          strcpy(cmd_str, cmd);
+          strcat(cmd_str, " \"");
+          strcat(cmd_str, ide_program);
+          strcat(cmd_str, "\" \"");
+          strcat(cmd_str, main_c_path);
+          strcat(cmd_str, "\"");
 
-      if (execute(&rtrn, cmd_str)) {
-        if (rtrn.code > 0) {
-          MUI_Request(App, Win, NULL, "Warning!", "*_OK", "Running the IDE failed because of the following error:\n\n%s", (ULONG)rtrn.string);
+          if (execute(&rtrn, cmd_str)) {
+            if (rtrn.code > 0) {
+              MUI_Request(App, Win, NULL, "Warning!", "*_OK", "Running the IDE failed because of the following error:\n\n%s", (ULONG)rtrn.string);
+            }
+          }
         }
       }
+      else {
+        if (MUI_Request(App, Win, NULL, "Warning!", "*_Editor Settings|_Cancel", "The selected IDE program in Editor Settings could not be found!"))
+          DoMethod(window.settings, MUIM_Set, MUIA_Window_Open, TRUE);
+      }
+    }
+    else {
+      if (MUI_Request(App, Win, NULL, "Warning!", "*_Editor Settings|_Cancel", "For this button to work, you must specify the full path to the\nexecutable of your preferred IDE software in the Editor Settings."))
+        DoMethod(window.settings, MUIM_Set, MUIA_Window_Open, TRUE);
     }
   }
 

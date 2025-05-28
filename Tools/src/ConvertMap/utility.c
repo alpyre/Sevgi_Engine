@@ -1,5 +1,4 @@
 ///defines
-#define READ_BUFFER_SIZE 256
 ///
 ///includes
 #include <stdio.h>
@@ -46,82 +45,6 @@ BOOL Exists(STRPTR filename)
   }
 
 return FALSE;
-}
-///
-///CopyFile(fileSrc, fileDest)
-/******************************************************************************
- * Quietly copies a file.                                                     *
- ******************************************************************************/
-BOOL CopyFile(STRPTR fileSrc, STRPTR fileDest)
-{
-  #define COPY_BUFFER_SIZE 1024
-  UBYTE buffer[COPY_BUFFER_SIZE];
-  struct FileInfoBlock* fib = AllocDosObject(DOS_FIB, NULL);
-  BOOL success = TRUE;
-
-  if (fib) {
-    BPTR fh_src;
-    BPTR lock = Lock(fileSrc, ACCESS_READ);
-
-    if (lock) {
-      ULONG steps;
-      ULONG last_step_size;
-
-      Examine(lock, fib);
-      UnLock(lock);
-
-      steps = fib->fib_Size / COPY_BUFFER_SIZE;
-      last_step_size = fib->fib_Size % COPY_BUFFER_SIZE;
-
-      fh_src = Open(fileSrc, MODE_OLDFILE);
-      if (fh_src) {
-        BPTR fh_dest = Open(fileDest, MODE_NEWFILE);
-
-        if (fh_dest) {
-          ULONG i;
-          ULONG size;
-
-          for (i = 0; i < steps; i++) {
-            size = Read(fh_src, buffer, COPY_BUFFER_SIZE);
-            if (size > 0) {
-              size = Write(fh_dest, buffer, COPY_BUFFER_SIZE);
-              if (size <= 0) {
-                success = FALSE;
-                break;
-              }
-            }
-            else {
-              success = FALSE;
-              break;
-            }
-          }
-
-          if (success) {
-            size = Read(fh_src, buffer, last_step_size);
-            if (size > 0) {
-              size = Write(fh_dest, buffer, last_step_size);
-              if (size <= 0) success = FALSE;
-            }
-            else success = FALSE;
-          }
-
-          Close(fh_dest);
-
-          if (!success) DeleteFile(fileDest);
-        }
-        else success = FALSE;
-
-        Close(fh_src);
-      }
-      else success = FALSE;
-    }
-    else success = FALSE;
-
-    FreeDosObject(DOS_FIB, fib);
-  }
-  else success = FALSE;
-
-  return success;
 }
 ///
 
@@ -269,66 +192,6 @@ STRPTR makeString3(STRPTR str1, STRPTR str2, STRPTR str3)
   return result;
 }
 
-///
-///writeString(filehandle, string)
-/******************************************************************************
- * Writes a string to the the given file handle as a NULL terminated array of *
- * characters.                                                                *
- ******************************************************************************/
-VOID writeString(BPTR fh, STRPTR str)
-{
-  Write(fh, str, strlen(str) + 1);
-}
-///
-///readStringFromFile(filehandle)
-/******************************************************************************
- * Reads a NULL terminated array of characters from the the current position  *
- * of the given file handle and returns the read string as a STRPTR allocated *
- * in programs memory pool.                                                   *
- ******************************************************************************/
-STRPTR readStringFromFile(BPTR fh)
-{
-  STRPTR str = NULL;
-  UBYTE buf[READ_BUFFER_SIZE];
-  ULONG i = 0;
-
-  while (TRUE) {
-    Read(fh, &buf[i], 1);
-    if (!buf[i]) break;
-    i++;
-    if (i >= READ_BUFFER_SIZE) {
-      return NULL;
-    }
-  }
-
-  str = AllocPooled(g_MemoryPool, i + 1);
-  if (str) {
-    if (i) strncpy(str, buf, i);
-    str[i] = NULL;
-  }
-
-  return str;
-}
-///
-///setString{num}(dest, ..., const_src)
-/******************************************************************************
- * Replaces the contents of a STRPTR (which must be allocated on programs     *
- * memory pool) with another string. Previous contents will be deallocated.   *
- * Use as: strptr = setString(strptr, "new_contents");                        *
- ******************************************************************************/
-STRPTR setString(STRPTR dest, STRPTR src)
-{
-  freeString(dest);
-  return makeString(src);
-}
-
-STRPTR setString2(STRPTR dest, STRPTR src1, STRPTR src2)
-{
-  STRPTR result = makeString2(src1, src2);
-  freeString(src1);
-  if (dest != src1) freeString(dest);
-  return result;
-}
 ///
 ///freeString(string)
 /******************************************************************************

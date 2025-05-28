@@ -83,76 +83,33 @@ return FALSE;
 ///CopyFile(fileSrc, fileDest)
 /******************************************************************************
  * Quietly copies a file.                                                     *
+ * NOTE: We used to have our file copy routine here which directly called     *
+ * Open(), Read() and Write() functions from dos.library, but that            *
+ * implementation is reported to fail on some system with different ROM       *
+ * versions. So we resorted to use copy command in c: of the running OS.      *
  ******************************************************************************/
 BOOL CopyFile(STRPTR fileSrc, STRPTR fileDest)
 {
-  #define COPY_BUFFER_SIZE 1024
-  UBYTE buffer[COPY_BUFFER_SIZE];
-  struct FileInfoBlock* fib = AllocDosObject(DOS_FIB, NULL);
-  BOOL success = TRUE;
+  BOOL success = FALSE;
+  struct ReturnInfo ri;
+  STRPTR cmd_str1 = "c:Copy >NIL: \"";
+  STRPTR cmd_str2 = "\" \"";
+  STRPTR cmd_str3 = "\" ALL QUIET";
+  ULONG len = strlen(fileSrc) + strlen(fileDest) + strlen(cmd_str1) + strlen(cmd_str2) + strlen(cmd_str3) + 1;
+  STRPTR cmd = AllocMem(len, MEMF_ANY);
 
-  if (fib) {
-    BPTR fh_src;
-    BPTR lock = Lock(fileSrc, ACCESS_READ);
+  if (cmd) {
+    strcpy(cmd, cmd_str1);
+    strcat(cmd, fileSrc);
+    strcat(cmd, "\" \"");
+    strcat(cmd, fileDest);
+    strcat(cmd, cmd_str3);
 
-    if (lock) {
-      ULONG steps;
-      ULONG last_step_size;
+    execute(&ri, cmd);
+    if (ri.code < 20) success = TRUE;
 
-      Examine(lock, fib);
-      UnLock(lock);
-
-      steps = fib->fib_Size / COPY_BUFFER_SIZE;
-      last_step_size = fib->fib_Size % COPY_BUFFER_SIZE;
-
-      fh_src = Open(fileSrc, MODE_OLDFILE);
-      if (fh_src) {
-        BPTR fh_dest = Open(fileDest, MODE_READWRITE);
-
-        if (fh_dest) {
-          ULONG i;
-          ULONG size;
-
-          for (i = 0; i < steps; i++) {
-            size = Read(fh_src, buffer, COPY_BUFFER_SIZE);
-            if (size > 0) {
-              size = Write(fh_dest, buffer, COPY_BUFFER_SIZE);
-              if (size <= 0) {
-                success = FALSE;
-                break;
-              }
-            }
-            else {
-              success = FALSE;
-              break;
-            }
-          }
-
-          if (success) {
-            size = Read(fh_src, buffer, last_step_size);
-            if (size > 0) {
-              size = Write(fh_dest, buffer, last_step_size);
-              if (size <= 0) success = FALSE;
-            }
-            else success = FALSE;
-          }
-
-          SetFileSize(fh_dest, 0, OFFSET_CURRENT);
-          Close(fh_dest);
-
-          if (!success) DeleteFile(fileDest);
-        }
-        else success = FALSE;
-
-        Close(fh_src);
-      }
-      else success = FALSE;
-    }
-    else success = FALSE;
-
-    FreeDosObject(DOS_FIB, fib);
+    FreeMem(cmd, len);
   }
-  else success = FALSE;
 
   return success;
 }
@@ -160,55 +117,13 @@ BOOL CopyFile(STRPTR fileSrc, STRPTR fileDest)
 ///CopyDir(dirSrc, dirDest)
 /******************************************************************************
  * Quietly copies a directory.                                                *
+ * NOTE: We used to have our directory copy routine here which directly       *
+ * called Open(), Read() and Write() functions from dos.library, but that     *
+ * implementation is reported to fail on some system with different ROM       *
+ * versions. So we defaulted to use copy command in c: of the running OS.     *
+ * Which is exactly the same implementation with CopyFile() so it is just a   *
+ * define in the header file now.                                             *
  ******************************************************************************/
-BOOL CopyDir(STRPTR dirSrc, STRPTR dirDest)
-{
-  BOOL success = FALSE;
-
-  if (dirSrc && dirDest && Exists(dirSrc)) {
-    BPTR lock_dest = Lock(dirDest, SHARED_LOCK);
-    if (!lock_dest) lock_dest = CreateDir(dirDest);
-    if (lock_dest) {
-      BPTR lock_src = Lock(dirSrc, SHARED_LOCK);
-      if (lock_src) {
-        struct FileInfoBlock* fib = AllocDosObject(DOS_FIB, NULL);
-        if (fib) {
-          if (Examine(lock_src, fib)) {
-            if (fib->fib_DirEntryType > 0) {
-              success = TRUE;
-              while (ExNext(lock_src, fib)) {
-                STRPTR file_src = makePath(dirSrc, fib->fib_FileName, NULL);
-                STRPTR file_dest = makePath(dirDest, fib->fib_FileName, NULL);
-
-                if (file_src && file_dest) {
-                  if (fib->fib_DirEntryType > 0) {
-                    success = CopyDir(file_src, file_dest);
-                  }
-                  else {
-                    success = CopyFile(file_src, file_dest);
-                  }
-                }
-                else success = FALSE;
-
-                freeString(file_src);
-                freeString(file_dest);
-                if (!success) break;
-              }
-            }
-            else {
-              success = CopyFile(dirSrc, dirDest);
-            }
-          }
-          FreeDosObject(DOS_FIB, fib);
-        }
-        UnLock(lock_src);
-      }
-      UnLock(lock_dest);
-    }
-  }
-
-  return success;
-}
 ///
 ///getSystemPathList()
 BPTR getSystemPathList(struct WBStartup* wbs)

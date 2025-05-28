@@ -33,7 +33,7 @@ STRPTR getProgDir();
 BPTR getSystemPathList();
 BOOL Exists(STRPTR filename);
 BOOL CopyFile(STRPTR fileSrc, STRPTR fileDest);
-BOOL CopyDir(STRPTR dirSrc, STRPTR dirDest);
+#define CopyDir(dirSrc, dirDest) CopyFile(dirSrc, dirDest)
 BOOL execute(struct ReturnInfo* ri, STRPTR command);
 LONG getFileSize(STRPTR filename);
 

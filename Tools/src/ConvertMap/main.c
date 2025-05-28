@@ -19,8 +19,8 @@
 ///defines
 #define PROGRAMNAME     "ConvertMap"
 #define VERSION         0
-#define REVISION        9
-#define VERSIONSTRING   "0.9"
+#define REVISION        10
+#define VERSIONSTRING   "0.10"
 
 //define command line syntax and number of options
 #define RDARGS_TEMPLATE "F=File/A, P=Path/K, H=Header/K, Z=ADDZERO/S"

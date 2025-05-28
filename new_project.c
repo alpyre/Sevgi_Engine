@@ -463,6 +463,10 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
           DoMethod(obj, MUIM_Set, MUIA_Window_Open, FALSE);
           DoMethod(obj, MUIM_Set, MUIA_NewProject_Create, TRUE);
         }
+        else {
+          MUI_Request(App, obj, NULL, "New Project", "*_OK", "Could NOT create project directory!\n\nPossible causes:\n   - Not enough space on disk\n   - Read only filesystem\n   - Lacking copy command in c:\n   - Not enough memory");
+        }
+
         DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
         freeString(srcDir);
       }

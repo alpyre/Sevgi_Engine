@@ -4,13 +4,6 @@
 #define DOS_RESERVED ":/"
 #define DOS_UNRECOMMENDED ";*?#<>~|$`'\"%"
 #define DOS_BRACKETS "()[]"
-#define MAX_STR_LENGTH 256
-#define MAX_CMD_LENGTH 512
-
-#if !defined (__MORPHOS__)
-  #define MAX(a, b) (a > b ? a : b)
-  #define MIN(a, b) (a > b ? b : a)
-#endif
 
 #define NO_MORE_DEFINITIONS 0
 #define MORE_DEFINITIONS   -1
@@ -21,17 +14,11 @@
 #define MODE_TYPE           1
 
 BOOL Exists(STRPTR filename);
-BOOL CopyFile(STRPTR fileSrc, STRPTR fileDest);
-
 BOOL aToi(STRPTR text, LONG *result);
 DOUBLE aTof(UBYTE* str);
 STRPTR makeString(STRPTR str);
 STRPTR makeString2(STRPTR str1, STRPTR str2);
 STRPTR makeString3(STRPTR str1, STRPTR str2, STRPTR str3);
-VOID writeString(BPTR fh, STRPTR str);
-STRPTR readStringFromFile(BPTR fh);
-STRPTR setString(STRPTR dest, STRPTR src);
-STRPTR setString2(STRPTR dest, STRPTR src1, STRPTR src2);
 VOID freeString(STRPTR str);
 
 STRPTR makePath(STRPTR dir, STRPTR file, STRPTR extension);

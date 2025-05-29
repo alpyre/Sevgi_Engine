@@ -35,6 +35,7 @@ BOOL Exists(STRPTR filename);
 BOOL CopyFile(STRPTR fileSrc, STRPTR fileDest);
 #define CopyDir(dirSrc, dirDest) CopyFile(dirSrc, dirDest)
 BOOL execute(struct ReturnInfo* ri, STRPTR command);
+LONG runCommand(STRPTR command, STRPTR dir, STRPTR output);
 LONG getFileSize(STRPTR filename);
 
 BOOL aToi(STRPTR text, LONG *result);
@@ -57,6 +58,7 @@ BOOL searchString(STRPTR source, STRPTR str, ULONG* pos);
 BOOL locateStrInFile(BPTR fh, STRPTR str);
 BOOL locateArrayStart(BPTR fh);
 BOOL readCStyleDataString(BPTR fh, STRPTR* dest_string);
+BOOL getString(BPTR fh, STRPTR* dest_string);
 
 Object* MUI_NewButton(STRPTR text, UBYTE hi_char, STRPTR short_help);
 Object* MUI_NewCheckMark(Object** obj, BOOL state, STRPTR label, UBYTE key, STRPTR help);

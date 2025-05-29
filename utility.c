@@ -226,6 +226,64 @@ BOOL execute(struct ReturnInfo* ri, STRPTR command)
   return ret_val;
 }
 ///
+///runCommand(command, dir, output)
+/******************************************************************************
+ * A wrapper function which calls the API function System() providing a way   *
+ * to access the return code. Also providing the subtask with a CLI, the      *
+ * current directory and the system's pathlist in the case of being ran from  *
+ * Workbench. The output of the command will be written to the file (or       *
+ * console) passed in output argument.                                        *
+ ******************************************************************************/
+LONG runCommand(STRPTR command, STRPTR dir, STRPTR output)
+{
+  LONG result = 0;
+  ULONG NP_Path_Tag = TAG_IGNORE;
+  BPTR  NP_Path_Val = NULL;
+  ULONG NP_Dir_Tag  = TAG_IGNORE;
+  BPTR  NP_Dir_Val  = NULL;
+  BPTR  new_lock    = NULL;
+  BPTR  old_lock    = NULL;
+  BPTR  fh = Open(output, MODE_READWRITE);
+
+  if (fh) {
+    if (command) {
+      if (g_System_Path_List) {
+        NP_Path_Tag = NP_Path;
+        NP_Path_Val = copyPathList(g_System_Path_List);
+        NP_Dir_Tag  = NP_CurrentDir;
+        NP_Dir_Val  = Lock(dir, SHARED_LOCK);
+      }
+      else {
+        new_lock = Lock(dir, SHARED_LOCK);
+        old_lock = CurrentDir(new_lock);
+      }
+
+      result = SystemTags(command, NP_Cli, TRUE,
+                                   NP_Path_Tag, NP_Path_Val,
+                                   NP_Dir_Tag, NP_Dir_Val,
+                                   SYS_Input, fh,
+                                   SYS_Output, NULL,
+                                   TAG_END);
+      if (result < 0) {
+        if (g_System_Path_List) {
+          freePathList(NP_Path_Val);
+          UnLock(NP_Dir_Val);
+        }
+        result = 20;
+      }
+
+      if (!g_System_Path_List) {
+        CurrentDir(old_lock);
+        UnLock(new_lock);
+      }
+    }
+
+    Close(fh);
+  }
+
+  return result;
+}
+///
 ///getFileSize(filename)
 /******************************************************************************
  * A negative return value indicates a failure at examining the file.         *
@@ -711,11 +769,11 @@ BOOL locateArrayStart(BPTR fh)
   return retval;
 }
 ///
-///readCStyleDataString(fileHandle, dest_string, skip_spaces)
+///readCStyleDataString(fileHandle, dest_string)
 /******************************************************************************
  * Reads a string of characters from the current location of a file, stopping *
  * at comma, } or " characters. This function is to read c style strings or   *
- * variable names from c sytle arrays. Returns TRUE if there is more elements.*
+ * variable names from c style arrays. Returns TRUE if there is more elements.*
  * The function expects file position to be at the first character of the     *
  * string to be read. If the file position is on an opening double quotes it  *
  * will skip it and read the enclosed string without skipping spaces.         *
@@ -768,6 +826,32 @@ BOOL readCStyleDataString(BPTR fh, STRPTR* dest_string)
       if (ch == '}') break;
     }
   }
+
+  return retval;
+}
+///
+///getString(fileHandle, dest_string)
+/******************************************************************************
+ * Reads a string of characters from the current location of a file, stopping *
+ * at white space, new line or end of file.                                   *
+ ******************************************************************************/
+BOOL getString(BPTR fh, STRPTR* dest_string)
+{
+  UBYTE buffer[READ_BUFFER_SIZE];
+  UBYTE* curs = buffer;
+  BOOL retval = FALSE;
+
+  while (Read(fh, curs, 1) > 0) {
+    if (*curs == 0 || *curs == ' ' || *curs == 9 /*tab*/ || *curs == 10 /*newline*/ || *curs == 13 /*CR*/ || (curs - buffer >= READ_BUFFER_SIZE)) {
+      break;
+    }
+    curs++;
+  }
+
+  *curs = NULL;
+
+  if (curs == buffer) *dest_string = NULL;
+  else *dest_string = makeString(buffer);
 
   return retval;
 }

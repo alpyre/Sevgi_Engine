@@ -7,8 +7,8 @@
 ///defines
 #define PROGRAMNAME     "Sevgi Editor"
 #define VERSION         0
-#define REVISION        143
-#define VERSIONSTRING   "0.143"
+#define REVISION        144
+#define VERSIONSTRING   "0.144"
 #define AUTHOR          "Ibrahim Alper Sönmez"
 #define COPYRIGHT       "@ 2024 " AUTHOR
 #define CONTACT         "amithlondestek@gmail.com"
@@ -29,6 +29,9 @@
 #define MUIV_App_RetID_Save_Project_As          0x06
 #define MUIV_App_RetID_Edited                   0x07
 #define MUIV_App_RetID_Open_In_IDE              0x08
+#define MUIV_App_RetID_Make                     0x09
+#define MUIV_App_RetID_Make_Clean               0x0A
+#define MUIV_App_RetID_Run                      0x0B
 
 #define MEN_PROJECT         50
 #define MEN_NEW_PROJECT     MUIV_App_RetID_New_Project_Window_Open
@@ -197,6 +200,7 @@ BPTR   g_Program_Directory_Lock = NULL;
 STRPTR g_Program_Directory = NULL;
 STRPTR g_Program_Executable = NULL;
 STRPTR g_Win_Title = NULL;
+BOOL   g_First_Run = FALSE;
 
 struct Project {
   STRPTR directory;
@@ -283,7 +287,18 @@ struct {
   Object* object;
   Object* palette;
   Object* display;
+  Object* compile;
+  Object* run;
 }toolbar;
+
+struct {
+  Object* compile;
+  Object* compile_list;
+}popup;
+
+#define POP_MAKE       0
+#define POP_MAKE_CLEAN 1
+STRPTR popl_compile_array[] = {"make", "make clean", NULL};
 ///
 ///prototypes
 /***********************************************
@@ -304,6 +319,8 @@ VOID saveProjectAs();
 BOOL checkEditedState();
 VOID openInIDE();
 VOID openGuide(ULONG id);
+VOID runProject(VOID);
+VOID makeProject(STRPTR cmd);
 ///
 ///init
 /***********************************************
@@ -481,6 +498,23 @@ struct NewMenu* prepareMenu()
   return NULL;
 }
 ///
+///MUI hooks
+// Packs List Display Hook
+HOOKPROTO(pop_compile_func, VOID, Object* list, Object* str)
+{
+  ULONG selected = 0;
+  get(list, MUIA_List_Active, &selected);
+  switch (selected) {
+    case POP_MAKE:
+      DoMethod(App, MUIM_Application_ReturnID, MUIV_App_RetID_Make);
+    break;
+    case POP_MAKE_CLEAN:
+      DoMethod(App, MUIM_Application_ReturnID, MUIV_App_RetID_Make_Clean);
+    break;
+  }
+}
+MakeStaticHook(pop_compile_hook, pop_compile_func);
+///
 ///buildGUI
 /***********************************************
  * Program main window                         *
@@ -512,7 +546,24 @@ Object *buildGUI()
           MUIA_Group_Child, (toolbar.palette  = MUI_NewImageButton(IMG_SPEC_PALETTE,  "Palette Editor", MUIA_Disabled)),
           MUIA_Group_Child, (toolbar.display  = MUI_NewImageButton(IMG_SPEC_DISPLAY,  "Display Creator", MUIA_Disabled)),
           MUIA_Group_Child, MUI_NewImageButtonSeparator(),
-          MUIA_Group_Child, (toolbar.editor   = MUI_NewImageButton(IMG_SPEC_EDITOR, "Open in IDE", MUIA_Disabled)),
+          MUIA_Group_Child, (toolbar.editor   = MUI_NewImageButton(IMG_SPEC_EDITOR,  "Open in IDE", MUIA_Disabled)),
+          MUIA_Group_Child, (popup.compile = MUI_NewObject(MUIC_Popobject,
+            MUIA_Popstring_Button, (toolbar.compile  = MUI_NewImageButton(IMG_SPEC_COMPILE, "Compile Project", MUIA_Disabled)),
+            MUIA_Popobject_Object, (popup.compile_list = MUI_NewObject(MUIC_Listview,
+              MUIA_FixWidthTxt, popl_compile_array[POP_MAKE_CLEAN],
+              MUIA_FixHeightTxt, "\n\n",
+              MUIA_Background, MUII_SHINE,
+              MUIA_Frame, MUIV_Frame_InputList,
+              MUIA_Listview_ScrollerPos, MUIV_Listview_ScrollerPos_None,
+              MUIA_Listview_MultiSelect, MUIV_Listview_MultiSelect_None,
+              MUIA_Listview_List, MUI_NewObject(MUIC_List,
+                MUIA_Background, MUII_SHINE,
+                MUIA_List_SourceArray, popl_compile_array,
+              TAG_END),
+            TAG_END)),
+            MUIA_Popobject_ObjStrHook, &pop_compile_hook,
+          TAG_END)),
+          MUIA_Group_Child, (toolbar.run      = MUI_NewImageButton(IMG_SPEC_RUN,     "Run Project", MUIA_Disabled)),
           MUIA_Group_Child, MUI_NewImageButtonSeparator(),
           MUIA_Group_Child, (toolbar.font     = MUI_NewImageButton(IMG_SPEC_FONT,    "Gamefont Creator", MUIA_Enabled)),
           MUIA_Group_Child, (toolbar.tileset  = MUI_NewImageButton(IMG_SPEC_TILE,    "Tileset Creator", g_Tools.avail.convert_tiles ? MUIA_Enabled : MUIA_Disabled)),
@@ -543,14 +594,19 @@ Object *buildGUI()
   TAG_END);
 
   //Notifications
-  if (App)
-  {
+  if (App) {
     Object* tsc_add_zero;
     Object* tmc_add_zero;
     Object* lst_palettes;
     Object* chk_aga;
 
     get(Win, MUIA_Window_Window, &g_Window);
+
+    DoMethod(popup.compile_list, MUIM_Notify, MUIA_Listview_DoubleClick, TRUE, popup.compile, 2,
+      MUIM_Popstring_Close, TRUE);
+
+    DoMethod(toolbar.run, MUIM_Notify, MUIA_Pressed, FALSE, App, 2,
+      MUIM_Application_ReturnID, MUIV_App_RetID_Run);
 
     DoMethod(Win, MUIM_Notify, MUIA_Window_CloseRequest, TRUE, App, 2,
       MUIM_Application_ReturnID, MUIV_Application_ReturnID_Quit);
@@ -683,6 +739,11 @@ int Main(struct Config *config)
 
                                                             set(Win, MUIA_Window_Open, TRUE);
 
+                                                            //Open settings window if this is the first run of the editor
+                                                            if (g_First_Run) {
+                                                              set(window.settings, MUIA_Window_Open, TRUE);
+                                                            }
+
                                                             while(running)
                                                             {
                                                               ULONG id = DoMethod (App, MUIM_Application_NewInput, &signals);
@@ -772,6 +833,15 @@ int Main(struct Config *config)
                                                                 break;
                                                                 case MUIV_App_RetID_Open_In_IDE:
                                                                   openInIDE();
+                                                                break;
+                                                                case MUIV_App_RetID_Make:
+                                                                  makeProject("make");
+                                                                break;
+                                                                case MUIV_App_RetID_Make_Clean:
+                                                                  makeProject("make clean");
+                                                                break;
+                                                                case MUIV_App_RetID_Run:
+                                                                  runProject();
                                                                 break;
                                                               }
                                                               if(running && signals) signals = Wait(signals | SIGBREAKF_CTRL_C);
@@ -984,6 +1054,8 @@ VOID openProject(STRPTR directory)
       DoMethod(toolbar.palette, MUIM_Set, MUIA_Disabled, FALSE);
       DoMethod(toolbar.display, MUIM_Set, MUIA_Disabled, FALSE);
       DoMethod(toolbar.editor, MUIM_Set, MUIA_Disabled, FALSE);
+      DoMethod(toolbar.compile, MUIM_Set, MUIA_Disabled, FALSE);
+      DoMethod(toolbar.run, MUIM_Set, MUIA_Disabled, FALSE);
       DoMethod(Win, MUIM_Set, MUIA_Window_Title, g_Win_Title);
       DoMethod(window.gameFontCreator, MUIM_Set, MUIA_GamefontCreator_AssetsDrawer, g_Project.assets_drawer);
       DoMethod(window.tilesetCreator, MUIM_Set, MUIA_TilesetCreator_AssetsDrawer, g_Project.assets_drawer);
@@ -1188,5 +1260,47 @@ VOID openGuide(ULONG id)
     CurrentDir(current_dir);
     UnLock(docs_dir);
   }
+}
+///
+///runProject()
+VOID runProject()
+{
+  STRPTR makefile = makePath(g_Project.directory, "makefile", NULL);
+  if (makefile) {
+    BPTR fh = Open(makefile, MODE_OLDFILE);
+    if (fh) {
+      if (locateStrInFile(fh, "EXE = ")) {
+        STRPTR project_exe = NULL;
+
+        getString(fh, &project_exe);
+
+        if (project_exe) {
+          STRPTR project_path = makePath(g_Project.directory, project_exe, NULL);
+
+          if (project_path) {
+            if (Exists(project_path)) {
+              STRPTR output;
+              get(window.settings, MUIA_EditorSettings_Output, &output);
+
+              runCommand(project_exe, g_Project.directory, output);
+            }
+            freeString(project_path);
+          }
+        }
+      }
+      Close(fh);
+    }
+
+    freeString(makefile);
+  }
+}
+///
+///makeProject(cmd)
+VOID makeProject(STRPTR cmd)
+{
+  STRPTR output;
+  get(window.settings, MUIA_EditorSettings_Output, &output);
+
+  runCommand(cmd, g_Project.directory, output);
 }
 ///

@@ -5,6 +5,7 @@
 //<SUBCLASS ATTRIBUTES HERE> ex: #define MUIA_EditorSettings_{Attribute} 0x80430A01
 #define MUIA_EditorSettings_IDE      0x80430A01
 #define MUIA_EditorSettings_Compiler 0x80430A02
+#define MUIA_EditorSettings_Output   0x80430A03
 
 //Public Methods
 //<SUBCLASS METHODS HERE>    ex: #define MUIM_EditorSettings_{Method}    0x80430A01

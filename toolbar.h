@@ -26,7 +26,9 @@
                             "gear.iff",    \
                             "linker.iff",  \
                             "editor.iff",  \
-                            "new_display.iff"
+                            "new_display.iff", \
+                            "compile.iff", \
+                            "run.iff"
 
 enum {
   IMG_SPEC_NEW,
@@ -49,7 +51,9 @@ enum {
   IMG_SPEC_SETTINGS,
   IMG_SPEC_ASSETS,
   IMG_SPEC_EDITOR,
-  IMG_SPEC_DISPLAY
+  IMG_SPEC_DISPLAY,
+  IMG_SPEC_COMPILE,
+  IMG_SPEC_RUN
 };
 
 #define MUIA_Enabled 0 //Not a real attribute, just a value to make reading easier

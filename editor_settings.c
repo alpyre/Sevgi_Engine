@@ -91,7 +91,7 @@ static struct {
 }help_string = {
   "Full path of the IDE software to open game code in.",
   "Compiler choice for the project to be compiled with.",
-  "Output console/file for to display output.",
+  "Output console/file to display output.",
   "Save settings and close this window.",
   "Use the current settings on this session without saving them.",
   "Discard the changes made and close this window."

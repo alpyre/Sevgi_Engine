@@ -7,7 +7,7 @@
 
                 Asset creator and manager for Sevgi_Engine
 
-                             Version 0.141
+                             Version 0.145
 
                           User Documentation
 
@@ -51,14 +51,16 @@ Sevgi_Editor requires MUI 3.8+. Fast Ram and an RTG screen is recommended.
 @{" Display Creator     " link "05_Editor_DisplayCreator"}
 
 @{" Open in IDE         " link "06_Editor_IDE"}
+@{" Compile             " link "07_Compile"}
+@{" Run                 " link "08_Run"}
 
-@{" Gamefont Creator    " link "07_Editor_GamefontCreator"}
-@{" Tileset Creator     " link "08_Editor_TilesetCreator"}
-@{" Tilemap Creator     " link "09_Editor_TilemapCreator"}
-@{" BOB Sheet Creator   " link "10_Editor_BOBSheetCreator"}
-@{" Sprite Bank Creator " link "11_Editor_SpriteBankCreator"}
+@{" Gamefont Creator    " link "09_Editor_GamefontCreator"}
+@{" Tileset Creator     " link "10_Editor_TilesetCreator"}
+@{" Tilemap Creator     " link "11_Editor_TilemapCreator"}
+@{" BOB Sheet Creator   " link "12_Editor_BOBSheetCreator"}
+@{" Sprite Bank Creator " link "13_Editor_SpriteBankCreator"}
 
-@{" Image Editor        " link "12_Editor_ImageEditor"}
+@{" Image Editor        " link "14_Editor_ImageEditor"}
 
 @endnode
 
@@ -284,7 +286,42 @@ opening in IDE.
 
 @endnode
 
-@node "07_Editor_GamefontCreator" "Sevgi_Editor.guide/Features/GamefontCreator"
+@node "07_Compile" "Sevgi_Editor.guide/Features/Compile"
+@{b}Compile@{ub}
+===========
+
+This button allows developers to compile their projects directly from the
+Editor.
+
+You can run the makefile in the project directory by double-clicking on the @{i}make@{ui}
+or @{i}make clean@{ui} options in the pop-up that opens. Note that the makefile to be run
+is created - regarding the compiler selected in the Editor Settings - during new
+project creation.
+
+The output of the compiler will be displayed on a console window. The properties
+of this console window can be tweaked in the Editor Settings. You can even
+redirect the output to a file if you wish.
+
+@endnode
+
+@node "08_Run" "Sevgi_Editor.guide/Features/Run"
+@{b}Run@{ub}
+===========
+
+This button allows developers to run and test their game projects directly from
+the Editor.
+
+If the project is not yet compiled, which means the executable is not present in
+the project drawer, nothing will happen.
+
+The output of the game executable (i.e. you are debugging using printfs) will be
+displayed on a console window. The properties of this console window can be
+tweaked in the Editor Settings. Or you can redirect the output to a file if you
+wish.
+
+@endnode
+
+@node "09_Editor_GamefontCreator" "Sevgi_Editor.guide/Features/GamefontCreator"
 @{b}Gamefont Creator@{ub}
 ================
 
@@ -329,7 +366,7 @@ You can make your game load the gamefonts created here by listing them in the
 
 @endnode
 
-@node "08_Editor_TilesetCreator" "Sevgi_Editor.guide/Features/TilesetCreator"
+@node "10_Editor_TilesetCreator" "Sevgi_Editor.guide/Features/TilesetCreator"
 @{b}Tileset Creator@{ub}
 ===============
 
@@ -388,7 +425,7 @@ Deluxe Paint or Personal Paint to fit the specifications described above.
 
 @endnode
 
-@node "09_Editor_TilemapCreator" "Sevgi_Editor.guide/Features/TilemapCreator"
+@node "11_Editor_TilemapCreator" "Sevgi_Editor.guide/Features/TilemapCreator"
 @{b}Tilemap Creator@{ub}
 ===============
 
@@ -406,7 +443,7 @@ Sevgi_Engine gameobject bank (.obj).
 
 @endnode
 
-@node "10_Editor_BOBSheetCreator" "Sevgi_Editor.guide/Features/BOBSheetCreator"
+@node "12_Editor_BOBSheetCreator" "Sevgi_Editor.guide/Features/BOBSheetCreator"
 @{b}BOB Sheet Creator@{ub}
 =================
 
@@ -490,7 +527,7 @@ These sizes determine the size of these hypothetical rectangles.
 
 @endnode
 
-@node "11_Editor_SpriteBankCreator" "Sevgi_Editor.guide/Features/SpriteBankCreator"
+@node "13_Editor_SpriteBankCreator" "Sevgi_Editor.guide/Features/SpriteBankCreator"
 @{b}Sprite Bank Creator@{ub}
 ===================
 
@@ -582,7 +619,7 @@ These sizes determine the size of these hypothetical rectangles.
 
 @endnode
 
-@node "12_Editor_ImageEditor" "Sevgi_Editor.guide/Features/ImageEditor"
+@node "14_Editor_ImageEditor" "Sevgi_Editor.guide/Features/ImageEditor"
 @{b}Image Editor@{ub}
 ============
 

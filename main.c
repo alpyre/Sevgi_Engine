@@ -7,8 +7,8 @@
 ///defines
 #define PROGRAMNAME     "Sevgi Editor"
 #define VERSION         0
-#define REVISION        144
-#define VERSIONSTRING   "0.144"
+#define REVISION        145
+#define VERSIONSTRING   "0.145"
 #define AUTHOR          "Ibrahim Alper Sönmez"
 #define COPYRIGHT       "@ 2024 " AUTHOR
 #define CONTACT         "amithlondestek@gmail.com"
@@ -431,23 +431,23 @@ struct NewMenu* prepareMenu()
     menu[0].nm_UserData = (APTR)MEN_PROJECT;
 
     menu[1].nm_Type     = NM_ITEM;
-    menu[1].nm_Label    = "New Project...";
+    menu[1].nm_Label    = "New...";
     menu[1].nm_CommKey  = "N";
     menu[1].nm_UserData = (APTR)MEN_NEW_PROJECT;
 
     menu[2].nm_Type     = NM_ITEM;
-    menu[2].nm_Label    = "Load Project...";
+    menu[2].nm_Label    = "Load...";
     menu[2].nm_CommKey  = "L";
     menu[2].nm_UserData = (APTR)MEN_LOAD_PROJECT;
 
     menu[3].nm_Type     = NM_ITEM;
-    menu[3].nm_Label    = "Save Project";
+    menu[3].nm_Label    = "Save";
     menu[3].nm_CommKey  = "S";
     menu[3].nm_Flags    = NM_ITEMDISABLED;
     menu[3].nm_UserData = (APTR)MEN_SAVE_PROJECT;
 
     menu[4].nm_Type     = NM_ITEM;
-    menu[4].nm_Label    = "Save Project As...";
+    menu[4].nm_Label    = "Save As...";
     menu[4].nm_CommKey  = "A";
     menu[4].nm_Flags    = NM_ITEMDISABLED;
     menu[4].nm_UserData = (APTR)MEN_SAVE_PROJECT_AS;
@@ -476,7 +476,7 @@ struct NewMenu* prepareMenu()
     menu[10].nm_UserData = (APTR)MEN_SETTINGS;
 
     menu[11].nm_Type     = NM_ITEM;
-    menu[11].nm_Label    = "Editor Settings";
+    menu[11].nm_Label    = "Editor Settings...";
     menu[11].nm_UserData = (APTR)MEN_EDITOR_SETTINGS;
 
     menu[12].nm_Type     = NM_TITLE;

@@ -232,14 +232,13 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
 
   if ((obj = (Object *) DoSuperNew(cl, obj,
     MUIA_Window_ID, MAKE_ID('S','V','G','0'),
-    MUIA_Window_Title, "Settings",
+    MUIA_Window_Title, "Editor Settings",
     //MUIA_Window_Width, MUIV_Window_Width_Visible(56),
     //MUIA_Window_Height, MUIV_Window_Height_Visible(52),
     MUIA_Window_RootObject, MUI_NewObject(MUIC_Group,
       MUIA_Group_Child, MUI_NewObject(MUIC_Group,
         MUIA_Group_Columns, 2,
         MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "IDE:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.IDE, TAG_END),
-
         MUIA_Group_Child, (objects.IDE = NewObject(MUIC_PopASLString->mcc_Class, NULL,
           MUIA_PopASLString_Requester, g_FileReq,
           MUIA_ShortHelp, help_string.IDE,
@@ -251,17 +250,16 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           ASLFR_InitialFile, "",
           ASLFR_InitialDrawer, "SYS:",
         TAG_END)),
-
         MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Compiler:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.compiler, TAG_END),
         MUIA_Group_Child, (objects.cyc_compiler = MUI_NewObject(MUIC_Cycle,
           MUIA_ShortHelp, help_string.compiler,
           MUIA_Cycle_Entries, compiler_entries,
           MUIA_Cycle_Active, compiler_entry,
         TAG_END)),
-
         MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Output:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.output, TAG_END),
         MUIA_Group_Child, (objects.output = NewObject(MUIC_PopASLString->mcc_Class, NULL,
           MUIA_PopASLString_Requester, g_FileReq,
+          MUIA_PopASLString_IgnoreContents, TRUE,
           MUIA_ShortHelp, help_string.output,
           MUIA_String_Contents, ttprefs[TTPK_OUTPUT].data.string ? ttprefs[TTPK_OUTPUT].data.string : (STRPTR)"",
           ASLFR_TitleText, "Please select a file for compiler output.",
@@ -271,7 +269,6 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           ASLFR_InitialFile, "",
           ASLFR_InitialDrawer, "T:",
         TAG_END)),
-
       TAG_END),
       MUIA_Group_Child, MUI_NewObject(MUIC_Rectangle, MUIA_Rectangle_HBar, TRUE, MUIA_VertWeight, 0, TAG_END),
       MUIA_Group_Child, MUI_NewObject(MUIC_Group,

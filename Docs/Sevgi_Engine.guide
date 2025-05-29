@@ -352,7 +352,7 @@ The algorithms provided in display_level.c to draw the tiles on screen utilize
 the methods described in: @{u}https://aminet.net/package/dev/src/ScrollingTrick@{uu}
 
 A tileset usable by the engine can be created from ILBM tile sheet files using
-the conversion tool called @{"Tileset Creator" LINK Sevgi_Editor.guide/08_Editor_TilesetCreator} in Sevgi_Editor. The file created
+the conversion tool called @{"Tileset Creator" LINK Sevgi_Editor.guide/10_Editor_TilesetCreator} in Sevgi_Editor. The file created
 later can be loaded from disk at run time by the functions provided in diskio.c.
 Tileset files required to be loaded per each game level can be defined in
 assets.h file by using the Assets Editor tool in Sevgi_Editor.
@@ -388,7 +388,7 @@ struct TileMap {
 
 A tilemap file compatible with the engine can be created by converting from a
 @{"Tiled" link "Concepts_00Tiled"} (https://www.mapeditor.org/) map using the conversion tool called
-@{"Tilemap Creator" LINK Sevgi_Editor.guide/09_Editor_TilemapCreator} provided in Sevgi_Editor. The file created later can be loaded
+@{"Tilemap Creator" LINK Sevgi_Editor.guide/11_Editor_TilemapCreator} provided in Sevgi_Editor. The file created later can be loaded
 from disk at run time by the functions provided in diskio.c. Tilemap files
 required to be loaded per each game level can be defined in assets.h file by
 using the @{"Assets Editor" LINK Sevgi_Editor.guide/03_Editor_AssetsEditor} tool in Sevgi_Editor.
@@ -731,7 +731,7 @@ Sevgi_Engine.
 Images for BOBs are stored in chip memory as interleaved bitmap sheets, where
 each image on the sheet is horizontally aligned to a 16 pixel grid so they are
 quickly blittable to the game display using the width and height values stored
-on the BOB struct. Thankfully the tool called @{"BobSheet Creator" LINK Sevgi_Editor.guide/10_Editor_BOBSheetCreator} in Sevgi_Editor
+on the BOB struct. Thankfully the tool called @{"BobSheet Creator" LINK Sevgi_Editor.guide/12_Editor_BOBSheetCreator} in Sevgi_Editor
 can automatically create the proper BOBSheet files, directly loadable by the
 engine from any ILBM sheet.
 
@@ -745,7 +745,7 @@ need to move any image data in memory.
 Of course on the Amiga 16 colour sprite images has to be split into two sprite
 structures and set on to the registers as attached sprites. Also the higher
 fetch modes that came with the AGA complicates the structuring of image data
-even further. Sevgi_Editor provides another tool called @{"SpriteBank Creator" LINK Sevgi_Editor.guide/11_Editor_SpriteBankCreator}
+even further. Sevgi_Editor provides another tool called @{"SpriteBank Creator" LINK Sevgi_Editor.guide/13_Editor_SpriteBankCreator}
 which does all the complicated work of creating these structures properly from
 regular ILBM sheets.
 
@@ -770,7 +770,7 @@ width and height define the true image size, without any spacing on the edges.
 h_offs and v_offs define the hot spot of the image. Hot spot can even be outside
 of the image rectangle defined by width and height. But I'd recommend you to
 keep it always inside unless you have a reason obligates that. The image hot
-spots can be set using the @{"Image Editor" LINK Sevgi_Editor.guide/12_Editor_ImageEditor} tool in Sevgi_Editor.
+spots can be set using the @{"Image Editor" LINK Sevgi_Editor.guide/14_Editor_ImageEditor} tool in Sevgi_Editor.
 
 hitbox is a pointer to a HitBox struct which lets you define a different
 rectangle (or a number of rectangles that form a compound shape) for collision
@@ -905,7 +905,7 @@ assets selecting the correct checkboxes in @{"Sevgi_Editor" LINK Sevgi_Editor.gu
 
 As you have noticed from the pointer next, every hitbox is a singly linked list.
 Which lets you create compound shapes defining multiple rectangles. You can use
-the @{"Image Editor" LINK Sevgi_Editor.guide/12_Editor_ImageEditor} in Sevgi_Editor to add these hitboxes to images.
+the @{"Image Editor" LINK Sevgi_Editor.guide/14_Editor_ImageEditor} in Sevgi_Editor to add these hitboxes to images.
 @{"loadSpriteBank()" link "36-loadSpriteBank"} and @{"loadBOBSheet()" link "33-loadBOBSheet"} functions will load all the hitbox data and
 set the proper pointers onto images.
 
@@ -1326,7 +1326,7 @@ maps into your Sevgi_Editor project's assets folder will make converting data
 easier.
 
 Finally in Sevgi_Editor while your project is open, you can convert this .js map
-into engine compatible .map file using the @{"Tilemap Creator" LINK Sevgi_Editor.guide/09_Editor_TilemapCreator} tool. Just give the
+into engine compatible .map file using the @{"Tilemap Creator" LINK Sevgi_Editor.guide/11_Editor_TilemapCreator} tool. Just give the
 .js file as source then click create. Each tilemap layer will be converted into
 a separate .map file and every object layer will be converted into a separate
 gameobject bank file using the layer's names.

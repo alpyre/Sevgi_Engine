@@ -7,7 +7,7 @@
 
                 Asset creator and manager for Sevgi_Engine
 
-                             Version 0.145
+                             Version 0.147
 
                           User Documentation
 
@@ -36,7 +36,12 @@ Sevgi_Editor is a GUI interface to help create code and assets for @{"Sevgi_Engi
 @{b}System Requirements@{ub}
 ===================
 
-Sevgi_Editor requires MUI 3.8+. Fast Ram and an RTG screen is recommended.
+Sevgi_Editor requires MUI 3.8+. Fast Ram and an RTG screen is highly
+recommended.
+
+Sevgi_Editor can run without an RTG screen but color gadgets on palette editor
+will be replaced with a crude representation because of the limited number of
+pens and color depth in native Workbench screens.
 
 @endnode
 

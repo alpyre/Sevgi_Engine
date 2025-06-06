@@ -7,8 +7,8 @@
 ///defines
 #define PROGRAMNAME     "Sevgi Editor"
 #define VERSION         0
-#define REVISION        145
-#define VERSIONSTRING   "0.145"
+#define REVISION        147
+#define VERSIONSTRING   "0.147"
 #define AUTHOR          "Ibrahim Alper Sönmez"
 #define COPYRIGHT       "@ 2024 " AUTHOR
 #define CONTACT         "amithlondestek@gmail.com"
@@ -151,8 +151,7 @@ struct Config
   LONG Options[RDARGS_OPTIONS];
   #endif
 
-  //<YOUR GLOBAL DATA HERE>
-
+  BPTR initial_dir;
 };
 
 //<YOUR STRUCTS HERE>
@@ -376,6 +375,8 @@ int main(int argc, char **argv)
     g_Program_Executable = FilePart(argv[0]);
 
     if (config) {
+      config->initial_dir = CurrentDir(GetProgramDir());
+
       #if RDARGS_OPTIONS
         // parse command line arguments
         if (config->RDArgs = ReadArgs(RDARGS_TEMPLATE, config->Options, NULL))
@@ -968,6 +969,10 @@ void CleanUp(struct Config *config)
       if (config->RDArgs)
         FreeArgs(config->RDArgs);
     #endif
+
+    if (config->initial_dir) {
+      CurrentDir(config->initial_dir);
+    }
 
     FreePooled(g_MemoryPool, config, sizeof(struct Config));
   }

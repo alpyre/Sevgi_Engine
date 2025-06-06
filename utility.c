@@ -51,7 +51,7 @@ STRPTR getProgDir()
 {
   UBYTE buffer[MAX_STR_LENGTH];
   BPTR lock = GetProgramDir();
-  CurrentDir(lock);
+
   if (NameFromLock(lock, buffer, MAX_STR_LENGTH)) {
     return makeString(buffer);
   }

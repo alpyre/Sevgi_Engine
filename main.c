@@ -218,9 +218,11 @@ struct Project {
 int __oslibversion = 0;
 #endif
 
+struct Library *CyberGfxBase = NULL;
 struct Library *AslBase;
 struct Library *MUIMasterBase;
 #if defined(__amigaos4__)
+  struct CyberGfxIFace *ICyberGfx = NULL;
   struct AslIFace *IAsl;
   struct MUIMasterIFace *IMUIMaster;
 #endif
@@ -739,6 +741,23 @@ int Main(struct Config *config)
 
                                                             set(Win, MUIA_Window_Open, TRUE);
 
+                                                            //Open cybergraphics.library if we are on an RTG display
+                                                            if (GetBitMapAttr(_rp(toolbar.new)->BitMap, BMA_DEPTH) > 8) {
+                                                              CyberGfxBase = OpenLibrary("cybergraphics.library", 0);
+                                                              if (CyberGfxBase) {
+                                                                #if defined(__amigaos4__)
+                                                                  if (!(ICyberGfx = (struct CyberGfxIFace*)GetInterface(CyberGfxBase, "main", 1, NULL))) {
+                                                                    rc = 20;
+                                                                    running = FALSE;
+                                                                  }
+                                                                #endif
+                                                              }
+                                                              else {
+                                                                rc = 20;
+                                                                running = FALSE;
+                                                              }
+                                                            }
+
                                                             //Open settings window if this is the first run of the editor
                                                             if (g_First_Run) {
                                                               set(window.settings, MUIA_Window_Open, TRUE);
@@ -846,6 +865,16 @@ int Main(struct Config *config)
                                                               }
                                                               if(running && signals) signals = Wait(signals | SIGBREAKF_CTRL_C);
                                                               if (signals & SIGBREAKF_CTRL_C) break;
+                                                            }
+
+                                                            // Close cybergraphics.library if it was opened
+                                                            #if defined(__amigaos4__)
+                                                              if (ICyberGfx) {
+                                                                DropInterface((struct Interface *)ICyberGfx);
+                                                              }
+                                                            #endif
+                                                            if (CyberGfxBase) {
+                                                              CloseLibrary(CyberGfxBase);
                                                             }
 
                                                             set(Win, MUIA_Window_Open, FALSE);

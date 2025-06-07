@@ -185,6 +185,7 @@ VOID drawSpec(struct IClass *cl, Object *obj)
                       data->scale);
   }
   else {
+    //WARNING: The blit below directly hits screen bitmap without any layering!
     struct BitScaleArgs bsa;
     bsa.bsa_SrcX = data->spec->x + x_crop;
     bsa.bsa_SrcY = data->spec->y + y_crop;
@@ -192,8 +193,8 @@ VOID drawSpec(struct IClass *cl, Object *obj)
     bsa.bsa_SrcHeight = y_vis;
     bsa.bsa_XSrcFactor = 1;
     bsa.bsa_YSrcFactor = 1;
-    bsa.bsa_DestX = _left(obj) + (obj_half_w + data->spec->h_offs + x_crop) * data->scale;
-    bsa.bsa_DestY = _top(obj) + (obj_half_h + data->spec->v_offs + y_crop) * data->scale;
+    bsa.bsa_DestX = _window(obj)->LeftEdge + _left(obj) + (obj_half_w + data->spec->h_offs + x_crop) * data->scale;
+    bsa.bsa_DestY = _window(obj)->TopEdge + _top(obj) + (obj_half_h + data->spec->v_offs + y_crop) * data->scale;
     bsa.bsa_XDestFactor = data->scale;
     bsa.bsa_YDestFactor = data->scale;
     bsa.bsa_SrcBitMap = data->sheet.image->bitmap;
@@ -278,7 +279,13 @@ VOID drawClear(struct IClass *cl, Object *obj)
 {
   struct cl_Data *data = INST_DATA(cl, obj);
 
-  FillPixelArray(_rp(obj), _mleft(obj), _mtop(obj), _mwidth(obj), _mheight(obj), data->sheet.clut->colors[0].value);
+  if (GetBitMapAttr(_rp(obj)->BitMap, BMA_DEPTH) > 8) {
+    FillPixelArray(_rp(obj), _mleft(obj), _mtop(obj), _mwidth(obj), _mheight(obj), data->sheet.clut->colors[0].value);
+  }
+  else {
+    SetAPen(_rp(obj),_dri(obj)->dri_Pens[SHINEPEN]);
+    RectFill(_rp(obj),_mleft(obj),_mtop(obj),_mright(obj),_mbottom(obj));
+  }
 }
 
 VOID draw(struct IClass *cl, Object *obj)

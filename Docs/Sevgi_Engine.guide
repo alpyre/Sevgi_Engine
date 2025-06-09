@@ -325,7 +325,7 @@ struct GameFont* gameFonts[NUM_GAMEFONTS]
 These two global arrays will hold the pointers to the Amiga Fonts and
 Sevgi_Engine gamefonts available to your game. You can select which fonts to be
 loaded in Sevgi_Editor. They will be saved in assets.h. At run time The fonts
-will be loaded by @{"openFonts()" link "47-openFonts"} function and these two array will be filled with
+will be loaded by @{"openFonts()" link "47-openFonts"} function and these two arrays will be filled with
 pointers.
 
 @{u}Functions exported:@{uu}
@@ -695,10 +695,10 @@ Naming refers to the Rainbow command in Amos Basic.
 
 Rainbows are only utilized when DYNAMIC_COPPERLIST is defined and it is the only
 way you can display copper gradients on the level display if you plan to scroll
-the game map. You cannot define a static custom copperlist which contains the
-all the color change instructions per raster line, because the "video split"
-(refer to scrolling_trick.lha on Aminet) will need to be moved in between them
-to the proper place for the WAIT instruction to work when the map gets scrolled.
+the game map. You cannot define a static custom copperlist which contains all
+the color change instructions per raster line, because the "video split" (refer
+to scrolling_trick.lha on Aminet) will need to be moved in between them to the
+proper place for the WAIT instruction to work when the map gets scrolled.
 
 This will get further complex if you plan to have other copper events to trigger
 at certain scanlines and also be able to scroll, move or fade the gradients.
@@ -934,7 +934,7 @@ Fortunately all engine source is available to you to do such changes.
 =======
 
 gameobjects.c implements a concept called "medium" which is used to handle and
-limit the display of gameobject images.
+limit the displaying of gameobject images.
 
 As you know Amiga hardware provides two different methods to display animated
 images on screen: Sprites and Blitter Objects (in short BOBs).
@@ -965,8 +965,8 @@ limited number and their assignments are handled automatically in the
 
 The number of these mediums are set by the defines: NUM_SPRITES and NUM_BOBS in
 settings.h (you can use @{"Sevgi_Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings 168} to set them as well) at compile time and
-they define the maximum number of sprites and BOBs can be visible at the same
-time on the level screen (defined by display_level.c).
+they define the maximum number of sprites and BOBs which can be visible at the
+same time on the level screen (defined by display_level.c).
 
 A medium is only assigned to a gameobject when it enters the visible part of the
 game map and it gets 'resigned' (freed to be assignable for another gameobject)
@@ -1044,14 +1044,14 @@ type member should be used very carefully. Only a SPRITE_OBJECT can display
 SpriteImages. And only a BOB_OBJECT can display BOBImages.
 
 collide function is the function that will be called when this gameobject
-collides with another gameobject. @{"updateGameObjects()" link "84-updateGameObjects"} will do call.
+collides with another gameobject. @{"updateGameObjects()" link "84-updateGameObjects"} will do the call.
 If it's NULL nothing will be called and this gameobject will do nothing when it
 collides with other gameobjects.
 You should implement these functions in collisions.c and get them indexed on
 the global: @{"gobjCollisionFunction[]" link "Concepts_18Functions" 37}. That way we will have a way to save
 gameobjects to disk including the collision function they shall have.
 
-collideTile function is the function which will implement gameobjects behaviour
+collideTile function is the function which will implement gameobject's behaviour
 against tiles. If it's NULL nothing will be called. If you set a function it
 will be called on every frame on this gameobject during @{"updateGameObjects()" link "84-updateGameObjects"}.
 All collideTile functions should be implemented in collisions.c and indexed on
@@ -1088,7 +1088,7 @@ gameobjects that can be spawned at the same time during game play. This value
 can also be set in @{"Sevgi_Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings 168}. The value applies to every level.
 
 The functions @{"spawnGameObject()" link "76-spawnGameObject"} and @{"despawnGameObject()" link "14-despawnGameObject"} handle spawning.
-spawnGameObject() takes a pointer to reference gameobject to spawn as. You can
+spawnGameObject() takes a pointer to a reference gameobject to spawn as. You can
 call these functions either from the display loop or from the anim or collision
 functions of other gameobjects.
 
@@ -1241,8 +1241,8 @@ and triggering other events with these functions.
 The developer also has to update the size of this array: NUM_ANIMS (defined in
 anims.h) with every new anim function implemented.
 
-Please examine the animation functions implemented in template games provided by
-Sevgi_Editor.
+Please examine the animation functions implemented in @{"template games" LINK Sevgi_Editor.guide/01_Editor_Templates} provided by
+@{"Sevgi_Editor" LINK Sevgi_Editor.guide/main}.
 
 @{u}Collision Functions:@{uu}
 collisions.c exports the following global arrays:
@@ -1251,13 +1251,13 @@ gobjCollisionFunction[NUM_GOBJ_COLL_FUNCS]
 tileCollisionFunction[NUM_TILE_COLL_FUNCS]
 
 The same points in "Animation Functions" apply here as well. The array:
-gobjCollisionFunction lists the on collision functions between two gameobjects.
+gobjCollisionFunction lists the "on collide" functions between two gameobjects.
 
-The array tileCollisionFunction is to list the on collision functions between a
+The array tileCollisionFunction is to list the "on collide" functions between a
 gameobject and the tile it is colliding currently.
 
-Please examine the collision functions implemented in template games provided by
-Sevgi_Editor.
+Please examine the collision functions implemented in @{"template games" LINK Sevgi_Editor.guide/01_Editor_Templates} provided by
+@{"Sevgi_Editor" LINK Sevgi_Editor.guide/main}.
 
 @endnode
 
@@ -1347,15 +1347,15 @@ Sevgi_Editor. The code to be created is ready to be compiled and tested.
 Then, collect the assets you will use in the game in the "assets" drawer in your
 project drawer. This will make the conversion stage easier. These assets are
 fonts, tilesets, tilemaps (created with Tiled), animation sheets, music modules,
-sound effects, ILBM files and similar files. All graphic assets should be
+sound effects, ILBM files and similar. All graphic assets should be
 pre-converted and sized according to the color depth you plan on the game
 screen. Sound effects should be in IFF and music should be in protracker module
 format.
 
-Then, you should convert the assets which require converting to formats
-Sevgi_Engine requires with the tools provided by @{"Sevgi_Editor" LINK Sevgi_Editor.guide/Editor_Features} and save them to
-the data drawer. Copy the asset files that do not need to be converted directly
-to the data drawer.
+Then, you should convert the assets that need to be converted to the formats
+required by Sevgi_Engine using the tools provided by @{"Sevgi_Editor" LINK Sevgi_Editor.guide/Editor_Features} and save them
+to the data drawer. Copy the asset files that do not need to be converted
+directly to the data drawer.
 
 Now, using the @{"Game Settings" LINK Sevgi_Editor.guide/02_Editor_GameSettings} window of Sevgi_Editor, set the properties of the
 game's level_display according to your assets and the game's visual design and
@@ -1371,11 +1371,11 @@ implemented in the level_display_loop.c file, events based on gameobject
 gameobjects in the collisions.c file.
 
 Each @{"asset" LINK Sevgi_Editor.guide/03_Editor_AssetsEditor} to be used in each game level should be defined in the level.h file
-and the @{"color palettes" LINK Sevgi_Editor.guide/04_Editor_PaletteEditor} to be used each game level should be defined in the
+and the @{"color palettes" LINK Sevgi_Editor.guide/04_Editor_PaletteEditor} to be in used each game level should be defined in the
 palettes.h file. Sevgi_Editor has tools which will prevent you from making
 mistakes for both.
 
-In addition, copper gradients that you can use in game levels (and the @{"rainbow" link "Concepts_12Rainbows"}
+In addition, copper @{"gradients" link "Concepts_11Gradients"} that you can use in game levels (and the @{"rainbow" link "Concepts_12Rainbows"}
 you will create from them) are allocated and deallocated in the
 level_display_gradients.c file.
 
@@ -1391,8 +1391,8 @@ your heart's content.
 Since Sevgi_Engine is fully open source and comes with no pre-compiled modules,
 you always have the option to add features into level_display.c (the essential
 module which creates the level display) or even create a totally custom one. If
-go down that path and the defines your custom level_display.c is no more
-compatible with the ones in settings.h, un-commenting the define
+you choose to go down that path and the defines your custom level_display.c is
+no more compatible with the ones in settings.h, un-commenting the define
 CUSTOM_LEVEL_DISPLAY in settings.h will disable Sevgi_Editor to edit display
 settings so that it won't mess up with your defines accidentally. And from then
 on you can use the file custom_display_settings.h to keep your display defines.
@@ -1840,8 +1840,6 @@ SYNOPSIS
 
 FUNCTION
     Checks the collisions of hitboxes on both gameobjects.
-    NOTE: The collision of the first encountered hitboxes of both GameObjects
-    will be on the return value. So order your hitboxes with this in mind.
 
 INPUTS
     go1 - first gameobject to be tested
@@ -1885,7 +1883,7 @@ INPUTS
 
 RESULTS
     If a hitbox on the given gameobject collides with this point the return
-    value will be the index of the hitbox that collides. Returns 0 if there are
+    value will be the index of the colliding hitbox. Returns 0 if there are
     no hitboxes on the gameobject or none of them collides with the point.
 
 NOTES
@@ -2768,8 +2766,6 @@ SYNOPSIS
 
 FUNCTION
     Loads the given map file (created by Sevgi_Editor) into memory.
-    So the width and height values on the returned map struct will be one higher
-    than the values in the read map file!
 
 INPUTS
     filename   - filename of the tileset file to load from disk

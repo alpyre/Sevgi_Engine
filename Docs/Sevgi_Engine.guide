@@ -1751,6 +1751,12 @@ INPUTS
 RESULTS
     Returns a pointer to a RastPort if successful. Otherwise returns NULL.
 
+NOTES
+    To have a layered rastport (using the RPF_LAYER flag) it is obligatory to
+    also allocate a bitmap using the RPF_BITMAP flag. Otherwise you'll get a
+    rastport without a layer and attaching a bitmap later still won't give you a
+    layered rastport.
+
 SEE ALSO
     @{"Displays" link "Concepts_07Displays"}, @{"freeRastPort()" link "24-freeRastPort"}, @{"allocBitMap()" link "00-allocBitMap"}
 
@@ -2390,6 +2396,8 @@ NOTES
     Do not forget to take pointers to components excluded from freeing
     beforehand. Otherwise you'll have no way to free them later and so there
     will be a memory leak!
+    The layer of a layered rastport will be freed alongside with the rastport.
+    Which means it can't be excluded from being freed.
 
 SEE ALSO
     @{"Displays" link "Concepts_07Displays"}, @{"allocRastPort()" link "02-allocRastPort"}

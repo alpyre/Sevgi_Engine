@@ -259,47 +259,75 @@ VOID switchToNullCopperList()
  * on it. It can also create and initialize the Layer, TmpRas and AreaInfo    *
  * structs alogside with it.                                                  *
  * A function which should have been implemented in the API I guess.          *
+ * NOTE: To have a layered rastport it is obligatory to also allocate a       *
+ * bitmap using the RPF_BITMAP flag.                                          *
   *****************************************************************************/
 struct RastPort* allocRastPort(ULONG sizex, ULONG sizey, ULONG depth, ULONG bm_flags, struct BitMap *friend, ULONG rp_flags, LONG max_vectors)
 {
-  struct RastPort* rp = AllocMem(sizeof(struct RastPort), MEMF_ANY);
-  if (rp) {
-    InitRastPort(rp);
-    if (rp_flags & RPF_BITMAP) {
-      rp->BitMap = allocBitMap(sizex, sizey, depth, bm_flags, friend);
-      if (rp->BitMap) {
-        if (rp_flags & RPF_LAYER) {
-          struct Layer_Info* li = NewLayerInfo();
-          if (li) {
-            rp->Layer = CreateUpfrontLayer(li, rp->BitMap, 0, 0, sizex, sizey, LAYERSIMPLE, NULL);
-          }
+  struct RastPort* rp = NULL;
+
+  if ((rp_flags & RPF_BITMAP) && (rp_flags & RPF_LAYER)) {
+    struct BitMap* bm = allocBitMap(sizex, sizey, depth, bm_flags, friend);
+
+    if (bm) {
+      struct Layer_Info* li = NewLayerInfo();
+
+      if (li) {
+        struct Layer* layer = CreateUpfrontLayer(li, bm, 0, 0, sizex - 1, sizey - 1, LAYERSIMPLE, NULL);
+
+        if (layer) {
+          rp = layer->rp;
+        }
+        else {
+          DisposeLayerInfo(li);
+          FreeBitMap(bm);
+          return NULL;
+        }
+      }
+      else {
+        FreeBitMap(bm);
+        return NULL;
+      }
+    }
+  }
+  else {
+    rp = AllocMem(sizeof(struct RastPort), MEMF_ANY);
+
+    if (rp) {
+      InitRastPort(rp);
+      if (rp_flags & RPF_BITMAP) {
+        rp->BitMap = allocBitMap(sizex, sizey, depth, bm_flags, friend);
+        if (!rp->BitMap) {
+          FreeMem(rp, sizeof(struct RastPort));
+          return NULL;
         }
       }
     }
-    if (rp_flags & RPF_TMPRAS) {
-      rp->TmpRas = AllocMem(sizeof(struct TmpRas), MEMF_ANY);
-      if (rp->TmpRas) {
-        UBYTE* tmpRasBuff = AllocMem(RASSIZE(sizex, sizey), MEMF_CHIP | MEMF_CLEAR);
-        if (tmpRasBuff) {
-          InitTmpRas(rp->TmpRas, tmpRasBuff, RASSIZE(sizex, sizey));
-        }
-        else {
-          FreeMem(rp->TmpRas, sizeof(struct TmpRas));
-          rp->TmpRas = NULL;
-        }
+  }
+
+  if (rp_flags & RPF_TMPRAS) {
+    rp->TmpRas = AllocMem(sizeof(struct TmpRas), MEMF_ANY);
+    if (rp->TmpRas) {
+      UBYTE* tmpRasBuff = AllocMem(RASSIZE(sizex, sizey), MEMF_CHIP | MEMF_CLEAR);
+      if (tmpRasBuff) {
+        InitTmpRas(rp->TmpRas, tmpRasBuff, RASSIZE(sizex, sizey));
+      }
+      else {
+        FreeMem(rp->TmpRas, sizeof(struct TmpRas));
+        rp->TmpRas = NULL;
       }
     }
-    if (rp_flags & RPF_AREA) {
-      rp->AreaInfo = AllocMem(sizeof(struct AreaInfo), MEMF_ANY);
-      if (rp->AreaInfo) {
-        UBYTE* areaInfoBuff = AllocMem(max_vectors * 5, MEMF_ANY | MEMF_CLEAR);
-        if (areaInfoBuff) {
-          InitArea(rp->AreaInfo, areaInfoBuff, max_vectors);
-        }
-        else {
-          FreeMem(rp->AreaInfo, sizeof(struct AreaInfo));
-          rp->AreaInfo = NULL;
-        }
+  }
+  if (rp_flags & RPF_AREA) {
+    rp->AreaInfo = AllocMem(sizeof(struct AreaInfo), MEMF_ANY);
+    if (rp->AreaInfo) {
+      UBYTE* areaInfoBuff = AllocMem(max_vectors * 5, MEMF_ANY | MEMF_CLEAR);
+      if (areaInfoBuff) {
+        InitArea(rp->AreaInfo, areaInfoBuff, max_vectors);
+      }
+      else {
+        FreeMem(rp->AreaInfo, sizeof(struct AreaInfo));
+        rp->AreaInfo = NULL;
       }
     }
   }
@@ -317,10 +345,14 @@ struct RastPort* allocRastPort(ULONG sizex, ULONG sizey, ULONG depth, ULONG bm_f
  * WARNING: Do not forget to take pointers to components excluded from        *
  * freeing beforehand. Otherwise you'll have no way to free them and so a     *
  * memory leak!                                                               *
+ * NOTE: The layer of a layered rastport will be freed alongside with the     *
+ * rastport and can't be excluded from being freed.                           *
  ******************************************************************************/
 VOID freeRastPort(struct RastPort* rp, ULONG free_flags)
 {
   if (rp) {
+    struct BitMap* bm = rp->BitMap;
+
     if (free_flags & RPF_AREA && rp->AreaInfo) {
       FreeMem(rp->AreaInfo->VctrTbl, rp->AreaInfo->MaxCount * 5);
       FreeMem(rp->AreaInfo, sizeof(struct AreaInfo));
@@ -329,14 +361,16 @@ VOID freeRastPort(struct RastPort* rp, ULONG free_flags)
       FreeMem(rp->TmpRas->RasPtr, rp->TmpRas->Size);
       FreeMem(rp->TmpRas, sizeof(struct TmpRas));
     }
-    if (free_flags & RPF_LAYER && rp->Layer) {
+    if (rp->Layer) {
       struct Layer_Info* li = rp->Layer->LayerInfo;
       DeleteLayer(0L, rp->Layer);
       DisposeLayerInfo(li);
+      if (free_flags & RPF_BITMAP && bm) FreeBitMap(bm);
     }
-    if (free_flags & RPF_BITMAP && rp->BitMap) FreeBitMap(rp->BitMap);
-
-    FreeMem(rp, sizeof(struct RastPort));
+    else {
+      if (free_flags & RPF_BITMAP && bm) FreeBitMap(bm);
+      FreeMem(rp, sizeof(struct RastPort));
+    }
   }
 }
 ///

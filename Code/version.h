@@ -3,8 +3,8 @@
 
 #define ENGINE_NAME           "Sevgi_Engine"
 #define ENGINE_VERSION        0
-#define ENGINE_REVISION       179
-#define ENGINE_VERSION_STRING "0.179"
+#define ENGINE_REVISION       180
+#define ENGINE_VERSION_STRING "0.180"
 #define GAME_NAME             "sevgi_engine"
 #define GAME_VERSION          0
 #define GAME_REVISION         1

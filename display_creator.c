@@ -100,6 +100,8 @@ struct {
   STRPTR define_2;
   STRPTR define_2_interleaved;
   STRPTR define_3;
+  STRPTR define_3_AGA_0;
+  STRPTR define_end;
   STRPTR define_3_hires;
   STRPTR define_3_laced;
   STRPTR define_3_AGA_1;
@@ -110,6 +112,7 @@ struct {
   STRPTR copperlist_1;
   STRPTR copperlist_1_laced;
   STRPTR copperlist_2;
+  STRPTR copperlist_2_AGA;
   STRPTR copperlist_bitplanes;
   STRPTR copperlist_2_laced;
   STRPTR copperlist_3;
@@ -131,12 +134,10 @@ struct {
   "#include <intuition/screens.h>\n"
   "#include <graphics/gfx.h>\n"
   "#include <graphics/display.h>\n"
-  "#include <graphics/scale.h>\n"
   "#include <hardware/custom.h>\n"
   "#include <hardware/cia.h>\n"
   "#include <hardware/dmabits.h>\n"
   "#include <hardware/intbits.h>\n"
-  "#include <libraries/mathffp.h>\n\n"
 
   "#include <proto/exec.h>\n"
   "#include <proto/graphics.h>\n"
@@ -178,7 +179,27 @@ struct {
 
   "#define BPLCON0_V ((%s%s%s_SCREEN_DEPTH * BPLCON0_BPU0) | BPLCON0_COLOR%s%s%s)\n%s\n"
 
-  "#define MAXVECTORS %lu\n"
+  "#define MAXVECTORS %lu\n",
+
+  "#define SPR_FMODE %lu\n"
+  "#define BPL_FMODE %lu\n\n"
+
+  "#if BPL_FMODE == 1\n"
+  "  #define BPL_FMODE_V 0x0\n"
+  "#elif BPL_FMODE == 2\n"
+  "  #define BPL_FMODE_V FMODE_BLP32\n"
+  "#elif BPL_FMODE == 4\n"
+  "  #define BPL_FMODE_V FMODE_BLP32 | FMODE_BPAGEM\n"
+  "#endif\n\n"
+
+  "#if SPR_FMODE == 1\n"
+  "  #define FMODE_V (BPL_FMODE_V)\n"
+  "#elif SPR_FMODE == 2\n"
+  "  #define FMODE_V (BPL_FMODE_V | FMODE_SPR32)\n"
+  "#elif SPR_FMODE == 4\n"
+  "  #define FMODE_V (BPL_FMODE_V | FMODE_SPR32 | FMODE_SPAGEM)\n"
+  "#endif\n",
+
   "///\n",
 
   " | BPLCON0_HIRES",
@@ -222,8 +243,7 @@ struct {
 
   "STATIC ULONG copperList_Instructions[] = {\n"
   "                                              // Access Ptr:  Action:\n"
-  "  MOVE(COLOR00, 0),                           //              Set color 0 to black\n"
-  "  MOVE(FMODE,   0),                           //              Set Sprite/Bitplane Fetch Modes\n"
+  "  MOVE(COLOR00, 0),                           //              Set color 0 to black\n%s"
   "  MOVE(BPLCON0, BPLCON0_V),                   //              Set display properties\n"
   "  MOVE(BPLCON1, 0),                           //              Set h_scroll register\n"
   "  MOVE(BPLCON2, 0x264),                       //              Set sprite priorities\n"
@@ -235,6 +255,8 @@ struct {
   "  MOVE(DDFSTOP, DDFSTOP_V),                   //              Set Data Fetch Stop\n"
   "  MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH   Set bitplane addresses\n"
   "  MOVE(BPL1PTL, 0),                           //               \"      \"       \"\n",
+
+  "  MOVE(FMODE,   FMODE_V),                     //              Set Sprite/Bitplane Fetch Modes\n",
 
   "  MOVE(BPL%ldPTH, 0),                           //               \"      \"       \"\n"
   "  MOVE(BPL%ldPTL, 0),                           //               \"      \"       \"\n",
@@ -524,6 +546,8 @@ struct cl_ObjTable
   Object* int_scrDepth;
   Object* txt_palette;
   Object* pop_palette;
+  Object* int_sprFetchMode;
+  Object* int_bplFetchMode;
   Object* chk_AGA;
   Object* chk_interleaved;
   Object* chk_hires;
@@ -663,6 +687,8 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
   ULONG scr_height;
   ULONG scr_depth;
   STRPTR palette;
+  ULONG spr_fmode;
+  ULONG bpl_fmode;
   ULONG AGA;
   ULONG interleaved;
   ULONG hires;
@@ -689,6 +715,8 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
   get(data->obj_table.int_scrHeight, MUIA_Integer_Value, &scr_height);
   get(data->obj_table.int_scrDepth, MUIA_Integer_Value, &scr_depth);
   get(data->obj_table.txt_palette, MUIA_Text_Contents, &palette);
+  get(data->obj_table.int_sprFetchMode, MUIA_Integer_Value, &spr_fmode);
+  get(data->obj_table.int_bplFetchMode, MUIA_Integer_Value, &bpl_fmode);
   get(data->obj_table.chk_AGA, MUIA_Selected, &AGA);
   get(data->obj_table.chk_interleaved, MUIA_Selected, &interleaved);
   get(data->obj_table.chk_hires, MUIA_Selected, &hires);
@@ -749,12 +777,15 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
                                         (LONG)(interlaced ? code_string.define_3_laced : null),
                                         (LONG)(AGA ? code_string.define_3_AGA_2 : null),
                                         (LONG)(AGA ? code_string.define_3_AGA_3 : null), (LONG)maxvectors);
+      if (AGA)
+        FPrintf(fh, code_string.define_3_AGA_0, spr_fmode, bpl_fmode);
+      FPrintf(fh, code_string.define_end);
       //Write globals
       FPrintf(fh, code_string.globals);
       //Write Copperlist
       FPrintf(fh, code_string.copperlist_0);
       FPrintf(fh, interlaced ? code_string.copperlist_1_laced : code_string.copperlist_1);
-      FPrintf(fh, code_string.copperlist_2);
+      FPrintf(fh, code_string.copperlist_2, AGA ? (LONG)code_string.copperlist_2_AGA : (LONG)"");
       for (i = 2; i <= scr_depth; i++) {
         FPrintf(fh, code_string.copperlist_bitplanes, i, i);
       }
@@ -833,6 +864,8 @@ STATIC ULONG m_Reset(struct IClass* cl, Object* obj, Msg msg)
   DoMethod(data->obj_table.int_scrDepth, MUIM_Set, MUIA_Integer_Value, 1);
   DoMethod(data->obj_table.txt_palette, MUIM_Set, MUIA_Text_Contents, "");
   data->palette = NULL;
+  DoMethod(data->obj_table.int_sprFetchMode, MUIM_Set, MUIA_Integer_Value, 1);
+  DoMethod(data->obj_table.int_bplFetchMode, MUIM_Set, MUIA_Integer_Value, 1);
   DoMethod(data->obj_table.chk_AGA, MUIM_Set, MUIA_Selected, FALSE);
   DoMethod(data->obj_table.chk_interleaved, MUIM_Set, MUIA_Selected, FALSE);
   DoMethod(data->obj_table.chk_hires, MUIM_Set, MUIA_Selected, FALSE);
@@ -860,6 +893,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* int_scrDepth;
     Object* txt_palette;
     Object* pop_palette;
+    Object* int_sprFetchMode;
+    Object* int_bplFetchMode;
     Object* chk_AGA;
     Object* chk_hires;
     Object* chk_interleaved;
@@ -954,6 +989,26 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           TAG_END)),
           MUIA_ShortHelp, help_string.palette,
         TAG_END),
+        MUIA_Group_Child, MUI_NewObject(MUIC_Text,
+          MUIA_Text_Contents, "Sprite Fetch Mode:",
+          MUIA_HorizWeight, 0,
+          MUIA_ShortHelp, NULL,
+        TAG_END),
+        MUIA_Group_Child, (objects.int_sprFetchMode = NewObject(MUIC_Integer->mcc_Class, NULL,
+          MUIA_Integer_124, TRUE,
+          MUIA_Disabled, TRUE,
+          MUIA_ShortHelp, NULL,
+        TAG_END)),
+        MUIA_Group_Child, MUI_NewObject(MUIC_Text,
+          MUIA_Text_Contents, "Bitplane Fetch Mode:",
+          MUIA_HorizWeight, 0,
+          MUIA_ShortHelp, NULL,
+        TAG_END),
+        MUIA_Group_Child, (objects.int_bplFetchMode = NewObject(MUIC_Integer->mcc_Class, NULL,
+          MUIA_Integer_124, TRUE,
+          MUIA_Disabled, TRUE,
+          MUIA_ShortHelp, NULL,
+        TAG_END)),
       TAG_END),
       MUIA_Group_Child, MUI_NewObject(MUIC_Group,
         MUIA_Group_Columns, 2,
@@ -999,6 +1054,10 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
                                              MUI_GetChild(objects.int_scrHeight, 1),
                                              MUI_GetChild(objects.int_scrDepth, 1),
                                              objects.pop_palette,
+                                             MUI_GetChild(objects.int_sprFetchMode, 2),
+                                             MUI_GetChild(objects.int_sprFetchMode, 3),
+                                             MUI_GetChild(objects.int_bplFetchMode, 2),
+                                             MUI_GetChild(objects.int_bplFetchMode, 3),
                                              objects.chk_AGA,
                                              objects.chk_interleaved,
                                              objects.chk_hires,
@@ -1028,6 +1087,12 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
 
     DoMethod(objects.chk_AGA, MUIM_Notify, MUIA_Selected, FALSE, objects.int_scrDepth, 3,
       MUIM_Set, MUIA_Integer_Max, 5);
+
+    DoMethod(objects.chk_AGA, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, objects.int_sprFetchMode, 3,
+      MUIM_Set, MUIA_Disabled, MUIV_NotTriggerValue);
+
+    DoMethod(objects.chk_AGA, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, objects.int_bplFetchMode, 3,
+      MUIM_Set, MUIA_Disabled, MUIV_NotTriggerValue);
 
     DoMethod(objects.chk_hires, MUIM_Notify, MUIA_Selected, TRUE, objects.int_scrWidth, 3,
       MUIM_Set, MUIA_Integer_Max, 640);
@@ -1072,6 +1137,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     data->obj_table.int_scrDepth = objects.int_scrDepth;
     data->obj_table.txt_palette = objects.txt_palette;
     data->obj_table.pop_palette = objects.pop_palette;
+    data->obj_table.int_sprFetchMode = objects.int_sprFetchMode;
+    data->obj_table.int_bplFetchMode = objects.int_bplFetchMode;
     data->obj_table.chk_AGA = objects.chk_AGA;
     data->obj_table.chk_interleaved = objects.chk_interleaved;
     data->obj_table.chk_hires = objects.chk_hires;

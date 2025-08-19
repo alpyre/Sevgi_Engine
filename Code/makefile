@@ -21,10 +21,9 @@ AFLAGS = -Faout $(CPU)
 DEPS = assets.h palettes.h settings.h version.h
 
 OBJS = main.o system.o keyboard.o input.o display.o diskio.o fonts.o         \
-       display_level.o display_loading.o display_menu.o display_splash.o     \
-       color.o rainbow.o tiles.o tilemap.o                                   \
-       audio.o ptplayer.o                                                    \
-       gameobject.o physics.o level.o anims.o collisions.o
+       color.o rainbow.o tiles.o tilemap.o audio.o ptplayer.o ui.o           \
+			 gameobject.o physics.o level.o anims.o collisions.o									 \
+			 display_level.o display_loading.o display_menu.o display_splash.o
 ################################################################################
 
 # target 'all' (default target)
@@ -71,6 +70,9 @@ rainbow.o : rainbow.c rainbow.h settings.h
 	$(CC) $< $(CFLAGS)
 
 tiles.o : tiles.c tiles.h settings.h
+	$(CC) $< $(CFLAGS)
+
+ui.o : ui.c ui.h
 	$(CC) $< $(CFLAGS)
 
 $(EXE) : $(OBJS)

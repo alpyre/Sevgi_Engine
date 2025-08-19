@@ -83,10 +83,9 @@ tiles.o : tiles.c tiles.h settings.h
 	$(CC) $(CFLAGS) tiles.c
 
 OBJS = main.o system.o keyboard.o input.o display.o diskio.o fonts.o         \
-       display_level.o display_loading.o display_menu.o display_splash.o     \
-       color.o rainbow.o tiles.o tilemap.o                                   \
-       audio.o                                                               \
-       gameobject.o physics.o level.o anims.o collisions.o
+       color.o rainbow.o tiles.o tilemap.o audio.o ui.o                      \
+			 gameobject.o physics.o level.o anims.o collisions.o									 \
+			 display_level.o display_loading.o display_menu.o display_splash.o
 
 $(EXE) : $(OBJS)
 	$(LD) $(LFLAGS) $(OBJS) ptplayer.o TO $(EXE)

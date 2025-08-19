@@ -2,6 +2,7 @@
 #define DISPLAY_H
 
 #include "SDI_headers/SDI_compiler.h"
+#include "gameobject.h"
 
 BOOL openNullDisplay(VOID);
 VOID closeNullDisplay(VOID);
@@ -46,6 +47,8 @@ VOID freeRastPort(struct RastPort* rp, ULONG free_flags);
 #define allocCopperList(list, access, doubleBuf) copperAllocator(list, CL_NUM_INSTS(list), &access, doubleBuf, 0)
 #define freeCopperList(cl) FreeVec(cl);
 BOOL copperAllocator(ULONG* cl_insts, ULONG num_insts, UWORD** access_ptr, BOOL double_buffer, ULONG extra_insts);
+
+VOID setSprite(struct SpriteImage* image, LONG x, LONG y, UWORD* cl_spr0pth, UWORD diwstrt, WORD hardware_sprite_num, UBYTE fetch_mode);
 
 /***************************************************
  * Ensure BitMap allocations meet AGA requirements *

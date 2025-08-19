@@ -217,8 +217,8 @@ VOID createBOBMasks(struct BitMap* bm)
   }
 }
 ///
-///loadILBMBitMap(fileName, type)
-struct BitMap* loadILBMBitMap(STRPTR fileName, ULONG type)
+///loadILBMBitMap(fileName, type, extra_width)
+struct BitMap* loadILBMBitMap(STRPTR fileName, ULONG type, ULONG extra_width)
 {
   struct BitMapHeader bmhd;
   struct BitMap* bm = NULL;
@@ -264,7 +264,7 @@ struct BitMap* loadILBMBitMap(STRPTR fileName, ULONG type)
 
             if (locateStrInFile(fh, "BODY")) {
               Seek(fh, 4, OFFSET_CURRENT);
-              bm = allocBitMap(bmhd.bmh_Width, allocHeight, bmhd.bmh_Depth, allocFlags, NULL);
+              bm = allocBitMap(bmhd.bmh_Width + extra_width, allocHeight, bmhd.bmh_Depth, allocFlags, NULL);
               if (bm && (TypeOfMem(bm->Planes[0]) & allocMemCheck) && (allocNoCheck || (GetBitMapAttr(bm, BMA_FLAGS) & BMF_INTERLEAVED))) {
                 if (bmhd.bmh_Compression) { // NOTE: consider possible compression methods
                   UBYTE* w;                         // write cursor
@@ -635,7 +635,7 @@ struct BOBSheet* loadBOBSheet(STRPTR fileName)
       }
       if (i) {
         AddPart(path, sheet_file, PATH_BUFFER_LENGTH);
-        sheet_ilbm = loadILBMBitMap(path, BM_TYPE_BOBSHEET);
+        sheet_ilbm = loadILBMBitMap(path, BM_TYPE_BOBSHEET, 0);
         if (sheet_ilbm) {
           Read(fh, &properties.type, sizeof(properties.type));
           Read(fh, &properties.num_images, sizeof(properties.num_images));

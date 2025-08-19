@@ -16,6 +16,8 @@
  *  - Level based asset loading routines for graphics, audio.                 *
  *  - Support for ILBM multicolor GameFonts.                                  *
  *  - Features "ptplayer" from Frank Wille for music and audio effects.       *
+ *  - A UI code capable of creating mouse driven gui objects (buttons, input  *
+ *    gadgets, checkboxes etc.) with auto-layout and modern features.         *
  * (*)  Except ptplayer of course. ptplayer is written in 68k Assembly.       *
  * (**) A double buffered display is also possible if one writes their custom *
  *      display_level.c, but this is not encouraged for maximum FPS.          *
@@ -210,6 +212,7 @@ int Main(struct Config* config)
             startLevelDisplay(1);
             break;
             case MENU_RV_OPTIONS:
+
             break;
             case MENU_RV_QUIT:
             running = FALSE;

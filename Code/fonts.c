@@ -17,6 +17,7 @@
 ///
 ///defines
 #define PATH_BUFFER_LENGTH 128
+#define ROUND_TO_16(a) ((a + 15) & 0xFFFFFFF0)
 ///
 ///globals
 struct TextFont* textFonts[NUM_TEXTFONTS] = {NULL};
@@ -139,6 +140,7 @@ struct GameFont* openGameFont(STRPTR file)
     UBYTE strip_file[32];
     struct BitMap* strip = NULL;
     struct BitMap* mask = NULL;
+    ULONG extra_width = 0;
     struct {
       UBYTE type;
       UBYTE width;
@@ -156,26 +158,28 @@ struct GameFont* openGameFont(STRPTR file)
         Read(fh, &strip_file[++i], 1);
       }
       if (i) {
-        AddPart(path, strip_file, PATH_BUFFER_LENGTH);
-        strip = loadILBMBitMap(path, BM_TYPE_GAMEFONT);
-        if (strip) {
-          if (strip->Depth > 1) {
-            mask = createBltMasks(strip);
-            if (!mask) {
-              puts("Could not create game font mask!");
-              FreeBitMap(strip);
-              Close(fh);
-              return NULL;
-            }
-          }
-          else mask = strip;
+        Read(fh, &properties, sizeof(properties));
+        switch (properties.type) {
+          case GF_TYPE_FIXED:
+            extra_width = ROUND_TO_16(properties.width);
+            AddPart(path, strip_file, PATH_BUFFER_LENGTH);
+            strip = loadILBMBitMap(path, BM_TYPE_GAMEFONT, extra_width);
+            if (strip) {
+              if (strip->Depth > 1) {
+                mask = createBltMasks(strip);
+                if (!mask) {
+                  puts("Could not create game font mask!");
+                  FreeBitMap(strip);
+                  Close(fh);
+                  return NULL;
+                }
+              }
+              else mask = strip;
 
-          Read(fh, &properties, sizeof(properties));
-          switch (properties.type) {
-            case GF_TYPE_FIXED:
               gf = AllocMem(sizeof(struct GameFont), MEMF_ANY);
               if (gf) {
-                gf->bitmap  = strip;
+                InitRastPort(&gf->rastport);
+                gf->rastport.BitMap = strip;
                 gf->mask    = mask;
                 gf->type    = properties.type;
                 gf->width   = properties.width;
@@ -183,41 +187,78 @@ struct GameFont* openGameFont(STRPTR file)
                 gf->spacing = properties.spacing;
                 gf->start   = properties.start;
                 gf->end     = properties.end;
-              }
-              else {
-                puts("Not enough memory for fixed width game font!");
-                FreeBitMap(strip);
-              }
-            break;
-            case GF_TYPE_PROPORTIONAL:
-            {
-              UBYTE letters = properties.end - properties.start + 2;
-              gf = AllocMem(sizeof(struct GameFont) + sizeof(UWORD) * letters, MEMF_ANY);
-              if (gf) {
-                gf->bitmap  = strip;
-                gf->mask    = mask;
-                gf->type    = properties.type;
-                gf->width   = properties.width;
-                gf->height  = properties.height;
-                gf->spacing = properties.spacing;
-                gf->start   = properties.start;
-                gf->end     = properties.end;
-
-                Read(fh, gf->letter, sizeof(UWORD) * letters);
+                #if BM_TYPE_GAMEFONT & BMF_INTERLEAVED
+                gf->tmp_buf_x = (strip->BytesPerRow * 8 / strip->Depth) - extra_width;
+                #else
+                gf->tmp_buf_x = (strip->BytesPerRow * 8) - extra_width;
+                #endif
               }
               else {
                 puts("Not enough memory for fixed width game font!");
                 FreeBitMap(strip);
               }
             }
-            break;
-            default:
-              puts("Invalid game font type!");
-              FreeBitMap(strip);
-            break;
+            else puts("Game font ilbm could not be loaded!");
+          break;
+          case GF_TYPE_PROPORTIONAL:
+          {
+            UBYTE letters = properties.end - properties.start + 2;
+            gf = AllocMem(sizeof(struct GameFont) + sizeof(UWORD) * letters, MEMF_ANY);
+            if (gf) {
+              ULONG i;
+              UWORD max_letter_width = 0;
+
+              Read(fh, gf->letter, sizeof(UWORD) * letters);
+
+              max_letter_width = properties.width;
+              for (i = 1; i < letters; i++) {
+                UWORD letter_width = gf->letter[i].offset - gf->letter[i - 1].offset;
+                if (letter_width > max_letter_width) max_letter_width = letter_width;
+              }
+
+              extra_width = ROUND_TO_16(max_letter_width);
+              AddPart(path, strip_file, PATH_BUFFER_LENGTH);
+              strip = loadILBMBitMap(path, BM_TYPE_GAMEFONT, extra_width);
+              if (strip) {
+                if (strip->Depth > 1) {
+                  mask = createBltMasks(strip);
+                  if (!mask) {
+                    puts("Could not create game font mask!");
+                    FreeBitMap(strip);
+                    FreeMem(gf, sizeof(struct GameFont) + sizeof(UWORD) * letters);
+                    Close(fh);
+                    return NULL;
+                  }
+                }
+                else mask = strip;
+
+                InitRastPort(&gf->rastport);
+                gf->rastport.BitMap = strip;
+                gf->mask    = mask;
+                gf->type    = properties.type;
+                gf->width   = properties.width;
+                gf->height  = properties.height;
+                gf->spacing = properties.spacing;
+                gf->start   = properties.start;
+                gf->end     = properties.end;
+                #if BM_TYPE_GAMEFONT & BMF_INTERLEAVED
+                gf->tmp_buf_x = (strip->BytesPerRow * 8 / strip->Depth) - extra_width;
+                #else
+                gf->tmp_buf_x = (strip->BytesPerRow * 8) - extra_width;
+                #endif
+              }
+              else puts("Game font ilbm could not be loaded!");
+            }
+            else {
+              puts("Not enough memory for fixed width game font!");
+            }
           }
+          break;
+          default:
+            puts("Invalid game font type!");
+            FreeBitMap(strip);
+          break;
         }
-        else puts("Game font ilbm could not be loaded!");
       }
       else puts("Invalid game font ilbm filename!");
     }
@@ -233,8 +274,8 @@ struct GameFont* openGameFont(STRPTR file)
 VOID closeGameFont(struct GameFont* gf)
 {
   if (gf) {
-    FreeBitMap(gf->bitmap);
-    if (gf->mask != gf->bitmap) FreeBitMap(gf->mask);
+    FreeBitMap(gf->rastport.BitMap);
+    if (gf->mask != gf->rastport.BitMap) FreeBitMap(gf->mask);
 
     switch (gf->type) {
       case GF_TYPE_FIXED:
@@ -249,6 +290,10 @@ VOID closeGameFont(struct GameFont* gf)
 ///
 
 ///GF_TextLength(gamefont, str, count)
+/******************************************************************************
+ * Similar to TextLength from the API, this function calculates the estimated *
+ * pixel width of a string when rendered with the given gamefont.             *
+ ******************************************************************************/
 ULONG GF_TextLength(struct GameFont* gf, STRPTR str, ULONG count)
 {
   ULONG len = 0;
@@ -256,41 +301,52 @@ ULONG GF_TextLength(struct GameFont* gf, STRPTR str, ULONG count)
   switch (gf->type) {
     case GF_TYPE_FIXED:
     {
-      ULONG i;
-      for (i = 0; i < count; i++) {
-        UBYTE ch = str[i];
-        if (!ch) break;
+      ULONG i = 0;
+      UBYTE ch = *str;
+
+      while (ch) {
         if (ch == ' ') {
           len += gf->width;
+          if (++i >= count) break;
+          ch = *str++;
           continue;
         }
-        if (ch < gf->start || ch > gf->end) continue;
-        len += gf->width;
-        if (i < count - 1 && str[i + 1]) {
-          len += gf->spacing;
+        if (ch < gf->start || ch > gf->end) {
+          if (++i >= count) break;
+          ch = *str++;
+          continue;
         }
+        len += gf->width;
+
+        if (++i >= count) break;
+        if ((ch = *str++)) len += gf->spacing;
       }
     }
     break;
     case GF_TYPE_PROPORTIONAL:
     {
-      ULONG i;
-      for (i = 0; i < count; i++) {
+      ULONG i = 0;
+      UBYTE ch = *str;
+
+      while (ch) {
         UBYTE l;
-        UBYTE ch = str[i];
-        if (!ch) break;
+
         if (ch == ' ') {
           len += gf->width;
+          if (++i >= count) break;
+          ch = *str++;
           continue;
         }
-        if (ch < gf->start || ch > gf->end) continue;
-        l = gf->letter[ch - gf->start + 1].offset - gf->letter[ch - gf->start].offset;
-        if (l) {
-          len += l;
-          if (i < count - 1 && str[i + 1]) {
-            len += gf->spacing;
-          }
+        if (ch < gf->start || ch > gf->end) {
+          if (++i >= count) break;
+          ch = *str++;
+          continue;
         }
+        l = gf->letter[ch - gf->start + 1].offset - gf->letter[ch - gf->start].offset;
+        len += l;
+
+        if (++i >= count) break;
+        if ((ch = *str++) && l) len += gf->spacing;
       }
     }
     break;
@@ -299,12 +355,91 @@ ULONG GF_TextLength(struct GameFont* gf, STRPTR str, ULONG count)
   return len;
 }
 ///
+///GF_TextFit(gamefont, str, count, width)
+/******************************************************************************
+ * Similar to TextFit from the API, this function calculates how many         *
+ * characters of the given string would fit into the given width when         *
+ * rendered with the given gamefont.                                          *
+ ******************************************************************************/
+ULONG GF_TextFit(struct GameFont* gf, STRPTR str, ULONG count, ULONG width)
+{
+  ULONG i = 0;
+
+  switch (gf->type) {
+    case GF_TYPE_FIXED:
+    {
+      ULONG len = 0;
+      UBYTE ch = *str;
+
+      while (ch) {
+        if (ch == ' ') {
+          len += gf->width;
+          if (len > width) break;
+          if (++i >= count) break;
+          ch = *str++;
+          continue;
+        }
+        if (ch < gf->start || ch > gf->end) {
+          if (++i >= count) break;
+          ch = *str++;
+          continue;
+        }
+        len += gf->width;
+        if (len > width) break;
+
+        if (++i >= count) break;
+        if ((ch = *str++)) len += gf->spacing;
+      }
+    }
+    break;
+    case GF_TYPE_PROPORTIONAL:
+    {
+      ULONG len = 0;
+      UBYTE ch = *str;
+
+      while (ch) {
+        UBYTE l;
+
+        if (ch == ' ') {
+          len += gf->width;
+          if (len > width) break;
+          if (++i >= count) break;
+          ch = *str++;
+          continue;
+        }
+        if (ch < gf->start || ch > gf->end) {
+          if (++i >= count) break;
+          ch = *str++;
+          continue;
+        }
+        l = gf->letter[ch - gf->start + 1].offset - gf->letter[ch - gf->start].offset;
+        len += l;
+        if (len > width) break;
+
+        if (++i >= count) break;
+        if ((ch = *str++) && l) len += gf->spacing;
+      }
+    }
+    break;
+  }
+
+  return i;
+}
+///
 ///GF_Text(rastport, gamefont, str, count)
+/******************************************************************************
+ * Similar to Text from the API, this function renders the given string onto  *
+ * the given destination rastport using the given gamefont. It respects the   *
+ * Layer (clipping) and the "DrawMode" of the destination rasport.            *
+ * NOTE: For proper rendering the depth of the rasport's bitmap and the depth *
+ * of the gamefont should match (as well as their palettes).                  *
+ ******************************************************************************/
 VOID GF_Text(struct RastPort* rp, struct GameFont* gf, STRPTR str, ULONG count)
 {
   ULONG minterm;
   ULONG i;
   ULONG jam2 = rp->DrawMode & JAM2;
+  UBYTE ch = *str;
   minterm = 0xC0;
 
   //if (jam2) minterm = 0xC0;
@@ -314,18 +449,22 @@ VOID GF_Text(struct RastPort* rp, struct GameFont* gf, STRPTR str, ULONG count)
     UWORD letter_offset;
     UWORD letter_width;
     UBYTE letter_index;
-    UBYTE ch = str[i];
+
     if (!ch) break;
     if (ch == ' ') {
       WaitBlit();
       if (jam2)
-        BltBitMap(gf->bitmap, 0, 0, rp->BitMap, rp->cp_x, rp->cp_y, gf->width, gf->height, minterm, 0xFF, NULL);
-      else
-        BltMaskBitMapRastPort(gf->bitmap, 0, 0, rp, rp->cp_x, rp->cp_y, gf->width, gf->height, minterm, gf->mask->Planes[0]);
+        ClipBlit(&gf->rastport, 0, 0, rp, rp->cp_x, rp->cp_y, gf->width, gf->height, minterm);
+      else {
+        BltBitMap(rp->BitMap, rp->cp_x, rp->cp_y, gf->rastport.BitMap, gf->tmp_buf_x, 0, gf->width, gf->height, minterm, 0xFF, NULL);
+        BltMaskBitMapRastPort(gf->rastport.BitMap, 0, 0, &gf->rastport, gf->tmp_buf_x, 0, gf->width, gf->height, minterm, gf->mask->Planes[0]);
+        ClipBlit(&gf->rastport, gf->tmp_buf_x, 0, rp, rp->cp_x, rp->cp_y, gf->width, gf->height, minterm);
+      }
 
       rp->cp_x += gf->width;
     }
     if (ch < gf->start || ch > gf->end) {
+      ch = *(++str);
       continue;
     }
     letter_index = ch - gf->start;
@@ -346,15 +485,20 @@ VOID GF_Text(struct RastPort* rp, struct GameFont* gf, STRPTR str, ULONG count)
 
     WaitBlit();
     if (jam2)
-      BltBitMap(gf->bitmap, letter_offset, 0, rp->BitMap, rp->cp_x, rp->cp_y, letter_width, gf->height, minterm, 0xFF, NULL);
-    else
-      BltMaskBitMapRastPort(gf->bitmap, letter_offset, 0, rp, rp->cp_x, rp->cp_y, letter_width, gf->height, minterm, gf->mask->Planes[0]);
+      ClipBlit(&gf->rastport, letter_offset, 0, rp, rp->cp_x, rp->cp_y, letter_width, gf->height, minterm);
+    else  {
+      BltBitMap(rp->BitMap, rp->cp_x, rp->cp_y, gf->rastport.BitMap, gf->tmp_buf_x, 0, letter_width, gf->height, minterm, 0xFF, NULL);
+      BltMaskBitMapRastPort(gf->rastport.BitMap, 0, 0, &gf->rastport, gf->tmp_buf_x, 0, letter_width, gf->height, minterm, gf->mask->Planes[0]);
+      ClipBlit(&gf->rastport, gf->tmp_buf_x, 0, rp, rp->cp_x, rp->cp_y, letter_width, gf->height, minterm);
+    }
 
     rp->cp_x += letter_width;
 
-    if (jam2 && i < count - 1 && str[i + 1]) {
+    ch = *(++str);
+
+    if (jam2 && i < count - 1 && ch) {
       WaitBlit();
-      BltBitMap(gf->bitmap, 0, 0, rp->BitMap, rp->cp_x, rp->cp_y, gf->spacing, gf->height, minterm, 0xFF, NULL);
+      ClipBlit(&gf->rastport, 0, 0, rp, rp->cp_x, rp->cp_y, gf->spacing, gf->height, minterm);
     }
     rp->cp_x += gf->spacing;
   }

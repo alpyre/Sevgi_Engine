@@ -15,6 +15,7 @@
 #include <proto/dos.h>
 #include <proto/graphics.h>
 #include <proto/intuition.h>
+#include <proto/keymap.h>
 
 #include "audio.h"
 #include "color.h"
@@ -27,11 +28,22 @@
 ///
 ///defines
 #define VPOSMASK  0x01FF00
+#define INPUT_BUFFER_SIZE 16
+///
+///structs
+struct InputBuffer {
+	UBYTE* write_ptr; //write pointer
+	UBYTE* read_ptr;  //read pointer
+	UBYTE* end;       //buffer + INPUT_BUFFER_SIZE
+	UBYTE buffer[INPUT_BUFFER_SIZE];
+};
 ///
 ///globals
 ULONG chipset = 0; //will get one of the values from CHIPSET_OCS, CHIPSET_ECS, CHIPSET_AGA
 volatile LONG new_frame_flag = 1;
 volatile ULONG g_frame_counter = 0;
+volatile ULONG g_get_input = FALSE;
+struct InputBuffer g_input_buffer;
 extern struct Custom custom;
 extern struct CIA ciaa, ciab;
 
@@ -75,10 +87,76 @@ VOID removeVBlankEvents(VOID)
 }
 ///
 
+///inputEventToInputBuffer(event)
+/******************************************************************************
+ * Maps system's input events to ASCII characters and pushes them into the    *
+ * input buffer (g_input_buffer).                                             *
+ ******************************************************************************/
+STATIC INLINE VOID inputEventToInputBuffer(struct InputEvent* inputevent) {
+	while (inputevent) {
+		if (inputevent->ie_Class == IECLASS_RAWKEY) {
+			UBYTE ch = 0;
+
+			switch (inputevent->ie_Code) {
+				case RAW_BACKSPACE:
+					if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
+						ch = ASCII_BACKSPACE_ALL;
+					else
+						ch = ASCII_BACKSPACE;
+				break;
+				case RAW_TAB:
+					ch = ASCII_TAB;
+				break;
+				case RAW_NUM_ENTER:
+				case RAW_RETURN:
+					ch = ASCII_RETURN;
+				break;
+				case RAW_ESC:
+					ch = ASCII_ESC;
+				break;
+				case RAW_DEL:
+					if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
+						ch = ASCII_DEL_ALL;
+					else
+						ch = ASCII_DEL;
+				break;
+				case RAW_UP:
+					ch = ASCII_UP;
+				break;
+				case RAW_DOWN:
+					ch = ASCII_DOWN;
+				break;
+				case RAW_RIGHT:
+					if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
+						ch = ASCII_END;
+					else
+						ch = ASCII_RIGHT;
+				break;
+				case RAW_LEFT:
+					if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
+						ch = ASCII_HOME;
+					else
+						ch = ASCII_LEFT;
+				break;
+				default:
+					MapRawKey(inputevent, (STRPTR)&ch, 1, NULL);
+					if (ch < 32) ch = 0;
+				break;
+			}
+
+			pushInputBuffer(ch);
+		}
+		inputevent = inputevent->ie_NextEvent;
+	}
+}
+///
 ///customInputHandler()
-//STATIC LONG customInputHandler(VOID)
-HANDLERPROTO(customInputHandler, ULONG, struct InputEvent *inputevent, APTR userdata)
+HANDLERPROTO(customInputHandler, ULONG, struct InputEvent* inputevent, APTR userdata)
 {
+	if (g_get_input) {
+		inputEventToInputBuffer(inputevent);
+	}
+
 	return 0;
 }
 ///
@@ -364,6 +442,54 @@ VOID busyWaitBlit()
 	while (custom.dmaconr & DMAF_BLTDONE)
 	{
 	}
+}
+///
+
+///initInputBuffer()
+VOID initInputBuffer()
+{
+	g_input_buffer.write_ptr = g_input_buffer.buffer;
+	g_input_buffer.read_ptr = g_input_buffer.buffer;
+	g_input_buffer.end = g_input_buffer.buffer + INPUT_BUFFER_SIZE;
+}
+///
+///turnInputBufferOn()
+VOID turnInputBufferOn()
+{
+	initInputBuffer();
+	g_get_input = TRUE;
+}
+///
+///turnInputBufferOff()
+VOID turnInputBufferOff()
+{
+	g_get_input = FALSE;
+}
+///
+///pushInputBuffer(UBYTE ch)
+VOID pushInputBuffer(UBYTE ch)
+{
+	*g_input_buffer.write_ptr = ch;
+	g_input_buffer.write_ptr++;
+	if (g_input_buffer.write_ptr >= g_input_buffer.end) {
+		g_input_buffer.write_ptr = g_input_buffer.buffer;
+	}
+}
+///
+///popInputBuffer()
+UBYTE popInputBuffer()
+{
+	UBYTE ch = 0;
+
+	if (g_input_buffer.write_ptr != g_input_buffer.read_ptr) {
+		ch = *g_input_buffer.read_ptr;
+		g_input_buffer.read_ptr++;
+		if (g_input_buffer.read_ptr >= g_input_buffer.end) {
+			g_input_buffer.read_ptr = g_input_buffer.buffer;
+		}
+	}
+
+	return ch;
 }
 ///
 

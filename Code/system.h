@@ -24,6 +24,36 @@ VOID setVBlankEvents(VOID (*function)(VOID));
 VOID removeVBlankEvents(VOID);
 
 /******************************************************************************
+ * These functions let you read keyboard events into a circular buffer.       *
+ * To activate buffering keyboard events from input.device set g_get_input    *
+ * global to TRUE (or use the turnInputBufferOn()). By default it is off.     *
+ * NOTE: This system is provided to be able to catch every sub-frame keypress *
+ * specifically for the string gadgets of the ui. Turning it off when not     *
+ * required (especially during game play) is recommended to save CPU time.    *
+ * NOTE: The ASCII_ defines below are to help map some specific input events  *
+ * to ASCII control characters to control string gadgets of the ui.           *
+ ******************************************************************************/
+#define ASCII_BACKSPACE      8
+#define ASCII_BACKSPACE_ALL 15
+#define ASCII_TAB            9
+#define ASCII_BACKTAB       21
+#define ASCII_RETURN         6
+#define ASCII_ESC           27
+#define ASCII_DEL          127
+#define ASCII_DEL_ALL       14
+#define ASCII_UP            17
+#define ASCII_DOWN          18
+#define ASCII_LEFT          19
+#define ASCII_RIGHT         20
+#define ASCII_HOME           2
+#define ASCII_END            3
+
+VOID turnInputBufferOn(VOID);
+VOID turnInputBufferOff(VOID);
+VOID pushInputBuffer(UBYTE ch);
+UBYTE popInputBuffer(VOID);
+
+/******************************************************************************
  * The macros below provide a non-blocking time delay check using the         *
  * g_frame_counter. To use them you should declare a static ULONG variable to *
  * hold the rendezvous frame in your anim function and set it with one of the *

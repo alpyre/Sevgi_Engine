@@ -250,6 +250,102 @@ VOID switchToNullCopperList()
 }
 ///
 
+///setSprite(image, x, y, cl_spr0pth, diwstrt, hsn, fetch_mode)
+/******************************************************************************
+ * The modularized all-purpose version of setSprite() function which could be *
+ * used on displays that do not demand maximum performance like UI screens.   *
+ ******************************************************************************/
+VOID setSprite(struct SpriteImage* image, LONG x, LONG y, UWORD* cl_spr0pth, UWORD diwstrt, WORD hardware_sprite_num, UBYTE fetch_mode)
+{
+  struct SpriteTable* entry = &image->sprite_bank->table[image->image_num];
+  ULONG hsn = hardware_sprite_num < 0 ? image->hsn : hardware_sprite_num;
+
+  UWORD offset = entry->offset;
+  UBYTE type = entry->type;
+
+  UWORD offsetOfNext = *((UWORD*)((UBYTE*)entry + sizeof(struct SpriteTable)));
+  UWORD numSprites = type & 0xF;
+
+  UWORD ssize = (offsetOfNext - offset) / numSprites;
+  UWORD height = image->height; // (ssize / (4 * fetch_mode)) - 2;
+
+  ULONG X = x + image->h_offs + (diwstrt & 0xFF);
+  ULONG Y = y + image->v_offs + (diwstrt >> 8);
+  ULONG S = Y + height;
+  ULONG glue_offset = fetch_mode << 4; //(16 * fetch_mode)
+
+  UBYTE* saddr = image->sprite_bank->data + offset;
+  WORD* haddr = cl_spr0pth + (hsn << 2); // (hsn * 4)
+
+  //Prepare the two sprite control words (in one long) for the static vertical coords.
+  ULONG ctl_l0 = (Y << 24) | ((S << 8) & 0xFF00) | ((Y >> 8) << 2) | ((S >> 8) << 1);
+  ULONG ctl_l1;
+  ULONG ctl_l2;
+  if (type & 0x10) {
+    while (numSprites) {
+      //finalize the control words with the current X value for this glued sprite
+      ctl_l1 = ctl_l0 | ((X >> 1) << 16) | 0x80 | (X & 0x1);
+      ctl_l2 = ctl_l1 << 16;
+
+      //Handle the first attached sprite:
+      //set pos & ctl words on the sprite
+      switch (fetch_mode) {
+        case 4: *((ULONG*)saddr + 2) = ctl_l2;
+        case 2: *((ULONG*)saddr + 1) = ctl_l2;
+        case 1: *((ULONG*)saddr) = ctl_l1;
+      }
+
+      //set the sprite address on CopperList
+      *haddr = (WORD)((ULONG)saddr >> 16);  haddr += 2;
+      *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+
+      //get to the attached sprite
+      saddr += ssize;
+
+      //set pos & ctl words on this sprite structure as well
+      switch (fetch_mode) {
+        case 4: *((ULONG*)saddr + 2) = ctl_l2;
+        case 2: *((ULONG*)saddr + 1) = ctl_l2;
+        case 1: *((ULONG*)saddr) = ctl_l1;
+      }
+
+      //set this sprite address on CopperList as well
+      *haddr = (WORD)((ULONG)saddr >> 16);  haddr += 2;
+      *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+
+      //get to the next glued sprite (if there is any)
+      saddr += ssize;
+      X += glue_offset;
+      numSprites -= 2;
+    }
+  }
+  else
+  {
+    while (numSprites) {
+      //finalize the control words with the current X value for this glued sprite
+      ctl_l1 = ctl_l0 | ((X >> 1) << 16) | (X & 0x1);
+      ctl_l2 = ctl_l1 << 16;
+
+      //set pos & ctl words on the sprite
+      switch (fetch_mode) {
+        case 4: *((ULONG*)saddr + 2) = ctl_l2;
+        case 2: *((ULONG*)saddr + 1) = ctl_l2;
+        case 1: *((ULONG*)saddr) = ctl_l1;
+      }
+
+      //set the sprite address on CopperList
+      *haddr = (WORD)((ULONG)saddr >> 16);  haddr += 2;
+      *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+
+      //get to the next glued sprite (if there is any)
+      saddr += ssize;
+      X += glue_offset;
+      numSprites--;
+    }
+  }
+}
+///
+
 /******************************
  * EXPORTED UTILITY FUNCTIONS *
  ******************************/
@@ -363,6 +459,8 @@ VOID freeRastPort(struct RastPort* rp, ULONG free_flags)
     }
     if (rp->Layer) {
       struct Layer_Info* li = rp->Layer->LayerInfo;
+      struct Region* old_region = InstallClipRegion(rp->Layer, NULL);
+      if (old_region) DisposeRegion(old_region);
       DeleteLayer(0L, rp->Layer);
       DisposeLayerInfo(li);
       if (free_flags & RPF_BITMAP && bm) FreeBitMap(bm);

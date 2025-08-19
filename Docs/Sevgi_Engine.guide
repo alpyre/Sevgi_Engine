@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.179
+                             Version 0.181
 
                         Developer Documentation
 
@@ -171,6 +171,7 @@ Sevgi_Engine can be looked into by the following concepts:
 @{" Gameobjects " link "Concepts_16Gameobjects"}     Game entities
 @{" Levels      " link "Concepts_17Levels"}     Handles assets for each game level
 @{" Functions   " link "Concepts_18Functions"}     Functions to call on gameobjects on events
+@{" UI          " link "Concepts_19UI"}     Graphical User Interface elements
 
 @endnode
 
@@ -1261,6 +1262,606 @@ Please examine the collision functions implemented in @{"template games" LINK Se
 
 @endnode
 
+@node "Concepts_19UI" "Sevgi_Engine.guide/Concepts/UI"
+@{b}UI@{ub}
+==
+
+With version 0.181 Sevgi_Engine provides code to create a fully customizable
+mouse/keyboard/joystick driven UI with auto-layout and modern features.
+ui.c and ui.h implement all the functions and macros required to declare,
+operate, animate and access these graphical UI gadgets (called UIObjects).
+
+Auto layouting is achieved by inheriting position and size from the parent
+container objects called groups. Which means every UI object has to be a child
+of a parent group object (except the root group). The implementation does not
+rely on any object oriented implementation (like BOOPSI). All objects are just
+"fatty structs" which are statically allocated by declaration using macros.
+Object type management is handled by checking the value of the type member and
+doing explicit typecasts. The common UI object members are:
+
+struct UIObject {
+  struct MinNode node;          // to enlist for object animation updates
+  UWORD id;                     // user defined id (not used in UI code)
+  BYTE  initialized;            // ensures the root is layouted only once
+  UBYTE type;                   // type of the UI object to typecast
+  ULONG flags;                  // determines object behavior (explained below)
+  STRPTR label;                 // the text to render for the object
+  struct UIObject* parent;      // pointer to the parent container group
+  WORD x;                       // x offset of the object in its parent group
+  WORD y;                       // y offset of the object in its parent group
+  UWORD width;                  // horizontal extent of the object
+  UWORD height;                 // vertical extent of the object
+  // FUNCTION POINTERS
+  VOID (*calcSize)(struct UIObject* self);
+  VOID (*draw)(struct UIObject* self);
+  VOID (*onHover)(struct UIObject* self, WORD ptr_x, WORD ptr_y, BOOL pressed);
+  VOID (*onActive)(struct UIObject* self, WORD ptr_x, WORD ptr_y, BOOL pressed);
+  VOID (*onAcknowledge)(struct UIObject* self);
+  struct UIO_Anim anim;
+  // TYPE SPECIFIC MEMBERS FOLLOW
+};
+
+The function pointers (will be called "methods" now on) on the struct serve:
+calcSize()     : This function is called at init time to calculate the minimum
+                 sizes required to render this UI object.
+draw()         : This function is called every time a UI object needs to be
+                 rendered.
+onHover()      : This function is called every frame* when a UI object is
+                 hovered by the mouse pointer.
+onActive()     : This function is called every frame* when a UI object is
+                 active**.
+onAcknowledge(): This function is called when the gadget is acknowledged by the
+                 user (sometimes referred to as onClick).
+
+(*)  Meaning with every call to @{"updateUI()" link "85-updateUI"} function.
+(**) Being active can mean different things for different objects. For example,
+     if it is a button, it means the button is pressed and hold (so the focus is
+     on the button and this method is checking for release verification every
+     frame), if it is a string object, it means the gadget is now in input mode
+     listening key strokes until it is acknowledged by the user.
+
+Different object types carry different methods to provide different behavior.
+ui.c implements default methods for every object type, so the UI system is ready
+to use out of the box, yet the developer can replace these methods with their
+custom ones to achieve custom rendering and/or behavior. Especially the the
+draw() methods should be customized by the developer to achieve a unique look
+for their game's UI (check out the "RENDERERS" section of ui.c).
+
+The struct for group objects, which are used to provide the object hierarchy and
+layout has the extra type-specific members below:
+
+...
+struct UIObject** children; // a NULL terminated array of child object pointers
+UWORD child_gap;            // spacing between every child
+UWORD columns;              // layout children into columns (rows if horizontal)
+struct {
+  UBYTE top;                // spacing at the top of the group content area
+  UBYTE bottom;             // spacing at the bottom of the group content area
+  UBYTE left;               // spacing at the left of the group content area
+  UBYTE right;              // spacing at the right of the group content area
+}margin;
+struct {
+  WORD x;                   // offsets the group contents this much to the left
+  WORD y;                   // offsets the group contents this much up
+  UWORD width;              // width of the groups actual content area
+  UWORD height;             // height of the groups actual content area
+  struct UIObject* bar_horiz;    // pointer to a horizontal scrollbar object
+  struct UIObject* bar_vert;     // pointer to a horizontal scrollbar object
+}scroll;
+
+Most of the values here will be automatically handled by the UI code for you.
+You mostly just need to use the macros and flags defined in ui.h.
+
+@{b}COMMON UI OBJECT FLAGS@{ub}
+======================
+UIOF_NONE
+  Use this if you want to specify no flags.
+UIOF_DISABLED
+  The object will be unoperable and will be rendered as to identify that.
+UIOF_SELECTED
+  The object will be rendered in its selected state.
+UIOF_HOVERED
+  The object will be rendered in its selected state.
+UIOF_PRESSED
+  The object will be rendered in its pressed down by the mouse state.
+UIOF_INHERIT_X
+  The object will get its x offset from its parent group.
+UIOF_INHERIT_Y
+  The object will get its y offset from its parent group.
+UIOF_INHERIT_POS
+  The object will get its x and y offsets from its parent group.
+UIOF_INHERIT_WIDTH
+  The object will get the width its parent group sets to it.
+UIOF_INHERIT_HEIGHT
+  The object will get the height its parent group sets to it.
+UIOF_INHERIT_SIZE
+  The object will get its width and height from its parent group.
+UIOF_INHERIT_ALL
+  The object will get its offsets and sizes from its parent group.
+
+The members x, y can be omitted (set to 0) when UIOF_INHERIT_X, UIOF_INHERIT_Y
+or UIOF_INHERIT_POS flags are used.
+
+The members width and height can always be omitted (set to 0). When
+UIOF_INHERIT_WIDTH, UIOF_INHERIT_HEIGHT or UIOF_INHERIT_SIZE flags are used they
+will be determined by the parent group. Otherwise they will get the values set
+by the objects' calcSize method. Giving any positive value (before initUI())
+will ignore the calcSize make the object a fixed-size object.
+
+Type-specific flags will be covered per object type below.
+
+@{b}UI OBJECT MACROS@{ub}
+================
+WARNING: All name arguments in the macros below will become c globals. So keep
+in mind to follow a proper naming convention and put unique, explanatory names
+for your UI objects.
+
+@{b}UI_ROOT@{ub}(name, children)
+  Declares a basic root group object to initialize the UI with. children is a
+  pointer to a NULL terminated array of UIObject pointers.
+
+@{b}UI_GROUP@{ub}(name, label, flags, children, child_gap, columns, margin)
+  Declares a group with more options.
+  label     - Title to render above the group when the UIOF_TITLED flag is set
+  flags     - Additional to COMMON UI OBJECT FLAGS above:
+    UIOF_HORIZONTAL: layout the child objects horizontally within the group
+    UIOF_VERTICAL  : layout the child objects vertically (default)
+    UIOF_FRAMED    : render a beveled frame around the group
+    UIOF_TITLED    : render a title text for the group (use with UIOF_FRAMED)
+  children  - Pointer to a NULL terminated array of child object pointers
+  child_gap - Spacing to render between every child of the group
+  columns   - Layout children into columns (rows if group is horizontal)
+  margin    - sets al margins (top, bottom, left, right) to this value
+
+@{b}UI_SIZED_GROUP@{ub}(name, label, x, y, width, height, flags, children, child_gap,
+               columns, margin, h_scrbar, v_scrbar)
+  A group declaration with more control. Additional to the arguments above:
+  x      - x offset of the group in its parent group
+  y      - y offset of the group in its parent group
+  width  - horizontal size of the group (set to 0 to calculate from children)
+  height - vertical size of the group (set to 0 to calculate from children)
+  h_scrbar - a pointer to a horizontal scrollbar object (NULL if not desired)
+  v_scrbar - a pointer to a vertical scrollbar object (NULL if not desired)
+
+@{b}UI_SCROLLBAR@{ub}(name, orientation)
+  Declares a scrollbar object with the desired orientation. Scrollbar objects
+  are integrated to only work as a child of a group. So it is much better to use
+  the macros below which declare them together with a scroll group.
+
+@{b}UI_SCROLL_GROUP@{ub}(name, label, x, y, width, height, flags, children, child_gap,
+                columns, margin)
+  Declares a group object together with two scrollbars (one horizontal and one
+  vertical). Both bars will always be visible and will scroll the group with
+  mouse if the contents is larger than the visible content area of the group.
+  Omitting width and height arguments (for auto calculation from children) does
+  not make sense for this kind of group, because its calcSize() method will give
+  it a size that can fit all its children (even if the parent group's or the
+  rastport's render area is not enough to display them all). Meaning you should
+  always declare scroll groups with predetermined width and and height (fixed
+  size).
+
+@{b}UI_SCROLL_GROUP_VERT@{ub}(name, label, x, y, width, height, flags, children,
+                     child_gap, columns, margin)
+  Declares a group object together with a vertial scrollbar. As explained above,
+  you should set a predetermined fixed height to this kind of group object. You
+  can set height to zero for auto calculation.
+
+@{b}UI_SCROLL_GROUP_HORIZ@{ub}(name, label, x, y, width, height, flags, children,
+                      child_gap, columns, margin)
+  Declares a group object together with a horizontal scrollbar. As above, you
+  should set a predetermined fixed width to this kind of group object. You can
+  set width to zero for auto calculation.
+
+@{b}UI_TAB@{ub}(name, label, flags, children, margin)
+  Declares a different type of group object where the child objects will be
+  displayed exclusively as different tabs. So it makes sense to have each child
+  to be another group object. The type specific flags to use are:
+    UIOF_TITLED    : render tab titles (titles are taken from children labels)
+    UIOF_FRAMED    : render a beveled frame around the group and the selector
+    UIOF_TABBED    : identifies a tab (YOU SHOULD NOT PLAY WITH THIS FLAG)
+
+  Because of their nature the flags UIOF_HORIZONTAL, UIOF_VERTICAL do not make
+  sense for tabbed groups, so do not use them.
+
+  Also it doesn't make sense for tabbed groups to be scrolled (although their
+  children can be scroll groups). So the scroll members of the group struct are
+  used for other purposes. They are:
+  u_tab_selected : currently selected tab (0 indexed)
+  u_tab_numtabs  : number of child objects (groups)
+  u_tab_widths   : pointer to an array of text widths of the tab labels
+  u_tab_selector : pointer to a tab selector object
+
+@{b}UI_RECTANGLE@{ub}(name)
+  You can use this to create an empty area in a group. For example, you have
+  a columned group and a specific row needs to have less objects than the number
+  of columns. You can fill their space with rectangle objects. If you want the
+  rectange to be of predetermined pos and/or size, use the following macro.
+
+@{b}UI_SIZED_RECTANGLE@{ub}(name, x, y, width, height)
+  Same object as UI_RECTANGLE, but you can declare fixed-size and/or position
+  for it.
+
+@{b}UI_SEPARATOR@{ub}(name, flags)
+  Use this to render a separator line between objects.
+  flags -
+    UIOF_HORIZONTAL // draws a horizontal separator line
+    UIOF_VERTICAL   // draws a vertical separator line (default)
+    FS_STRING or FS_GROUP // draws a beveled double line separator
+    FS_BUTTON             // draws a single line separator (default)
+
+@{b}UI_LABEL@{ub}(name, label, flags, y_offset)
+  Declares a label object which inherits its size and position from its parent
+  group.
+  flags   - use these flags to manipulate render behavior
+    UIOF_ALIGN_LEFT
+    UIOF_ALIGN_CENTER
+    UIOF_ALIGN_RIGHT
+    UIOF_ALIGN_TOP
+    UIOF_ALIGN_CENTER_V  // centers the label text vertically
+    UIOF_ALIGN_BOTTOM
+  y_offset - you can use this value to fine tune the vertical placement of the
+             label to align with the next object on its right (i.e. within in a
+             columned group).
+
+@{b}UI_BUTTON@{ub}(name, label, flags, onClick)
+  Declares a button object with release verify action.
+  label   - the text on the button. The default draw() method renders the
+            label centered (both horizontally and vertically). Note that you can
+            tweak the spacings between the button top/bottom and the label using
+            the defines: UIOV_BUTTON_MARGIN_TOP and UIOV_BUTTON_MARGIN_BOTTOM if
+            your font does not look centered within the button box.
+  flags   -
+    UIOF_FRAMED   : draws a frame around the button
+                    The style of the frame should be set using one of the flags:
+                    FS_BUTTON // default
+                    FS_STRING
+                    FS_GROUP
+
+  onClick - the function to be called when the button is "acknowledged" (release
+            verified click) by the user. The function pointer should be of type:
+            VOID (*onClick)(struct UIObject* self);
+
+@{b}UI_CHECKBOX@{ub}(name, label, flags, onClick)
+  Declares a bool object. The default draw method will draw a square box on
+  the left and the label on the right. The function given in onClick argument
+  will be called when the object is clicked (not release verified).
+
+  You can access the state of the checkbox with the macro:
+  isCheckboxChecked(checkbox)
+  where the argument "checkbox" is a pointer to a checkbox object.
+
+@{b}UI_CYCLEBOX@{ub}(name, options, num_options, initial_selected, flags, onClick)
+  Declares a cycle gadget.
+  options          - a pointer to an array of option strings
+  num_options      - number of option strings
+  initial_selected - the index of the initially selected option (zero indexed)
+  flags            - uses the same flags and behavior with the button objects
+  onClick          - same as button objects
+
+  Cyclebox struct (struct UIO_Cyclebox) has the extra type specific members
+  below:
+  STRPTR* options;
+  UWORD num_options;
+  UWORD selected; //The index of the currently selected option string in options
+
+  If you need to access the current selected option in your onClick() method
+  cast the self pointer into a struct UIO_Cyclebox pointer and access the
+  member called selected. Example:
+    struct UIO_Cyclebox* cyclebox = (struct UIO_Cyclebox*)self;
+    switch(cyclebox->selected) {
+    ...
+
+@{b}UI_STRING@{ub}(name, flags, max_length, initial_content, placeholder, onAcknowledge)
+  Declares a string (input) gadget.
+  flags           -
+    UIOF_FRAMED   : draws a frame around the gadget
+                    The style of the frame should be set using one of the flags:
+                    FS_BUTTON
+                    FS_STRING
+                    FS_GROUP
+
+    UIOF_PASSWORD : hides the contents with the character defined in
+                    UIOV_STRING_PASSWORD_CHAR. "*" as default.
+    UIOF_DOTTED   : draws the character defined in UIOV_STRING_DOTTED_CHAR for
+                    every empty character indicating how many characters the
+                    gadget allows maximum.
+  max_length      - maximum characters the string gadget allows*
+  initial_content - the initial text to be set as the string object contents
+  placeholder     - placeholder text displayed when the contents is empty
+  onAcknowledge   - the function to call when the object is acknowledged (by
+                    pressing return or tab)
+
+  If you need to access the current string contents in your onAcknowledge()
+  method cast the self pointer into a struct UIO_String pointer and access the
+  member called "content". Example:
+    struct UIO_String* string = (struct UIO_String*)self;
+    STRPTR content = string->content;
+    ...
+
+  Do NOT manipulate the contents of this string pointer directly! If you want to
+  change the contents of a string gadget, always use the function:
+  @{"setStringContents()" link "73-setStringContents"}
+
+  (*) Maximum value for max_length is 255 by default (UBYTE). To support longer
+  strings find the type definition "STRLEN" in ui.h and change its storage type
+  to a bigger one. i.e: typedef UWORD STRLEN;
+
+@{b}UI_INTEGER@{ub}(name, flags, initial_value, min, max, increment, onAcknowledge)
+  Declares a special type of string gadget which only accepts integers.
+  Accepts the same flags as the string gadget.
+
+  initial_value - the initial (LONG) value to be set to the object
+  min           - the minimum value the integer gadget allows
+  max           - the maximum value the integer gadget allows
+  increment     - the amount to increment/decrement integer value
+  onAcknowledge - the function to call when the object is acknowledged (by
+                  pressing return or tab)
+
+  If you need to access the current integer value in your onAcknowledge() method
+  cast the self pointer into a struct UIO_Integer pointer and access the "value"
+  member. Example:
+    struct UIO_Integer* integer = (struct UIO_Integer*)self;
+    LONG value = integer->value;
+    ...
+
+  You can use the functions below to manipulate the values of integer objects.
+  @{"setIntegerValue()" link "72-setIntegerValue"}
+  @{"incrementIntegerValue()" link "30-incrementIntegerValue"}
+  @{"decrementIntegerValue()" link "12-decrementIntegerValue"}
+
+@{b}UI_INCDECINT@{ub}(name, flags, initial_value, min, max, increment, onAcknowledge,
+             child_gap)
+  Declares a compound object consisting of a UI_INTEGER, a UI_BUTTON for
+  increment, a UI_BUTTON for decrement and a horizontal UI_GROUP to contain
+  these three. The global variable names are derived from the name argument as:
+  {name}              - the integer gadget
+  {name}_button_plus  - increment button
+  {name}_button_minus - decrement button
+  {name}_group        - the horizontal group that contains these three objects
+
+  Clicking the buttons will increment/decrement the value in the integer gadget
+  by default.
+
+  The macro arguments that are identical to the ones used for UI_INTEGER apply
+  to the integer gadget. child_gap argument sets the spacing between the integer
+  gadget and the buttons.
+  Accepts the same flags as the string and integer gadgets and they apply to the
+  integer gadget. UIOF_FRAMED flag applies to both the integer gadget and the
+  buttons. Frame style flags only apply to the integer gadget.
+
+  Accessing and manipulating the value is the same as in UI_INTEGER objects.
+
+@{b}A SIMPLE UI DECLARATION EXAMPLE@{ub}
+===============================
+An example UI declaration with three buttons is given below:
+
+UI_BUTTON(button_START, "START",   UIOF_INHERIT_POS | UIOF_INHERIT_WIDTH, NULL);
+UI_BUTTON(button_OPTNS, "OPTIONS", UIOF_INHERIT_POS | UIOF_INHERIT_WIDTH, NULL);
+UI_BUTTON(button_QUIT,  "QUIT",    UIOF_INHERIT_POS | UIOF_INHERIT_WIDTH, NULL);
+
+STATIC struct UIObject* root_children[] = {&button_START,
+                                           &button_OPTNS,
+                                           &button_QUIT, NULL};
+UI_ROOT(group_root, root_children);
+
+Once you declared all your UI elements using the macros provided as above, you
+must call @{"initUI()" link "31-initUI"} function somewhere appropriate (probably before entering
+the display loop) with the root group and the other required arguments. It does
+all the inheritance and layouting.
+
+Later in the main display loop, calling @{"updateUI()" link "85-updateUI"} every frame will do all the
+rendering and functionality for you.
+
+@{b}RE-LAYOUT@{ub}
+=========
+
+Because the UI is directly being rendered into a rastport with a predetermined
+size and there is no implementation for dynamically resizable windows,
+initialization (inheritance and layout) needs to be done only once per root
+group per game session. To ensure this, @{"initUI()" link "31-initUI"} marks the root group as
+initialized at the first time and does not run the layout algorithms again each
+time it is called on the same root group.
+
+However you may need to do a re-layout in some rare cases (i.e., you let user to
+select font or UI language). In this case you can use the @{"resetUILayout()" link "64-resetUILayout"}
+function which resets the position and sizes of all objects (except the root
+itself and scroll groups) to 0 and unsets the "initialized" member. After
+calling @{"resetUILayout()" link "64-resetUILayout"}, if you have fixed width and/or pos objects set their
+position and size values and call @{"initUI()" link "31-initUI"} again to re-layout your UI.
+
+@{b}HOVERING@{ub}
+========
+
+UI objects with an onHover method can react to mouse pointer hovering. A proper
+onHover method should look like this:
+
+VOID onHover(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL hovered)
+{
+  // IMPLEMENT YOUR ON HOVER ACTIVITIES HERE
+  if (hovered) {
+    if (self->flags & UIOF_HOVERED) {
+      // Object was being hovered the frame before and still is being hovered
+      // We can set a counter here to display bubble help or animate while being
+      // hovered.
+    }
+    else {
+      // Object wasn't hovered the frame before and is now changing to hovered
+      self->flags |= UIOF_HOVERED;
+      if (self->draw) self->draw(self);
+    }
+  }
+  else {
+    // Object isn't hovered anymore and is now changing to not hovered
+    if (self->flags & UIOF_HOVERED) {
+      self->flags &= ~UIOF_HOVERED;
+      if (self->draw) self->draw(self);
+    }
+  }
+}
+
+@{b}RENDERING@{ub}
+=========
+Every UI element renders itself by calling its draw() method. Sevgi_Engine comes
+with some default draw() methods for all implemented object types. Yet you may
+want to (and you should) implement your custom renderers to have a unique look
+for your UI elements. There are a few points you should pay attention to when
+implementing your own draw() methods if you want the auto layouting to keep
+working. Here is an example draw method implementation:
+
+VOID drawObject(struct UIObject* self)
+{
+  WORD x1 = inheritX(self);
+  WORD y1 = inheritY(self);
+  WORD x2 = x + self->width;
+  WORD y2 = y + self->height;
+
+  setClip(self->parent);
+  waitVBeam(y2 + ui_screen_start);
+
+ /*******************************************
+  * Implement your stylized UI object below *
+  *******************************************/
+ // Use your desired render function from the graphics.library. For example:
+ Text(ui_rast_port, self->label, strlen(self->label));
+
+}
+
+The functions @{"inheritX()" link "30-inheritX"} and @{"inheritY()" link "30-inheritY"} will give you the x and y coordinates of
+the top-left corner of your object on the rastport (which the UI was initialized
+with) considering the layout, margins, and scroll states of all the parent
+container groups.
+
+To get the bottom-right corner of the object, you should add the object's width
+and height to these coordinates.
+
+These values determine the object rectangle where you should render into.
+
+The function @{"setClip()" link "64-setClip"} restricts the rendering to the object content rectangle.
+It will consider the margins and scroll states of all parent groups. Since you
+already have the object rectangle to render into; in most cases you should
+generally pass this function the object's parent for optimization.
+
+Because of the single-buffered nature of Sevgi_Engine displays, if you see that
+the re-draws cause tearing, you can use the @{"waitVBeam()" link "88-waitVBeam"} function to make sure
+the video beam has already passed the bottom of your object (a.k.a. "chasing the
+beam"). You should always add the ui_screen_start to the y2 of your object to
+convert the screen coordinate to a hardware coordinate. This assumes your
+rastport is being displayed starting at DIWSTRT. Otherwise (if there is an
+offset), you should have taken that into account, as you have called @{"initUI()" link "31-initUI"}.
+
+Finally, you can use any of the drawing functions from the graphics.library
+to render your object to the ui_rast_port (the @{u}layered rastport@{uu} the UI is
+initialized to with @{"initUI()" link "31-initUI"}) using the coordinates x1, y1, x2, and y2.
+
+These functions are:
+WritePixel()  Draw a single pixel in the foreground color at a given coordinate.
+DrawCircle()  Draw a circle with a given radius and center point.
+DrawEllipse() Draw an ellipse with the given radii and center point.
+Move()        Move the RastPort drawing pen to a given coordinate.
+Draw()        Draw a line from the current pen location to a given coordinate.
+PolyDraw()    Draw a polygon with a given set of vertices.
+AreaMove()    Set the anchor point for a filled polygon.
+AreaDraw()    Add a new vertice to an area-fill polygon.
+AreaEnd()     Close and area-fill polygon, draw it and fill it.
+AreaCircle()  Draw a filled circle with a given radius and center point.
+AreaEllipse() Draw a filled ellipse with the given radii and center point.
+Flood()       Flood fill a region starting at a given coordinate.
+RectFill()    Flood fill a rectangular area at a given location and size.
+Text()        Render text into a rastport.
+
+You can also blit graphics from another rastport using:
+ClipBlit()
+NOTE: Always using ClipBlit() here is essential if your object is going to be a
+child of a scroll group where clipping is required. Other blit functions do not
+respect clipping.
+
+You can, of course, use @{"GF_Text()" link "26-GF_Text"} from Sevgi_Engine.
+
+Do not forget to cover rendering disabled, selected, and hovered states of your
+objects here if you desire to use these states, keeping in mind that these
+states may not be mutually exclusive. You can take clues from the default draw
+methods present.
+
+Implementing your custom draw() method will require you to write a custom
+calcSize() method as well. The default calcSize() methods are only compatible
+with the default draw() method implementations.
+
+All calcSize() methods should be in the form below:
+
+VOID sizeObject(struct UIObject* self)
+{
+  if (!self->width) {
+    // If a fixed width is not given for this object, calculate and set here
+    self->width = /* YOUR CALCULATED WIDTH */
+  }
+
+  if (!self->height) {
+    // If a fixed height is not given for this object, calculate and set here
+    self->height = /* YOUR CALCULATED HEIGHT */
+  }
+}
+
+The width and height calculated in calcSize() methods are recommended minimums.
+Depending on the object flags (ie. UIOF_INHERIT_SIZE, UIOF_INHERIT_WIDTH,
+UIOF_INHERIT_HEIGHT) the parent group may set bigger sizes for your objects.
+
+Whether you use the default draw methods or write your own custom ones, you
+should set the pen and sizing defines in ui.h according to your display's
+color palette.
+
+@{b}ANIMATIONS@{ub}
+==========
+
+If you want your UI objects to be animated while idle, you can enlist them to
+the list ui_anim_list. The objects on this list will have their animation
+function on their anim struct called every frame (meaning with every call to
+@{"updateUI()" link "85-updateUI"}).
+
+You can dynamically add and remove your objects from this list based on user
+interaction.
+
+Similar to the one for gameobjects, the anim struct UIO_Anim provides some BYTE
+values to store the state of the animations, which you can make use of in your
+anim functions. You can add/remove members from this struct as long as you edit
+the define UI_ANIM_STRUCT (which is used to allocate and initialize the memory
+for it) appropriately.
+
+If you do not want to use this animation system at all, redefining the
+UI_ANIM_STRUCT to nothing and removing the "struct UIO_Anim anim" line from
+UIOBJECT_COMMON will save the memory to be used.
+
+@{b}SCALABILITY@{ub}
+===========
+Sevgi_Engine's UI is powerful enough to create pretty crowded and complex user
+interfaces. Yet a simple game may just need a button to start and a button
+to quit. This causes most of the implemented UI code to become unnecessary, and
+linking these code parts into your executable is a waste of resources.
+
+You can get rid of these unnecessary code blocks by undefining these defines
+below (see the UI SETTINGS section of ui.h):
+
+UI_USE_TABBED_GROUPS
+UI_USE_SCROLLING
+UI_USE_SCROLLBARS
+UI_USE_LABELS
+UI_USE_CHECKBOXES
+UI_USE_CYCLEBOXES
+UI_USE_STRING_GADGETS
+UI_USE_INTEGER_GADGETS
+UI_USE_LISTVIEWS
+UI_USE_RELAYOUTING
+
+Especially if you are not going to use the tabbed groups and/or scroll groups
+undefining their corresponding define will optimize your UI performance
+significantly.
+
+If your UI layout is too complex and scrolling renders some glitches onto the
+screen defining UI_SCROLL_USING_REDRAW (see the UI SETTINGS section of ui.h)
+may fix it. However, scrolling by blitting (the default implementation) will be
+much performant on real hardware.
+
+@endnode
+
 @node "Concepts_00Tiled" "Sevgi_Engine.guide/Concepts/Tiled"
 @{b}Tiled@{ub}
 =====
@@ -1363,7 +1964,9 @@ save them.
 
 At this stage, you can implement the artistic decoration and functionality of
 your game's main menu. This is achieved by writing code in the display_menu.c
-file.
+file. The buttons on the main menu utilizes the UI implementations from ui.c and
+ui.h. You should also consider modifiying the draw methods of UI objects to have
+a unique looking @{"UI" link "Concepts_19UI"} for your game.
 
 General events such as game start, game end, scoring, etc. in game levels can be
 implemented in the level_display_loop.c file, events based on gameobject
@@ -1444,6 +2047,7 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{b}Function Reference@{ub}
 ==================
 
+@{" activateObject            " link "00-activateObject"}
 @{" allocBitMap               " link "00-allocBitMap"}
 @{" allocBOBBackgroundBuffer  " link "00-allocBOBBackgroundBuffer"}
 @{" allocCopperList           " link "01-allocCopperList"}
@@ -1458,6 +2062,7 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" createEmptyRainbow        " link "10-createEmptyRainbow"}
 @{" createGradient            " link "11-createGradient"}
 @{" createRainbow             " link "12-createRainbow"}
+@{" decrementIntegerValue     " link "12-decrementIntegerValue"}
 @{" detectChipset             " link "13-detectChipset"}
 @{" despawnGameObject         " link "14-despawnGameObject"}
 @{" destroyGameObject         " link "15-destroyGameObject"}
@@ -1473,10 +2078,16 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" freeRainbow               " link "29-freeRainbow"}
 @{" freeRastPort              " link "24-freeRastPort"}
 @{" freeSpriteBank            " link "25-freeSpriteBank"}
+@{" getSelectedIndex          " link "25-getSelectedIndex"}
+@{" getSelectedObject         " link "25-getSelectedObject"}
 @{" GF_Text                   " link "26-GF_Text"}
 @{" GF_TextLength             " link "28-GF_TextLength"}
 @{" giveBackSystem            " link "30-giveBackSystem"}
+@{" incrementIntegerValue     " link "30-incrementIntegerValue"}
+@{" inheritX                  " link "30-inheritX"}
+@{" inheritY                  " link "30-inheritY"}
 @{" initGameObjects           " link "31-initGameObjects"}
+@{" initUI                    " link "31-initUI"}
 @{" keyState                  " link "32-keyState"}
 @{" loadBOBSheet              " link "33-loadBOBSheet"}
 @{" loadGameObjectBank        " link "33-loadGameObjectBank"}
@@ -1495,7 +2106,10 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" newRainbow                " link "44-newRainbow"}
 @{" newTileMap                " link "45-newTileMap"}
 @{" newTileSet                " link "46-newTileSet"}
+@{" nextObject                " link "46-nextObject"}
 @{" openFonts                 " link "47-openFonts"}
+@{" popInputBuffer            " link "47-popInputBuffer"}
+@{" prevObject                " link "47-prevObject"}
 @{" PT_FreeModule             " link "48-PT_FreeModule"}
 @{" PT_FreeSFX                " link "49-PT_FreeSFX"}
 @{" PT_InitModule             " link "50-PT_InitModule"}
@@ -1513,10 +2127,17 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" PT_StopAudio              " link "60-PT_StopAudio"}
 @{" PT_StopSFX                " link "61-PT_StopSFX"}
 @{" PT_TerminatePTPlayer      " link "62-PT_TerminatePTPlayer"}
+@{" pushInputBuffer           " link "63-pushInputBuffer"}
 @{" readMouse                 " link "63-readMouse"}
+@{" removeClip                " link "63-removeClip"}
 @{" removeVBlankEvents        " link "64-removeVBlankEvents"}
+@{" resetUI                   " link "64-resetUI"}
+@{" resetUILayout             " link "64-resetUILayout"}
 @{" scrollGradientDown        " link "64-scrollGradientDown"}
 @{" scrollGradientUp          " link "64-scrollGradientUp"}
+@{" selectObject              " link "64-selectObject"}
+@{" selectObjectAtIndex       " link "64-selectObjectAtIndex"}
+@{" setClip                   " link "64-setClip"}
 @{" setColor                  " link "65-setColor"}
 @{" setColors                 " link "66-setColors"}
 @{" setColorTable             " link "67-setColorTable"}
@@ -1526,12 +2147,18 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" setGameObjectImage        " link "71-setGameObjectImage"}
 @{" setGameObjectPos          " link "72-setGameObjectPos"}
 @{" setGradientScrollPos      " link "72-setGradientScrollPos"}
+@{" setIndexToObject          " link "72-setIndexToObject"}
+@{" setIntegerValue           " link "72-setIntegerValue"}
 @{" setKeyboardAccess         " link "73-setKeyboardAccess"}
+@{" setSprite                 " link "73-setSprite"}
+@{" setStringContents         " link "73-setStringContents"}
 @{" setVBlankEvents           " link "74-setVBlankEvents"}
 @{" setVolume                 " link "75-setVolume"}
 @{" spawnGameObject           " link "76-spawnGameObject"}
 @{" switchToNullCopperList    " link "77-switchToNullCopperList"}
 @{" takeOverSystem            " link "78-takeOverSystem"}
+@{" turnInputBufferOff        " link "78-turnInputBufferOff"}
+@{" turnInputBufferOn         " link "78-turnInputBufferOn"}
 @{" unloadLevel               " link "79-unloadLevel"}
 @{" updateBOBs                " link "80-updateBOBs"}
 @{" updateColor               " link "81-updateColor"}
@@ -1539,11 +2166,46 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" updateColorTable_Partial  " link "83-updateColorTable_Partial"}
 @{" updateGameObjects         " link "84-updateGameObjects"}
 @{" updateRainbow             " link "85-updateRainbow"}
+@{" updateUI                  " link "85-updateUI"}
 @{" updateVolume              " link "85-updateVolume"}
 @{" waitTOF                   " link "86-waitTOF"}
 @{" waitVBeam                 " link "88-waitVBeam"}
 @{" WaitVBeam                 " link "89-WaitVBeam"}
 @{" WaitVBL                   " link "90-WaitVBL"}
+
+@endnode
+
+@node "00-activateObject" "Sevgi_Engine.guide/Function Reference/activateObject"
+NAME
+    activateObject - Makes an object the active UI object
+
+SYNOPSIS
+    activateObject()
+
+    struct UIObject* activateObject(VOID);
+
+FUNCTION
+    Activates the currently selected object by calling its onActive function.
+    So the result depends on the object type:
+     - If the object is a button object, it will call its onClick
+       (onAcknowledge) function.
+     - If the object is of type cyclebox, it will cycle its state and call its
+       onAcknowledge() function.
+     - If the object is a checkbox, it will switch its state.
+     - If the object is of type string, it will focus on the object and activate
+       user input.
+
+RESULTS
+    Returns the currently selected object
+
+NOTES
+    This function is useful to access UI objects using the keyboard or joystick.
+    But unfortunately, activating objects with this function does not provide a
+    "release verify" mechanism.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"selectObject()" link "64-selectObject"}, @{"selectObjectAtIndex()" link "64-selectObjectAtIndex"}, @{"setIndexToObject()" link "72-setIndexToObject"},
+    @{"getSelectedIndex()" link "25-getSelectedIndex"}, @{"getSelectedObject()" link "25-getSelectedObject"}, @{"nextObject()" link "46-nextObject"}, @{"prevObject()" link "47-prevObject"}
 
 @endnode
 
@@ -1752,10 +2414,8 @@ RESULTS
     Returns a pointer to a RastPort if successful. Otherwise returns NULL.
 
 NOTES
-    To have a layered rastport (using the RPF_LAYER flag) it is obligatory to
-    also allocate a bitmap using the RPF_BITMAP flag. Otherwise you'll get a
-    rastport without a layer and attaching a bitmap later still won't give you a
-    layered rastport.
+    To have a layered rastport it is obligatory to also allocate a bitmap using
+    the RPF_BITMAP flag (which is quite unpractical otherwise anyway).
 
 SEE ALSO
     @{"Displays" link "Concepts_07Displays"}, @{"freeRastPort()" link "24-freeRastPort"}, @{"allocBitMap()" link "00-allocBitMap"}
@@ -2060,6 +2720,34 @@ NOTES
 
 SEE ALSO
     @{"Rainbows" link "Concepts_12Rainbows"}, @{"newRainbow()" link "44-newRainbow"}, @{"updateRainbow()" link "85-updateRainbow"}, @{"freeRainbow()" link "29-freeRainbow"}
+
+@endnode
+
+@node "12-decrementIntegerValue" "Sevgi_Engine.guide/Function Reference/decrementIntegerValue"
+NAME
+    decrementIntegerValue - Decrements the value of an integer object
+
+SYNOPSIS
+    decrementIntegerValue(integer, redraw)
+
+    VOID decrementIntegerValue(struct UIO_Integer* integer, BOOL redraw);
+
+FUNCTION
+    Decrements the value on an integer object by the amount set in its member
+    increment respecting min restriction and doing the necessary value/string
+    conversions.
+
+INPUTS
+    integer - the integer object to have its value decremented
+    redraw  - set this to UI_REDRAW if you want the object to be redrawn.
+              set it to UI_NO_REDRAW if otherwise.
+
+NOTES
+    You MUST set UI_NO_REDRAW if the UI is currently not initialized to a valid
+    rastport. You may crash the system otherwise.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"incrementIntegerValue()" link "30-incrementIntegerValue"}, @{"setIntegerValue()" link "72-setIntegerValue"}
 
 @endnode
 
@@ -2396,8 +3084,8 @@ NOTES
     Do not forget to take pointers to components excluded from freeing
     beforehand. Otherwise you'll have no way to free them later and so there
     will be a memory leak!
-    The layer of a layered rastport will be freed alongside with the rastport.
-    Which means it can't be excluded from being freed.
+    The layer of a layered rastport will be freed alongside with the rastport
+    and can't be excluded from being freed.
 
 SEE ALSO
     @{"Displays" link "Concepts_07Displays"}, @{"allocRastPort()" link "02-allocRastPort"}
@@ -2422,6 +3110,52 @@ INPUTS
 
 SEE ALSO
     @{"Images" link "Concepts_13Images"}, @{"loadSpriteBank()" link "36-loadSpriteBank"}
+
+@endnode
+
+@node "25-getSelectedIndex" "Sevgi_Engine.guide/Function Reference/getSelectedIndex"
+NAME
+    getSelectedIndex - Returns the current index of the UI cycle chain
+
+SYNOPSIS
+    getSelectedIndex()
+
+    ULONG getSelectedIndex(VOID);
+
+RESULTS
+    Returns the current index of the cycle chain from ui.o
+
+NOTES
+    Will return the index of the NULL terminating element of the cycle chain
+    (ui_cycle_chain_size) when no object is selected.
+
+    If the UI was not initialized with a cycle chain, will always return 0
+    (ui_cycle_chain_size).
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"selectObject()" link "64-selectObject"}, @{"selectObjectAtIndex()" link "64-selectObjectAtIndex"}, @{"setIndexToObject()" link "72-setIndexToObject"},
+    @{"getSelectedObject()" link "25-getSelectedObject"}, @{"nextObject()" link "46-nextObject"}, @{"prevObject()" link "47-prevObject"}, @{"activateObject()" link "00-activateObject"}
+
+@endnode
+
+@node "25-getSelectedObject" "Sevgi_Engine.guide/Function Reference/getSelectedObject"
+NAME
+    getSelectedObject - Returns the currently selected UI object
+
+SYNOPSIS
+    getSelectedObject()
+
+    struct UIObject* getSelectedObject(VOID);
+
+RESULTS
+    Returns a pointer to the current selected object from ui.o
+
+NOTES
+    Will return NULL if no object is actually selected.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"selectObject()" link "64-selectObject"}, @{"selectObjectAtIndex()" link "64-selectObjectAtIndex"}, @{"setIndexToObject()" link "72-setIndexToObject"},
+    @{"getSelectedIndex()" link "25-getSelectedIndex"}, @{"nextObject()" link "46-nextObject"}, @{"prevObject()" link "47-prevObject"}, @{"activateObject()" link "00-activateObject"}
 
 @endnode
 
@@ -2450,7 +3184,8 @@ INPUTS
 NOTES
     The color depth and palette used in the gamefont should be compatible with
     the bitmap on the rastport because this function simply blits the letter
-    images onto rastport's bitmap.
+    images onto rastport's bitmap. Uses ClipBlit() function to be compatible
+    with UI implementations.
 
 SEE ALSO
     @{"Fonts" link "Concepts_04Fonts"}, @{"openFonts()" link "47-openFonts"}, @{"GF_TextLength()" link "28-GF_TextLength"}
@@ -2526,6 +3261,86 @@ SEE ALSO
 
 @endnode
 
+@node "30-incrementIntegerValue" "Sevgi_Engine.guide/Function Reference/incrementIntegerValue"
+NAME
+    incrementIntegerValue - Increments the value of an integer object
+
+SYNOPSIS
+    incrementIntegerValue(integer, redraw)
+
+    VOID incrementIntegerValue(struct UIO_Integer* integer, BOOL redraw);
+
+FUNCTION
+    Increments the value on an integer object by the amount set in its member
+    increment respecting max restriction and doing the necessary value/string
+    conversions.
+
+INPUTS
+    integer - the integer object to have its value incremented
+    redraw  - set this to UI_REDRAW if you want the object to be redrawn.
+              set it to UI_NO_REDRAW if otherwise.
+
+NOTES
+    You MUST set UI_NO_REDRAW if the UI is currently not initialized to a valid
+    rastport. You may crash the system otherwise.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"decrementIntegerValue()" link "12-decrementIntegerValue"}, @{"setIntegerValue()" link "72-setIntegerValue"}
+
+@endnode
+
+@node "30-inheritX" "Sevgi_Engine.guide/Function Reference/inheritX"
+NAME
+    inheritX - Returns the actual x coordinate of rendering for a UI object
+
+SYNOPSIS
+    inheritX(obj)
+
+    WORD inheritX(struct UIObject* obj);
+
+FUNCTION
+    Returns the actual horizontal offset to render a UIObject on the rastport
+    taking into account the offsets caused by the positions, margins, and scroll
+    states of all parent group objects that contain it.
+
+INPUTS
+    obj - pointer to the UI object to get the x offset of
+
+NOTES
+    This is a recursive function. The more complex and deep the UI tree is, the
+    more resources will be spent.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"inheritY()" link "30-inheritY"}, @{"setClip()" link "64-setClip"}
+
+@endnode
+
+@node "30-inheritY" "Sevgi_Engine.guide/Function Reference/inheritY"
+NAME
+    inheritY - Returns the actual y coordinate of rendering for a UI object
+
+SYNOPSIS
+    inheritY(obj)
+
+    WORD inheritY(struct UIObject* obj);
+
+FUNCTION
+    Returns the actual vertical offset to render a UIObject on the rastport
+    taking into account the offsets caused by the positions, margins, and scroll
+    states of all parent group objects that contain it.
+
+INPUTS
+    obj - pointer to the UI object to get the y offset of
+
+NOTES
+    This is a recursive function. The more complex and deep the UI tree is, the
+    more resources will be spent.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"inheritX()" link "30-inheritX"}, @{"setClip()" link "64-setClip"}
+
+@endnode
+
 @node "31-initGameObjects" "Sevgi_Engine.guide/Function Reference/initGameObjects"
 NAME
     initGameObjects - Initializes the facilities in gameobject.o
@@ -2550,6 +3365,44 @@ INPUTS
 
 SEE ALSO
     @{"Gradients" link "Concepts_11Gradients"}, @{"Displays" link "Concepts_07Displays"}, @{"loadLevel()" link "35-loadLevel"}
+
+@endnode
+
+@node "31-initUI" "Sevgi_Engine.guide/Function Reference/initUI"
+NAME
+    initUI - Initializes facilities in ui.o
+
+SYNOPSIS
+    initUI(screen_start, rastport, root, cycle_chain)
+
+    VOID initUI(ULONG screen_start, struct RastPort* rastport,
+        struct UIO_Group* root, struct UIObject** cycle_chain);
+
+FUNCTION
+    Initializes ui.o to render to the specified rastport.
+    Initializes all parent/child relationships in the specified root group
+    object and does the layout accordingly.
+    Initializes the cycle chain (no object is selected initially).
+
+INPUTS
+    screen_start - upper byte of the DIWSTRT value of the display
+    rastport     - the layered rastport to render UI objects to
+    root         - the root group of the UI hierarchy
+    cycle_chain  - a NULL terminated array of UI objects to cycle in order with
+                   the tab key, the arrow keys, or the joystick
+
+NOTES
+    screen_start is used to chase the beam as rendering UI objects. You should
+    pass (DIWSTRT_V >> 8) of the display used to display the rastport specified.
+
+    Since there are no resizable windows and no need to resize the group objects
+    after an initial layout, there is no need to re-layout every time initUI()
+    is on the same root group. So initUI marks the specified root group as
+    initialized at first call and does not do the layouting again on future
+    calls.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"resetUI()" link "64-resetUI"}, @{"updateUI()" link "85-updateUI"}
 
 @endnode
 
@@ -2652,9 +3505,9 @@ NAME
     loadILBMBitMap - Loads the BODY chunk of an ILBM file into memory
 
 SYNOPSIS
-    loadILBMBitMap(filename, type)
+    loadILBMBitMap(filename, type, extra_width)
 
-    struct BitMap* loadILBMBitMap(STRPTR filename, ULONG type);
+    struct BitMap* loadILBMBitMap(STRPTR filename, ULONG type, ULONG extra_width);
 
 FUNCTION
     The function to load the BODY chunk of ILBM files into memory. It supports
@@ -2676,6 +3529,8 @@ INPUTS
                    It will allocate an interleaved BitMap on Chip Memory,
                    twice the height, creating the image masks on the bottom half
                    for fast masked blit operations.
+    extra_width - will allocate the bitmap for the loaded ILBM this much pixels
+                  wider.
 
 RESULTS
     Returns a newly allocated bitmap if successful. Returns NULL otherwise.
@@ -2683,6 +3538,9 @@ RESULTS
 NOTES
     The filename path should be relative to the data drawer inside the game
     directory.
+    extra_width argument is utilized by openGameFont() to allocate the temporary
+    buffer needed to do masked clip blits when GF_Text() is called on a rastport
+    in JAM1 mode.
 
 SEE ALSO
     @{"Images" link "Concepts_13Images"}, AllocBitMap(), FreeBitMap()
@@ -2949,7 +3807,8 @@ NOTES
     Can be freed by freeColorTable().
 
 SEE ALSO
-    @{"Colors" link "Concepts_08Colors"}, @{"freeColorTable()" link "21-freeColorTable"}, @{"updateColor()" link "81-updateColor"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable()" link "67-setColorTable"}, @{"changeFadeSteps()" link "04-changeFadeSteps"}
+    @{"Colors" link "Concepts_08Colors"}, @{"freeColorTable()" link "21-freeColorTable"}, @{"updateColor()" link "81-updateColor"}, @{"updateColorTable()" link "82-updateColorTable"},
+    @{"setColorTable()" link "67-setColorTable"}, @{"changeFadeSteps()" link "04-changeFadeSteps"}
 
 @endnode
 
@@ -2988,7 +3847,8 @@ NOTES
     its rainbow. Use the newColorTable_GRD() variant on its gradients instead.
 
 SEE ALSO
-    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"freeColorTable()" link "21-freeColorTable"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable_CL()" link "68-setColorTable_CL"}, @{"newColorTable_GRD()" link "42-newColorTable_GRD"}
+    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"freeColorTable()" link "21-freeColorTable"}, @{"updateColorTable()" link "82-updateColorTable"},
+    @{"setColorTable_CL()" link "68-setColorTable_CL"}, @{"newColorTable_GRD()" link "42-newColorTable_GRD"}
 
 @endnode
 
@@ -3023,7 +3883,8 @@ NOTES
     setColorTable_GRD(). You also cannot use updateColor() as well.
 
 SEE ALSO
-    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"freeColorTable()" link "21-freeColorTable"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"setColorTable_GRD()" link "69-setColorTable_GRD"}
+    @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"freeColorTable()" link "21-freeColorTable"}, @{"updateColorTable()" link "82-updateColorTable"},
+    @{"setColorTable_GRD()" link "69-setColorTable_GRD"}
 
 @endnode
 
@@ -3153,6 +4014,34 @@ SEE ALSO
 
 @endnode
 
+@node "46-nextObject" "Sevgi_Engine.guide/Function Reference/nextObject"
+NAME
+    nextObject - Selects the next object on the UI cycle chain
+
+SYNOPSIS
+    nextObject()
+
+    struct UIObject* nextObject(VOID);
+
+FUNCTION
+    Makes the next object on the UI cycle chain the new selected object and
+    re-draws it.
+
+RESULTS
+    Returns a pointer to the currently selected object.
+
+NOTES
+    If another object was selected, makes it unselected and re-draws it.
+
+    Will return NULL if the end of the cycle chain is reached and no object
+    will be made the selected object.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"prevObject()" link "47-prevObject"}, @{"activateObject()" link "00-activateObject"}, @{"selectObject()" link "64-selectObject"}, @{"selectObjectAtIndex()" link "64-selectObjectAtIndex"},
+    @{"setIndexToObject()" link "72-setIndexToObject"}, @{"getSelectedIndex()" link "25-getSelectedIndex"}, @{"getSelectedObject()" link "25-getSelectedObject"}
+
+@endnode
+
 @node "47-openFonts" "Sevgi_Engine.guide/Function Reference/openFonts"
 NAME
     openFonts - Opens the fonts defined in game assets
@@ -3169,6 +4058,64 @@ FUNCTION
 
 SEE ALSO
     @{"Fonts" link "Concepts_04Fonts"}, @{"closeFonts()" link "08-closeFonts"}
+
+@endnode
+
+@node "47-popInputBuffer" "Sevgi_Engine.guide/Function Reference/popInputBuffer"
+NAME
+    popInputBuffer - Gets an ASCII character from g_input_buffer on system.o
+
+SYNOPSIS
+    popInputBuffer()
+
+    UBYTE popInputBuffer(VOID);
+
+FUNCTION
+    customInputHandler on system.c can catch keyboard events and store their
+    corresponding ASCII values in a circular buffer called g_input_buffer.
+    This function returns a character from the buffer and advances the buffer to
+    the next unread character.
+    To get all unread characters from the buffer, this function should be called
+    in a while loop until it returns 0.
+
+RESULTS
+    Returns the next unread character from the buffer.
+    Returns 0 if there are no unread characters left on the buffer.
+
+NOTES
+    This function is used by the UI's string input gadgets to get keystrokes
+    from the input.device.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"pushInputBuffer()" link "63-pushInputBuffer"}, @{"turnInputBufferOn()" link "78-turnInputBufferOn"}, @{"turnInputBufferOff()" link "78-turnInputBufferOff"}
+
+@endnode
+
+@node "47-prevObject" "Sevgi_Engine.guide/Function Reference/prevObject"
+NAME
+    prevObject - Selects the previous object on the UI cycle chain
+
+SYNOPSIS
+    prevObject()
+
+    struct UIObject* prevObject(VOID);
+
+FUNCTION
+    Makes the previous object on the UI cycle chain the new selected object and
+    re-draws it.
+
+RESULTS
+    Returns a pointer to the currently selected object.
+
+NOTES
+    If another object was selected, makes it unselected and re-draws it.
+
+    Will return NULL if the top of the cycle chain is reached and no object
+    will be made the selected object.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"nextObject()" link "46-nextObject"}, @{"activateObject()" link "00-activateObject"}, @{"selectObject()" link "64-selectObject"}, @{"selectObjectAtIndex()" link "64-selectObjectAtIndex"},
+    @{"setIndexToObject()" link "72-setIndexToObject"}, @{"getSelectedIndex()" link "25-getSelectedIndex"}, @{"getSelectedObject()" link "25-getSelectedObject"}
 
 @endnode
 
@@ -3578,6 +4525,36 @@ SEE ALSO
 
 @endnode
 
+@node "63-pushInputBuffer" "Sevgi_Engine.guide/Function Reference/pushInputBuffer"
+NAME
+    pushInputBuffer - Puts an ASCII character to the g_input_buffer on system.o
+
+SYNOPSIS
+    pushInputBuffer(ch)
+
+    VOID pushInputBuffer(UBYTE ch);
+
+FUNCTION
+    customInputHandler on system.c can catch keyboard events and store their
+    corresponding ASCII values in a circular buffer called g_input_buffer.
+    customInputHandler uses this function to store the ASCII characters
+    evaluated from the keyboard events into the buffer.
+
+INPUTS
+    ch - ASCII character value to be stored on g_input_buffer
+
+NOTES
+    This function is to be called by customInputHandler interrupts.
+    Since it is not atomic, calling this function out of an interrupt to push
+    characters into g_input_buffer is not fail safe.
+    The buffer can store up to INPUT_BUFFER_SIZE ASCII values until it starts
+    overwriting.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"popInputBuffer()" link "47-popInputBuffer"}, @{"turnInputBufferOn()" link "78-turnInputBufferOn"}, @{"turnInputBufferOff()" link "78-turnInputBufferOff"}
+
+@endnode
+
 @node "63-readMouse" "Sevgi_Engine.guide/Function Reference/readMouse"
 NAME
     readMouse - Read current mouse state
@@ -3621,6 +4598,26 @@ SEE ALSO
 
 @endnode
 
+@node "63-removeClip" "Sevgi_Engine.guide/Function Reference/removeClip"
+NAME
+    removeClip - Remove clipping from ui_rastport if any
+
+SYNOPSIS
+    removeClip()
+
+    VOID removeClip(VOID);
+
+FUNCTION
+    Removes the clipping region (if any) installed on ui_rastport's layer.
+
+NOTES
+    Also forgets the last object that setClip() has been called with.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"setClip()" link "64-setClip"}, @{"inheritX()" link "30-inheritX"}, @{"inheritY()" link "30-inheritY"}
+
+@endnode
+
 @node "64-removeVBlankEvents" "Sevgi_Engine.guide/Function Reference/removeVBlankEvents"
 NAME
     removeVBlankEvents - Installs a null function into the vblank handler
@@ -3639,6 +4636,120 @@ NOTES
 
 SEE ALSO
     @{"System" link "Concepts_01System"}, @{"setVBlankEvents()" link "74-setVBlankEvents"}
+
+@endnode
+
+@node "64-resetUI" "Sevgi_Engine.guide/Function Reference/resetUI"
+NAME
+    resetUI - Resets the facilities in ui.o to initial NULL values
+
+SYNOPSIS
+    resetUI()
+
+    VOID resetUI(VOID);
+
+FUNCTION
+    Resets the facilities in ui.o such as ui_active_object, ui_hovered_object,
+    ui_selected_object to NULL values. Empties the ui_anim_list.
+
+NOTES
+    Also removes the UIOF_SELECTED and UIOF_HOVERED flags from these left over
+    objects from the previous use.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"initUI()" link "31-initUI"}, @{"updateUI()" link "85-updateUI"}
+
+@endnode
+
+@node "64-resetUILayout" "Sevgi_Engine.guide/Function Reference/resetUILayout"
+NAME
+    resetUILayout - Resets a previously initialized UI layout
+
+SYNOPSIS
+    resetUILayout(root)
+
+    VOID resetUILayout(struct UIO_Group* root);
+
+FUNCTION
+    Sets the positions and sizes of UI objects on the UI tree to zeros (except
+    the root itself and scroll groups) that has ben previously layouted by
+    initUI().
+
+INPUTS
+    root - the root group of the UI hierarchy to remove the layout
+
+NOTES
+    Also removes the initialized flag from the root group specified so it can
+    be re-layouted with a call to initUI() again.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"initUI()" link "31-initUI"}, @{"updateUI()" link "85-updateUI"}, @{"resetUI()" link "64-resetUI"}
+
+@endnode
+
+@node "64-selectObject" "Sevgi_Engine.guide/Function Reference/selectObject"
+NAME
+    selectObject - Makes a UI object the selected object
+
+SYNOPSIS
+    selectObject(object)
+
+    ULONG selectObject(struct UIObject* object);
+
+FUNCTION
+    Makes the specified object the selected UI object and re-draws the object.
+    Also sets the cycle chain index to this object specified, if it is on the
+    cycle chain.
+
+INPUTS
+    object - the UI object to make the selected object
+
+RESULTS
+    Returns the index of the specified UI object if it is present on the cycle
+    chain. Returns the index of the NULL terminating element of the cycle chain
+    (ui_cycle_chain_size).
+
+NOTES
+    If another object was selected, makes it unselected and re-draws it.
+
+    If the UI was not initialized with a cycle chain, will always return 0
+    (ui_cycle_chain_size).
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"selectObjectAtIndex()" link "64-selectObjectAtIndex"}, @{"setIndexToObject()" link "72-setIndexToObject"}, @{"getSelectedIndex()" link "25-getSelectedIndex"},
+    @{"nextObject()" link "46-nextObject"}, @{"prevObject()" link "47-prevObject"}, @{"activateObject()" link "00-activateObject"}
+
+@endnode
+
+@node "64-selectObjectAtIndex" "Sevgi_Engine.guide/Function Reference/selectObjectAtIndex"
+NAME
+    selectObjectAtIndex - Selects object at the given index of the cycle chain
+
+SYNOPSIS
+    selectObjectAtIndex(index)
+
+    struct UIObject* selectObjectAtIndex(ULONG index);
+
+FUNCTION
+    Makes the object at the specified index on the cycle chain the selected UI
+    object and re-draws it.
+    Also sets the cycle chain index to this index specified.
+
+INPUTS
+    index - the index of the UI object on the cycle chain
+
+RESULTS
+    Returns a pointer to the currently selected object.
+
+NOTES
+    If another object was selected, makes it unselected and re-draws it.
+
+    If the UI was not initialized with a cycle chain, will always return the
+    currently selected object. If no object is selected, returns NULL.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"selectObject()" link "64-selectObject"}, @{"setIndexToObject()" link "72-setIndexToObject"}, @{"getSelectedIndex()" link "25-getSelectedIndex"},
+    @{"nextObject()" link "46-nextObject"}, @{"prevObject()" link "47-prevObject"}, @{"activateObject()" link "00-activateObject"}
 
 @endnode
 
@@ -3692,6 +4803,32 @@ SEE ALSO
 
 @endnode
 
+@node "64-setClip" "Sevgi_Engine.guide/Function Reference/setClip"
+NAME
+    setClip - Sets clipping to a UI object
+
+SYNOPSIS
+    setClip(obj)
+
+    VOID setClip(struct UIObject* obj);
+
+FUNCTION
+    Installs a clipping region to ui_rastport's layer, which restricts rendering
+    to the content area of the object specified.
+
+INPUTS
+    obj - UI object pointer to set the clipping to
+
+NOTES
+    Remembers the last object this function has been called with and returns
+    immediately (without re-creating the clipping region again) if it is called
+    with the same object.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"removeClip()" link "63-removeClip"}, @{"inheritX()" link "30-inheritX"}, @{"inheritY()" link "30-inheritY"}
+
+@endnode
+
 @node "65-setColor" "Sevgi_Engine.guide/Function Reference/setColor"
 NAME
     setColor - Sets a color register to an RGB value
@@ -3703,7 +4840,8 @@ SYNOPSIS
 
 FUNCTION
     Directly sets the given color register to the given RGB value. Can set 24
-    bit AGA colors when CT_AGA is defined.
+    bit AGA colors when CT_AGA is defined. Can be used to set out of palette
+    colors like mouse pointer sprite's colors.
 
 INPUTS
     index - color register number (0..31 on OCS/ECS) (0..255 on AGA)
@@ -3924,6 +5062,63 @@ SEE ALSO
 
 @endnode
 
+@node "72-setIndexToObject" "Sevgi_Engine.guide/Function Reference/setIndexToObject"
+NAME
+    setIndexToObject - Sets the cycle chain index to the object given
+
+SYNOPSIS
+    setIndexToObject(object)
+
+    ULONG setIndexToObject(struct UIObject* object);
+
+FUNCTION
+    If the object is in the cycle chain, sets the UI cycle chain index to point
+    to the object specified. No changes will be made if otherwise.
+
+INPUTS
+    object - the UI object pointer to look up in the cycle chain
+
+RESULTS
+    Returns a pointer to the currently selected object.
+
+NOTES
+    Does not change and/or redraw the currently selected object.
+    Returns 0 if the UI was not initialized with a cycle chain.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"selectObject()" link "64-selectObject"}, @{"selectObjectAtIndex()" link "64-selectObjectAtIndex"}, @{"getSelectedIndex()" link "25-getSelectedIndex"},
+    @{"nextObject()" link "46-nextObject"}, @{"prevObject()" link "47-prevObject"}, @{"activateObject()" link "00-activateObject"}
+
+@endnode
+
+@node "72-setIntegerValue" "Sevgi_Engine.guide/Function Reference/setIntegerValue"
+NAME
+    setIntegerValue - Sets a value to an integer object
+
+SYNOPSIS
+    setIntegerValue(object, value, redraw)
+
+    VOID setIntegerValue(struct UIO_Integer* object, LONG value, BOOL redraw);
+
+FUNCTION
+    Sets the given LONG value into an integer object respecting min/max
+    restrictions and doing the necessary value/string conversions.
+
+INPUTS
+    object - the integer object to have its value set
+    value  - the signed 32 bit integer (LONG) value to set
+    redraw - set this to UI_REDRAW if you want the object to be redrawn.
+             set it to UI_NO_REDRAW if otherwise.
+
+NOTES
+    You MUST set UI_NO_REDRAW if the UI is currently not initialized to a valid
+    rastport. You may crash the system otherwise.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"incrementIntegerValue()" link "30-incrementIntegerValue"}, @{"decrementIntegerValue()" link "12-decrementIntegerValue"}
+
+@endnode
+
 @node "73-setKeyboardAccess" "Sevgi_Engine.guide/Function Reference/setKeyboardAccess"
 NAME
     setKeyboardAccess - Creates an IORequest to query the keyboard state
@@ -3944,6 +5139,76 @@ NOTES
 
 SEE ALSO
     @{"System" link "Concepts_01System"}, @{"endKeyboardAccess()" link "19-endKeyboardAccess"}, @{"keyState()" link "32-keyState"}, @{"takeOverSystem()" link "78-takeOverSystem"}
+
+@endnode
+
+@node "73-setSprite" "Sevgi_Engine.guide/Function Reference/setSprite"
+NAME
+    setSprite - Sets a sprite image to be displayed by a copperlist
+
+SYNOPSIS
+    setSprite(image, x, y, cl_spr0pth, diwstrt, hardware_sprite_num, fetch_mode)
+
+    VOID setSprite(struct SpriteImage* image, LONG x, LONG y, UWORD* cl_spr0pth,
+        UWORD diwstrt, WORD hardware_sprite_num, UBYTE fetch_mode)
+
+FUNCTION
+    Every Sevgi_Engine display requires a function to handle the displaying of
+    sprite images. Level display has its own implementation. This is the
+    modularized all-purpose version of a setSprite() function which could be
+    used on displays that do not demand maximum performance (like UI screens).
+
+INPUTS
+    image               - pointer to a struct SpriteImage to be displayed
+    x                   - x coordinate to display the sprite (screen coordinate)
+    y                   - y coordinate to display the sprite (screen coordinate)
+    cl_spr0pth          - access pointer to the sprite instructions on the
+                          copperlist
+    diwstrt             - DIWSTRT value used on the copperlist to convert screen
+                          coordinates to hardware coordinates
+    hardware_sprite_num - hardware sprite to display this sprite image (0 - 7)
+    fetch_mode          - sprite fetch mode used on the copperlist
+
+NOTES
+    Sprite images can be referenced from SpriteBanks loaded from disk.
+    You should use allocCopperList() to create the access pointer for sprite
+    instructions.
+    Values between 0-7 for hardware_sprite_num are only valid if the copperlist
+    defines instructions for all eight hardware sprites.
+    Sprite fetch mode set on the copperlist has to be compatible with the fetch
+    mode the sprite image has been created with.
+
+SEE ALSO
+    @{"Displays" link "Concepts_07Displays"}, @{"loadSpriteBank()" link "36-loadSpriteBank"}, @{"allocCopperList()" link "01-allocCopperList"}
+
+@endnode
+
+@node "73-setStringContents" "Sevgi_Engine.guide/Function Reference/setStringContents"
+NAME
+    setStringContents - Sets a string to a string object
+
+SYNOPSIS
+    setStringContents(object, string, redraw)
+
+    VOID setStringContents(struct UIO_String* object, STRPTR string,
+        BOOL redraw);
+
+FUNCTION
+    Copies the given string into a string object's private buffer, respecting
+    max_length restriction and redraws it if "redraw" is set.
+
+INPUTS
+    object - the string object to have its string contents changed
+    string - STRPTR to copy
+    redraw - set this to UI_REDRAW if you want the object to be redrawn.
+             set it to UI_NO_REDRAW if otherwise.
+
+NOTES
+    You MUST set UI_NO_REDRAW if the UI is currently not initialized to a valid
+    rastport. You may have a system crash otherwise.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"setIntegerValue()" link "72-setIntegerValue"}
 
 @endnode
 
@@ -4038,7 +5303,8 @@ NOTES
     DO NOT MISTAKE IT WITH destroyGameObject().
 
 SEE ALSO
-    @{"Gradients" link "Concepts_11Gradients"}, @{"despawnGameObject()" link "14-despawnGameObject"}, @{"destroyGameObject()" link "15-destroyGameObject"}, @{"initGameObjects()" link "31-initGameObjects"}, @{"updateGameObjects()" link "84-updateGameObjects"}
+    @{"Gradients" link "Concepts_11Gradients"}, @{"despawnGameObject()" link "14-despawnGameObject"}, @{"destroyGameObject()" link "15-destroyGameObject"}, @{"initGameObjects()" link "31-initGameObjects"},
+    @{"updateGameObjects()" link "84-updateGameObjects"}
 
 @endnode
 
@@ -4098,6 +5364,59 @@ RESULTS
 
 SEE ALSO
     @{"System" link "Concepts_01System"}, @{"giveBackSystem()" link "30-giveBackSystem"}
+
+@endnode
+
+@node "78-turnInputBufferOff" "Sevgi_Engine.guide/Function Reference/turnInputBufferOff"
+NAME
+    turnInputBufferOff - Turns off the keystroke buffering on system.o
+
+SYNOPSIS
+    turnInputBufferOff()
+
+    VOID turnInputBufferOff(VOID);
+
+FUNCTION
+    customInputHandler on system.c can catch keyboard events and store their
+    corresponding ASCII values in a circular buffer called g_input_buffer.
+    This function turns off the input event evaluation on the customInputHandler
+    (by unsetting the g_get_input flag) to save CPU time.
+
+NOTES
+    This system is used by the UI's string input gadgets to create strings from
+    keyboard events. Keeping it off when not required (especially during game
+    play) is recommended to save CPU time. String gadgets automatically turn
+    this off when not active.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"turnInputBufferOn()" link "78-turnInputBufferOn"}, @{"popInputBuffer()" link "47-popInputBuffer"}, @{"pushInputBuffer()" link "63-pushInputBuffer"}
+
+@endnode
+
+@node "78-turnInputBufferOn" "Sevgi_Engine.guide/Function Reference/turnInputBufferOn"
+NAME
+    turnInputBufferOn - Prepares the input buffer structure on system.o for use
+
+SYNOPSIS
+    turnInputBufferOn()
+
+    VOID turnInputBufferOn(VOID);
+
+FUNCTION
+    customInputHandler on system.c can catch keyboard events and store their
+    corresponding ASCII values in a circular buffer called g_input_buffer.
+    This function initializes this buffer structure to valid initial values and
+    turns on the input event evaluation on the customInputHandler which is
+    initially off.
+
+NOTES
+    This system is used by the UI's string input gadgets to create strings from
+    keyboard events. Keeping it off when not required (especially during game
+    play) is recommended to save CPU time. String gadgets automatically turn
+    this off when not active.
+
+SEE ALSO
+    @{"System" link "Concepts_01System"}, @{"turnInputBufferOff()" link "78-turnInputBufferOff"}, @{"popInputBuffer()" link "47-popInputBuffer"}, @{"pushInputBuffer()" link "63-pushInputBuffer"}
 
 @endnode
 
@@ -4203,7 +5522,8 @@ NOTES
     call the updateColorTable_Partial() variant.
 
 SEE ALSO
-    @{"Colors" link "Concepts_08Colors"}, @{"updateColorTable_Partial()" link "83-updateColorTable_Partial"}, @{"newColorTable()" link "40-newColorTable"}, @{"setColorTable()" link "67-setColorTable"}, @{"updateColor()" link "81-updateColor"}
+    @{"Colors" link "Concepts_08Colors"}, @{"updateColorTable_Partial()" link "83-updateColorTable_Partial"}, @{"newColorTable()" link "40-newColorTable"}, @{"setColorTable()" link "67-setColorTable"},
+    @{"updateColor()" link "81-updateColor"}
 
 @endnode
 
@@ -4264,7 +5584,7 @@ SYNOPSIS
     VOID updateRainbow(struct Rainbow* rb);
 
 FUNCTION
-    Updates the latests states of the gradients on a rainbow to itself by
+    Updates the latest states of the gradients on a rainbow to itself by
     blitting the new instruction values in case of a move or scroll of the
     gradients.
 
@@ -4273,6 +5593,40 @@ INPUTS
 
 SEE ALSO
     @{"Rainbows" link "Concepts_12Rainbows"}, @{"createRainbow()" link "12-createRainbow"}, @{"freeRainbow()" link "29-freeRainbow"}
+
+@endnode
+
+@node "85-updateUI" "Sevgi_Engine.guide/Function Reference/updateUI"
+NAME
+    updateUI - Updates UI objects
+
+SYNOPSIS
+    updateUI(root, pointer_x, pointer_y, pressed)
+
+    VOID updateUI(struct UIO_Group* root, WORD pointer_x, WORD pointer_y,
+        BOOL pressed);
+
+FUNCTION
+    Updates all UI objects that are the children of the specified root group
+    considering the given mouse pointer coordinates and the state of button
+    press. Animates the objects on anim list (ui_anim_list). Activates, selects
+    or highlights clicked or hovered objects regarding the mouse pointer state.
+    Re-renders clicked, selected, or activated objects and calls the
+    corresponding onClick, onHover, onActive, onAcknowledge ect. functions.
+
+INPUTS
+    root      - root group object to update (must be initialized with initUI)
+    pointer_x - x coordinate of the mouse pointer (must be screen coordinate)
+    pointer_y - y coordinate of the mouse pointer (must be screen coordinate)
+    pressed   - the state of the (left) mouse button (TRUE if pressed)
+
+NOTES
+    This is a non-blocking function (returns immediately after doing the
+    updates storing the current state on the objects). So it should be called
+    every frame in a display loop to function properly.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"initUI()" link "31-initUI"}, @{"resetUI()" link "64-resetUI"}
 
 @endnode
 

@@ -66,7 +66,7 @@
  * FONTS                                                                      *
  ******************************************************************************/
 
-#define NUM_TEXTFONTS  1  // Number of Amiga TextFonts to load
+#define NUM_TEXTFONTS  2  // Number of Amiga TextFonts to load
 #define TF_DEFAULT 0      // Index of the first loaded TextFont
 
 #define NUM_GAMEFONTS  1  // Number of GameFonts to load

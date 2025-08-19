@@ -14,6 +14,7 @@
 #include "display.h"
 #include "level.h"
 #include "diskio.h"
+#include "ui.h"
 #include "display_splash.h"
 #include "display_loading.h"
 #include "display_menu.h"

@@ -11,8 +11,9 @@
 #define GF_TYPE_PROPORTIONAL 1
 
 struct GameFont {
-  struct BitMap* bitmap;
+  struct RastPort rastport;
   struct BitMap* mask;
+  UWORD tmp_buf_x;
   UBYTE type;
   UBYTE width;
   UBYTE height;
@@ -27,6 +28,7 @@ struct GameFont {
 BOOL openFonts(VOID);
 VOID closeFonts(VOID);
 ULONG GF_TextLength(struct GameFont* gf, STRPTR str, ULONG count);
+ULONG GF_TextFit(struct GameFont* gf, STRPTR str, ULONG count, ULONG width);
 VOID GF_Text(struct RastPort* rp, struct GameFont* gf, STRPTR str, ULONG count);
 struct BitMap* createBltMasks(struct BitMap* bm);
 

@@ -243,7 +243,7 @@ struct Level* loadLevel(ULONG num)
         if (bitmap_string[2] == 'I' || bitmap_string[2] == 'i') flags |= BM_TYPE_INTERLEAVED;
         bitmap_string += 4; // skip the [DI] part
 
-        level->bitmap[i] = loadILBMBitMap(bitmap_string, flags);
+        level->bitmap[i] = loadILBMBitMap(bitmap_string, flags, 0);
         if (!level->bitmap[i]) {
           printf("Bitmap %s could not be loaded!\n", bitmap_string);
           goto fail;

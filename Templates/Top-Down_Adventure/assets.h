@@ -2,8 +2,9 @@
 #define ASSETS_H
 
 #ifdef FONTS_H
-static struct TextAttr textAttrs[NUM_TEXTFONTS] = {{"Helvetica.font", 9, FS_NORMAL, FPF_DESIGNED}};
-static STRPTR gameFontFiles[NUM_GAMEFONTS] = {"orbitron_15.fnt"};
+STATIC struct TextAttr textAttrs[NUM_TEXTFONTS] = {{"helvetica.font", 9, FS_NORMAL, FPF_DESIGNED},
+                                                   {"diamond.font", 12, FS_NORMAL, FPF_DESIGNED}};
+STATIC STRPTR gameFontFiles[NUM_GAMEFONTS] = {"orbitron_15.fnt"};
 #endif
 
 #ifdef LEVEL_H

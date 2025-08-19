@@ -13,7 +13,7 @@
 
 struct TileSet *loadTileSet(STRPTR file, struct BitMap *friend);
 struct TileMap *loadTileMap(STRPTR file, UWORD scr_width, UWORD scr_height);
-struct BitMap* loadILBMBitMap(STRPTR fileName, ULONG type);
+struct BitMap* loadILBMBitMap(STRPTR fileName, ULONG type, ULONG extra_width);
 struct SfxStructure* PT_Load8SVX(STRPTR fileName);
 VOID PT_FreeSFX(struct SfxStructure* sfx);
 struct SpriteBank* loadSpriteBank(STRPTR fileName);

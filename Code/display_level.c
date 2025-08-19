@@ -148,7 +148,7 @@ STATIC VOID sortSpriteCopOps(VOID);
 #endif /*DYNAMIC_COPPERLIST*/
 
 STATIC VOID setSprites(VOID);
-STATIC INLINE VOID setSprite(struct GameObject* go);
+STATIC INLINE VOID LD_setSprite(struct GameObject* go);
 ///
 ///globals
 // imported globals
@@ -2708,7 +2708,7 @@ STATIC VOID setSprites()
   #endif
 
   while (go) {
-    setSprite(go);
+    LD_setSprite(go);
 
     go = *(++go_ptr);
   }
@@ -2733,14 +2733,16 @@ STATIC VOID setSprites()
 }
 ///
 
-///setSprite(gameobject)
+///LD_setSprite(gameobject)
 /******************************************************************************
  * Gets image data from the spritebank for a gameobject that has a sprite     *
  * medium and a sprite image and sets the required values to display it.      *
+ * NOTE: This version of the setSprite() function is specialized for the      *
+ * features of the level display.                                             *
  * NOTE: Too much repeated code. Please refactor!                             *
  ******************************************************************************/
 #ifdef SMART_SPRITES
-STATIC INLINE VOID setSprite(struct GameObject* go)
+STATIC INLINE VOID LD_setSprite(struct GameObject* go)
 {
   ULONG hsn = ((struct Sprite*)go->medium)->hsn;
   if (hsn < 8) {
@@ -2950,7 +2952,7 @@ STATIC INLINE VOID setSprite(struct GameObject* go)
   }
 }
 #else /* NOT SMART_SPRITES */
-STATIC INLINE VOID setSprite(struct GameObject* go)
+STATIC INLINE VOID LD_setSprite(struct GameObject* go)
 {
   ULONG hsn = ((struct Sprite*)go->medium)->hsn;
   if (hsn < 8) {

@@ -111,6 +111,7 @@ VOID setColorTable_REG(struct ColorTable* ct, ULONG start, ULONG num_colors);
 VOID setColorTable_CL(struct ColorTable* ct);
 VOID setColorTable_GRD(struct ColorTable* ct);
 VOID setColors(UBYTE* table);
+VOID setColor(ULONG index, UBYTE R, UBYTE G, UBYTE B);
 VOID blackOut(VOID);
 
 #endif /* COLOR_H, */

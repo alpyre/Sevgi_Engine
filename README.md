@@ -1,6 +1,6 @@
 ![Sevgi Engine](https://s14.gifyu.com/images/bsCeR.gif)
 
-Sevgi Engine is a new open source video game engine for classic Amiga computers which provides the required tools and generates the boilerplate code to create high performing Amiga games using only the C programming language. It is built around the great [ScrollingTricks](https://aminet.net/package/dev/src/ScrollingTrick) by Georg Steger.
+Sevgi Engine is a new open source video game engine for classic Amiga computers that provides the required tools and generates the boilerplate code to create high-performing Amiga games using only the C programming language. It is built around the great [ScrollingTricks](https://aminet.net/package/dev/src/ScrollingTrick) by Georg Steger.
 
 ### Features
 * **Performance**
@@ -11,6 +11,8 @@ Sevgi Engine is a new open source video game engine for classic Amiga computers 
   <br>Supports all features provided by the AGA chipset.</br>
 * **No limitations**
   <br>Designed to support all the well known visual tricks known by the popular Amiga video game titles while not limiting more experimental effects to be implemented.</br>
+* **UI**
+  <br>Code to create customizable mouse driven GUI objects (buttons, input gadgets, checkboxes etc.) with auto-layout and modern features, which can also be accessed by the keyboard or the joysticks. ***NEW FEATURE***</br>
 * **Easy development**
   <br>A native editor program is provided to generate code, manage game assets, edit color palettes etc. called **Sevgi Editor**. Other elements like game logic, animation and events require programming knowledge in C. The programming and compiling can be made natively (on the Amiga OS - using native compilers) or cross platfrom (on Windows or Linux PCs - using cross development tools). Sevgi Editor can import game maps made in [Tiled](https://www.mapeditor.org/).</br>
 * **Templates**
@@ -60,7 +62,6 @@ Sevgi Engine is still a work in progress. Some new features planned are:
 * Support for different level display implementations (i.e double buffering, split screen etc.)
 * More graphical effects
 * A native tilemap and gameobject editor
-* Functions for UI elements
 * More templates for different game genres
 
 ### Contributions

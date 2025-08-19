@@ -82,6 +82,9 @@ tilemap.o : tilemap.c tilemap.h
 tiles.o : tiles.c tiles.h settings.h
 	$(CC) $(CFLAGS) tiles.c
 
+ui.o : ui.c ui.h
+	$(CC) $(CFLAGS) ui.c
+
 OBJS = main.o system.o keyboard.o input.o display.o diskio.o fonts.o         \
        color.o rainbow.o tiles.o tilemap.o audio.o ui.o                      \
        gameobject.o physics.o level.o anims.o collisions.o                   \

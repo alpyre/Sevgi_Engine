@@ -16,8 +16,9 @@
 #define UI_USE_CYCLEBOXES
 #define UI_USE_STRING_GADGETS
 #define UI_USE_INTEGER_GADGETS
+#define UI_USE_SLIDERS
 //#define UI_USE_LISTVIEWS
-#define UI_USE_RELAYOUTING
+//#define UI_USE_RELAYOUTING
 //#define UI_SCROLL_USING_REDRAW
 
 /******************************************************************************
@@ -82,6 +83,18 @@
 
 #define UIOV_CYCLEBOX_SEPARATOR_WIDTH  4
 
+#define UIOV_SLIDER_TRACK_HEIGHT          2
+#define UIOV_SLIDER_TRACK_WIDTH           2
+#define UIOV_SLIDER_HANDLE_HEIGHT         8
+#define UIOV_SLIDER_HANDLE_WIDTH          8
+#define UIOV_SLIDER_HANDLE_SIZE           2
+#define UIOV_SLIDER_HANDLE_COLOR          UIPEN_HALF_SHINE
+#define UIOV_SLIDER_HANDLE_SELECTED_COLOR UIPEN_SHINE
+#define UIOV_SLIDER_STOP_COLOR            UIPEN_HALF_SHADOW
+#define UIOV_SLIDER_VALUE_COLOR           UIPEN_SHINE
+#define UIOV_SLIDER_VALUE_SPACING         1
+#define UIOV_SLIDER_ELAPSED_COLOR         UIPEN_DETAIL
+
 /******************************************************************************
  *                       END OF CUSTOMIZABLE SECTION                          *
  ******************************************************************************/
@@ -89,6 +102,7 @@
  #define MAX(a, b) ((a) >= (b) ? (a) : (b))
  #define MIN(a, b) ((a) <= (b) ? (a) : (b))
 
+ //Centers width a in width b by calculating the start position of a
  //|B------|A-------|-------|
  #define CENTER(a, b) (((b) - (a)) / 2)
 
@@ -116,6 +130,7 @@
 #define UIOT_CYCLEBOX         9
 #define UIOT_STRING          10
 #define UIOT_INTEGER         11
+#define UIOT_SLIDER          12
 
 /******************************************************************************
  * UI OBJECT FLAGS                                                            *
@@ -153,6 +168,11 @@
 #define UIOF_ALIGN_TOP        UIOF_NONE
 #define UIOF_ALIGN_CENTER_V   0x400
 #define UIOF_ALIGN_BOTTOM     0x800
+// UIOT_SLIDER type specific flags
+// *********************************
+#define UIOF_DRAW_VALUE       0x400
+#define SLIDER_STRICT         0x1
+#define SLIDER_ELAPSED        0x2
 
 // drawFrame() style flags
 // NOTE: compatible with UIOF_ flags
@@ -215,6 +235,9 @@ STATIC UI_BUTTON(name ## _button_minus, "-", ((flags) & UIOF_FRAMED) | UIOF_INHE
 STATIC struct UIObject* name ## _group_children[] = {(struct UIObject*)&name, (struct UIObject*)&name ## _button_plus, (struct UIObject*)&name ## _button_minus, NULL};\
 UI_GROUP(name ## _group, #name "_group", UIOF_HORIZONTAL | ((flags) & UIOF_INHERIT_ALL), name ## _group_children, child_gap, 1, 0)
 
+#define UI_SLIDER(name, flags, slider_flags, initial_value, min, max, increment, mark_increment, onUpdate)\
+struct UIO_Slider name = {{NULL,NULL}, 0, slider_flags, UIOT_SLIDER, flags, NULL, NULL, 0, 0, 0, 0, sizeSlider, drawSlider, hoverSlider, actionSlider, onUpdate, UI_ANIM_STRUCT, initial_value, min, max, increment, mark_increment}
+
 /******************************************************************************
  * UI STORAGE TYPES                                                           *
  ******************************************************************************/
@@ -226,6 +249,7 @@ typedef UBYTE STRLEN;
 #define u_tab_widths scroll.bar_horiz
 #define u_tab_selector scroll.bar_vert
 #define u_label_y_offset initialized
+#define u_slider_flags initialized
 
 /******************************************************************************
  * UI OBJECT STRUCTS                                                          *
@@ -333,6 +357,17 @@ struct UIO_Cyclebox {
   UWORD selected; //The index of the currently selected option string in options
 };
 
+// SLIDER OBJECT
+// *************
+struct UIO_Slider {
+  UIOBJECT_COMMON;
+  LONG value;
+  LONG min;
+  LONG max;
+  UWORD increment;
+  UWORD mark_increment;
+};
+
 /******************************************************************************
  * UI FUNCTION PROTOS                                                         *
  ******************************************************************************/
@@ -424,5 +459,13 @@ VOID incrementIntegerValue(struct UIO_Integer* integer, BOOL redraw);
 VOID decrementIntegerValue(struct UIO_Integer* integer, BOOL redraw);
 VOID onClickIncrementInteger(struct UIObject* self);
 VOID onClickDecrementInteger(struct UIObject* self);
+
+// SLIDER OBJECT
+// *************
+VOID sizeSlider(struct UIObject* self);
+VOID drawSlider(struct UIObject* self);
+VOID hoverSlider(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL hovered);
+VOID actionSlider(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL pressed);
+VOID setSliderValue(struct UIO_Slider* slider, LONG value, BOOL redraw);
 
 #endif /* UI_H */

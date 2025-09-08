@@ -164,7 +164,10 @@ UI_BUTTON(button_START,   "START",   UIOF_INHERIT_X | UIOF_INHERIT_Y | UIOF_INHE
 UI_BUTTON(button_OPTIONS, "OPTIONS", UIOF_INHERIT_X | UIOF_INHERIT_Y | UIOF_INHERIT_WIDTH, onClickMenuButton);
 UI_BUTTON(button_QUIT,    "QUIT",    UIOF_INHERIT_X | UIOF_INHERIT_Y | UIOF_INHERIT_WIDTH, onClickMenuButton);
 
-STATIC struct UIObject* root_children[] = {&button_START, &button_OPTIONS, &button_QUIT, NULL};
+STATIC struct UIObject* root_children[] = {&button_START,
+                                           &button_OPTIONS,
+                                           &button_QUIT,
+                                           NULL};
 UI_SIZED_GROUP(group_root, "Root", CENTER(BUTTONS_GROUP_WIDTH, MENU_SCREEN_WIDTH), BUTTONS_START_Y, BUTTONS_GROUP_WIDTH, 0, UIOF_NONE, root_children, BUTTONS_SEPARATION_Y, 1, 0, NULL, NULL);
 
 STATIC ULONG clicked_button = BTN_NONE;

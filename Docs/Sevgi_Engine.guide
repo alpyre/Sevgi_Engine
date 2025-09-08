@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.181
+                             Version 0.182
 
                         Developer Documentation
 
@@ -1437,20 +1437,21 @@ for your UI objects.
   not make sense for this kind of group, because its calcSize() method will give
   it a size that can fit all its children (even if the parent group's or the
   rastport's render area is not enough to display them all). Meaning you should
-  always declare scroll groups with predetermined width and and height (fixed
-  size).
+  declare scroll groups either with predetermined width and and height (fixed
+  size) or use one of the "inherit size" flags.
 
 @{b}UI_SCROLL_GROUP_VERT@{ub}(name, label, x, y, width, height, flags, children,
                      child_gap, columns, margin)
   Declares a group object together with a vertial scrollbar. As explained above,
-  you should set a predetermined fixed height to this kind of group object. You
-  can set height to zero for auto calculation.
+  you should either set a predetermined fixed height or use UIOF_INHERIT_HEIGHT
+  flag on this kind of group object. You can set height to zero for auto
+  calculation.
 
 @{b}UI_SCROLL_GROUP_HORIZ@{ub}(name, label, x, y, width, height, flags, children,
                       child_gap, columns, margin)
   Declares a group object together with a horizontal scrollbar. As above, you
-  should set a predetermined fixed width to this kind of group object. You can
-  set width to zero for auto calculation.
+  should either set a predetermined fixed width or use UIOF_INHERIT_WIDTH on
+  this kind of group object. You can set width to zero for auto calculation.
 
 @{b}UI_TAB@{ub}(name, label, flags, children, margin)
   Declares a different type of group object where the child objects will be
@@ -1631,6 +1632,45 @@ for your UI objects.
 
   Accessing and manipulating the value is the same as in UI_INTEGER objects.
 
+@{b}UI_SLIDER@{ub}(name, flags, slider_flags, initial_value, min, max, increment,
+          mark_increment, onUpdate)
+  Declares a slider gadget.
+
+  flags          -
+    UIOF_FRAMED     : draws frames around the slider track and the handle
+    UIOF_HORIZONTAL : creates a horizontal slider (default is vertical)
+    UIOF_DRAW_VALUE : renders the value of the slider above it using the current
+                      font on ui_rastport
+  slider_flags   -
+    SLIDER_STRICT   : slider values will only be multiples of the increment
+    SLIDER_ELAPSED  : paints the track on the (value-wise) lower side of the
+                      handle to the elapsed color (UIOV_SLIDER_ELAPSED_COLOR)
+  initial_value  - the initial (LONG) value to be set to the slider object
+  min            - the minimum value the slider gadget can have
+  max            - the maximum value the slider gadget can have
+  increment      - the amount the value can be incremented or decremented
+  mark_increment - draws stop marks into the track with this value intervals
+  onUpdate       - the function to call when the slider value gets changed
+
+  When declared with the UIOF_FRAMED flag, frame style flags aren't used.
+  The handle will be drawn with a button frame, and the track will be drawn with
+  a recessed button frame.
+
+  Clicking and dragging the mouse on the gadget (not only the handle) will
+  update the gadget's value. Clicking the track area with a stationary mouse
+  increments or decrements the value depending on which side of the handle is
+  being clicked. The value of the member increment determines the amount of
+  increment/decrement.
+
+  mark_increment is just cosmetic. You should generally set it to the same value
+  as increment. But if you want the stop marks to be rendered at a different
+  interval, you can set it to a different value. Setting it to 0 draws no marks.
+
+  Programmatically altering value, min, max, and increment at runtime is safe.
+  However, a function to update the value of the slider that respects min/max
+  restrictions and increment strictness is provided as well:
+  @{"setSliderValue()" link "73-setSliderValue"}
+
 @{b}A SIMPLE UI DECLARATION EXAMPLE@{ub}
 ===============================
 An example UI declaration with three buttons is given below:
@@ -1803,7 +1843,8 @@ VOID sizeObject(struct UIObject* self)
 
 The width and height calculated in calcSize() methods are recommended minimums.
 Depending on the object flags (ie. UIOF_INHERIT_SIZE, UIOF_INHERIT_WIDTH,
-UIOF_INHERIT_HEIGHT) the parent group may set bigger sizes for your objects.
+UIOF_INHERIT_HEIGHT) the parent group may set bigger (or in some cases smaller)
+sizes for your objects.
 
 Whether you use the default draw methods or write your own custom ones, you
 should set the pen and sizing defines in ui.h according to your display's
@@ -2150,6 +2191,7 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" setIndexToObject          " link "72-setIndexToObject"}
 @{" setIntegerValue           " link "72-setIntegerValue"}
 @{" setKeyboardAccess         " link "73-setKeyboardAccess"}
+@{" setSliderValue            " link "73-setSliderValue"}
 @{" setSprite                 " link "73-setSprite"}
 @{" setStringContents         " link "73-setStringContents"}
 @{" setVBlankEvents           " link "74-setVBlankEvents"}
@@ -5139,6 +5181,34 @@ NOTES
 
 SEE ALSO
     @{"System" link "Concepts_01System"}, @{"endKeyboardAccess()" link "19-endKeyboardAccess"}, @{"keyState()" link "32-keyState"}, @{"takeOverSystem()" link "78-takeOverSystem"}
+
+@endnode
+
+@node "73-setSliderValue" "Sevgi_Engine.guide/Function Reference/setSliderValue"
+NAME
+    setSliderValue - Sets a value to a slider object
+
+SYNOPSIS
+    setSliderValue(slider, value, redraw)
+
+    VOID setSliderValue(struct UIO_Slider* slider, LONG value, BOOL redraw);
+
+FUNCTION
+    Sets the given LONG value into a slider object, respecting min/max
+    restrictions and increment strictness.
+
+INPUTS
+    slider - the slider object to have its value set
+    value  - the signed 32 bit integer (LONG) value to set
+    redraw - set this to UI_REDRAW if you want the object to be redrawn.
+             set it to UI_NO_REDRAW if otherwise.
+
+NOTES
+    You MUST set UI_NO_REDRAW if the UI is currently not initialized to a valid
+    rastport. You may crash the system otherwise.
+
+SEE ALSO
+    @{"UI" link "Concepts_19UI"}, @{"setIntegerValue()" link "72-setIntegerValue"}
 
 @endnode
 

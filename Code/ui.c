@@ -19,6 +19,7 @@
 #include <proto/intuition.h>
 #include <proto/gadtools.h>
 #include <clib/alib_protos.h>
+#include <clib/graphics_protos.h>
 
 #include "system.h"
 #include "display.h"
@@ -35,6 +36,9 @@
 #endif
 
 #define IS_IN_RECT(x, y, x1, y1, x2, y2) ((x) >= (x1) && (x) < (x2) && (y) >= (y1) && (y) < (y2))
+
+#define	LONG_MAX   0x7FFFFFFFL
+#define	LONG_MIN (-0x7FFFFFFFL - 1)
 ///
 ///prototypes
 VOID setParents(struct UIO_Group* root);
@@ -2059,6 +2063,130 @@ VOID sizeString(struct UIObject* self)
 }
 #endif // UI_USE_STRING_GADGETS
 ///
+///sizeSlider(self)
+/******************************************************************************
+ * Default size method for slider objects.                                    *
+ ******************************************************************************/
+#ifdef UI_USE_SLIDERS
+ULONG numPlaces(LONG n) {
+    if (n < 0) n = (n == LONG_MIN) ? LONG_MAX : -n;
+    if (n < 10) return 1;
+    if (n < 100) return 2;
+    if (n < 1000) return 3;
+    if (n < 10000) return 4;
+    if (n < 100000) return 5;
+    if (n < 1000000) return 6;
+    if (n < 10000000) return 7;
+    if (n < 100000000) return 8;
+    if (n < 1000000000) return 9;
+    return 10;
+}
+
+ULONG maxValueWidth(LONG min, LONG max)
+{
+  ULONG i;
+  ULONG max_max_width = 0;
+  ULONG max_min_width = 0;
+
+  if(ui_rastport->Font->tf_Flags & FPF_PROPORTIONAL) {
+    ULONG max_number_width = 0;
+    ULONG negative_sign_width = 0;
+    ULONG i_min = '0' - ui_rastport->Font->tf_LoChar;
+    ULONG i_max = i_min + 9;
+
+    // Find the widest number on the font
+    for (i = i_min; i <= i_max; i++) {
+      UWORD ch_width = ((UWORD*)ui_rastport->Font->tf_CharKern)[i] + ((UWORD*)ui_rastport->Font->tf_CharSpace)[i];
+      if (ch_width > max_number_width) max_number_width = ch_width;
+    }
+    // We have to account for the negative sign
+    i = '-' - ui_rastport->Font->tf_LoChar;
+    negative_sign_width = ((UWORD*)ui_rastport->Font->tf_CharKern)[i] + ((UWORD*)ui_rastport->Font->tf_CharSpace)[i];
+
+    max_max_width = numPlaces(max) * max_number_width;
+    max_min_width = numPlaces(min) * max_number_width;
+    if (min < 0) max_min_width += negative_sign_width;
+  }
+  else {
+    max_max_width = numPlaces(max) * ui_rastport->Font->tf_XSize;
+    max_min_width = numPlaces(min) * ui_rastport->Font->tf_XSize;
+    if (min < 0) max_min_width += ui_rastport->Font->tf_XSize;
+  }
+
+  return MAX(max_max_width, max_min_width);
+}
+
+ULONG GF_MaxValueWidth(struct GameFont* gf, LONG min, LONG max)
+{
+  ULONG max_max_width = 0;
+  ULONG max_min_width = 0;
+  ULONG num_places_max;
+  ULONG num_places_min;
+
+  switch (gf->type) {
+    case GF_TYPE_FIXED:
+      num_places_max = numPlaces(max);
+      num_places_min = numPlaces(min);
+      max_max_width = num_places_max * gf->width + (num_places_max - 1) * gf->spacing;
+      max_min_width = num_places_min * gf->width + (num_places_min - 1) * gf->spacing;
+      if (min < 0) max_min_width += gf->width + gf->spacing;
+    break;
+    case GF_TYPE_PROPORTIONAL:
+    {
+      ULONG max_number_width = 0;
+      ULONG negative_sign_width = 0;
+      ULONG i;
+      ULONG i_min = '0' - gf->start;
+      ULONG i_max = i_min + 9;
+
+      // Find the widest number on the gamefont
+      // WARNING: Gamefont MUST contain glyphs for numbers
+      for (i = i_min; i <= i_max; i++) {
+        UWORD ch_width = gf->letter[i + 1].offset - gf->letter[i].offset;
+        if (ch_width > max_number_width) max_number_width = ch_width;
+      }
+      // We have to account for the negative sign
+      // WARNING: Gamefont MUST contain a glyph for the negative sign
+      i = '-' - gf->start;
+      negative_sign_width = gf->letter[i + 1].offset - gf->letter[i + 1].offset;
+
+      num_places_max = numPlaces(max);
+      num_places_min = numPlaces(min);
+      max_max_width = num_places_max * max_number_width + (num_places_max - 1) * gf->spacing;
+      max_min_width = num_places_min * max_number_width + (num_places_min - 1) * gf->spacing;
+      if (min < 0) max_min_width += negative_sign_width + gf->spacing;
+    }
+    break;
+  }
+
+  return MAX(max_max_width, max_min_width);
+}
+
+VOID sizeSlider(struct UIObject* self)
+{
+  struct UIO_Slider* slider = (struct UIO_Slider*)self;
+
+  if (!self->width) {
+    self->width = UIOV_SLIDER_HANDLE_WIDTH;
+    if (self->flags & UIOF_FRAMED) self->width += UIOV_BUTTON_FRAME_WIDTH * 2;
+
+    if (self->flags & UIOF_DRAW_VALUE) {
+      ULONG max_value_width = maxValueWidth(slider->min, slider->max);
+      self->width = MAX(self->width, max_value_width);
+    }
+  }
+
+  if (!self->height) {
+    self->height = UIOV_SLIDER_HANDLE_HEIGHT;
+    if (self->flags & UIOF_FRAMED) self->height += UIOV_BUTTON_FRAME_HEIGHT * 2;
+
+    if (self->flags & UIOF_DRAW_VALUE) {
+      self->height += ui_rastport->Font->tf_YSize + UIOV_SLIDER_VALUE_SPACING;
+    }
+  }
+}
+#endif //UI_USE_SLIDERS
+///
 
 /*************************
  * RENDERERS             *
@@ -3072,6 +3200,208 @@ ds_draw_inactive_object_text:
 }
 #endif // UI_USE_STRING_GADGETS
 ///
+///drawSlider(self)
+/******************************************************************************
+ * Default draw method for slider objects. Renders the slider onto the        *
+ * rastport.                                                                  *
+ ******************************************************************************/
+#ifdef UI_USE_SLIDERS
+VOID drawSlider(struct UIObject* self)
+{
+  struct UIO_Slider* slider = (struct UIO_Slider*)self;
+  WORD x1 = inheritX(self);
+  WORD y1 = inheritY(self);
+  WORD x2 = x1 + self->width;
+  WORD y2 = y1 + self->height;
+  ULONG slider_value = slider->value - slider->min; // value normalized to 0
+  WORD value_height = self->flags & UIOF_DRAW_VALUE ? ui_rastport->Font->tf_YSize + UIOV_SLIDER_VALUE_SPACING : 0;
+
+  setClip(self->parent);
+  //waitVBeam(y2 + ui_screen_start);
+
+  /***********************************************
+   * Implement your stylized slider object below *
+   ***********************************************/
+   SetAPen(ui_rastport, UIPEN_BACKGROUND);
+   RectFill(ui_rastport, x1, y1, x2, y2);
+
+  if (self->flags & UIOF_HORIZONTAL) {
+    WORD track_height = self->flags & UIOF_FRAMED ? UIOV_SLIDER_TRACK_HEIGHT + UIOV_BUTTON_FRAME_HEIGHT * 2 : UIOV_SLIDER_TRACK_HEIGHT;
+    WORD track_y1 = y1 + value_height + CENTER(track_height, self->height - value_height);
+    WORD track_y2 = track_y1 + track_height;
+    WORD handle_size = self->flags & UIOF_FRAMED ? UIOV_SLIDER_HANDLE_SIZE + UIOV_BUTTON_FRAME_WIDTH * 2 : UIOV_SLIDER_HANDLE_SIZE;
+    WORD handle_pos = slider->value == slider->max ? x2 - handle_size : x1 + slider_value * (self->width - handle_size) / (slider->max - slider->min);
+    WORD handle_x1 = handle_pos;
+    WORD handle_y1 = y1 + value_height;
+    WORD handle_x2 = handle_pos + handle_size;
+    WORD handle_y2 = y2;
+    ULONG handle_pen = self->flags & (UIOF_SELECTED | UIOF_HOVERED) ? UIOV_SLIDER_HANDLE_SELECTED_COLOR : UIOV_SLIDER_HANDLE_COLOR;
+
+    //Draw the value
+    //**************
+    if (self->flags & UIOF_DRAW_VALUE) {
+      UBYTE value_str[16];
+      struct TextExtent te;
+      WORD value_x;
+      WORD value_y;
+
+      sprintf(value_str, "%ld", slider->value);
+      TextExtent(ui_rastport, value_str, strlen(value_str), &te);
+
+      value_x = handle_x1 + CENTER(te.te_Width, handle_size);
+      if (value_x < x1) value_x = x1;
+      if (value_x + te.te_Width > x2) value_x = x2 - te.te_Width;
+      value_y = y1 + ui_rastport->Font->tf_Baseline;
+
+      SetAPen(ui_rastport, UIOV_SLIDER_VALUE_COLOR);
+      Move(ui_rastport, value_x, value_y);
+      Text(ui_rastport, value_str, strlen(value_str));
+    }
+
+    //Draw the track
+    //**************
+    if (self->flags & UIOF_FRAMED)
+      drawFrame(x1, track_y1, x2, track_y2, FS_BUTTON | FS_PRESSED);
+
+    //Draw stop marks
+    //***************
+    if (slider->mark_increment) {
+      ULONG i;
+      UWORD num_stops = (slider->max - slider->min) / slider->mark_increment;
+      WORD stop_y = (track_y1 + track_y2) / 2;      // Center the track
+      WORD first_stop = x1 + handle_size / 2;        // Center handle
+      WORD track_width = self->width - handle_size; // Width from the first stop to the last
+      SetAPen(ui_rastport, UIOV_SLIDER_STOP_COLOR);
+
+      for (i = 0; i <= num_stops; i++) {
+        WORD stop_x = first_stop + i * track_width / num_stops;
+        //Draw your stop marker here
+        WritePixel(ui_rastport, stop_x, stop_y);
+      }
+    }
+
+    //Draw elapsed
+    //************
+    if (slider->u_slider_flags & SLIDER_ELAPSED) {
+      if (self->flags & UIOF_FRAMED) {
+        if (handle_x1 > x1 + UIOV_BUTTON_FRAME_WIDTH) {
+          SetAPen(ui_rastport, UIOV_SLIDER_STOP_COLOR);
+          RectFill(ui_rastport, x1 + UIOV_BUTTON_FRAME_WIDTH,
+                                track_y1 + UIOV_BUTTON_FRAME_HEIGHT,
+                                handle_x1 - 1,
+                                track_y2 - UIOV_BUTTON_FRAME_HEIGHT);
+        }
+      }
+      else {
+        if (handle_x1 > x1) {
+          SetAPen(ui_rastport, UIOV_SLIDER_STOP_COLOR);
+          RectFill(ui_rastport, x1,
+                                track_y1,
+                                handle_x1 - 1,
+                                track_y2);
+        }
+      }
+    }
+
+    //Draw the handle
+    //***************
+    SetAPen(ui_rastport, handle_pen);
+    RectFill(ui_rastport, handle_x1, handle_y1, handle_x2, handle_y2);
+    if (self->flags & UIOF_FRAMED)
+      drawFrame(handle_x1, handle_y1, handle_x2, handle_y2, FS_BUTTON);
+  }
+  else { // UIOF_VERTICAL
+    WORD track_width = self->flags & UIOF_FRAMED ? UIOV_SLIDER_TRACK_WIDTH + UIOV_BUTTON_FRAME_WIDTH * 2 : UIOV_SLIDER_TRACK_WIDTH;
+    WORD track_x1 = x1 + CENTER(track_width, self->width);
+    WORD track_y1 = y1 + value_height;
+    WORD track_x2 = track_x1 + track_width;
+    WORD track_height = self->height - value_height;
+    WORD handle_size = self->flags & UIOF_FRAMED ? UIOV_SLIDER_HANDLE_SIZE + UIOV_BUTTON_FRAME_HEIGHT * 2 : UIOV_SLIDER_HANDLE_SIZE;
+    WORD handle_pos = slider->value == slider->max ? track_y1 : y2 - handle_size - slider_value * (track_height - handle_size) / (slider->max - slider->min);
+    WORD handle_x1 = x1;
+    WORD handle_y1 = handle_pos;
+    WORD handle_x2 = x2;
+    WORD handle_y2 = handle_pos + handle_size;
+    ULONG handle_pen = self->flags & (UIOF_SELECTED | UIOF_HOVERED) ? UIOV_SLIDER_HANDLE_SELECTED_COLOR : UIOV_SLIDER_HANDLE_COLOR;
+
+    //Draw the value
+    //**************
+    if (self->flags & UIOF_DRAW_VALUE) {
+      UBYTE value_str[16];
+      struct TextExtent te;
+      WORD value_x;
+      WORD value_y;
+
+      sprintf(value_str, "%ld", slider->value);
+      TextExtent(ui_rastport, value_str, strlen(value_str), &te);
+
+      value_x = x1 + CENTER(te.te_Width, self->width);
+      value_y = y1 + ui_rastport->Font->tf_Baseline;
+
+      SetAPen(ui_rastport, UIOV_SLIDER_VALUE_COLOR);
+      Move(ui_rastport, value_x, value_y);
+      Text(ui_rastport, value_str, strlen(value_str));
+    }
+
+    //Draw the track
+    //**************
+    if (self->flags & UIOF_FRAMED)
+      drawFrame(track_x1, track_y1, track_x2, y2, FS_BUTTON | FS_PRESSED);
+
+    //Draw stop marks
+    //***************
+    if (slider->mark_increment) {
+      ULONG i;
+      UWORD num_stops = (slider->max - slider->min) / slider->mark_increment;
+      WORD stop_x = (track_x1 + track_x2) / 2;       // Center the track
+      WORD first_stop = y2 - handle_size / 2;   // Center handle
+      WORD stop_height = track_height - handle_size; // Height from the first stop to the last
+      SetAPen(ui_rastport, UIOV_SLIDER_STOP_COLOR);
+
+      for (i = 0; i <= num_stops; i++) {
+        WORD stop_y = first_stop - i * stop_height / num_stops;
+        //Draw your stop marker here
+        WritePixel(ui_rastport, stop_x, stop_y);
+      }
+    }
+
+    //Draw elapsed
+    //************
+    if (slider->u_slider_flags & SLIDER_ELAPSED) {
+      if (self->flags & UIOF_FRAMED) {
+        if (handle_y2 < y2 - UIOV_BUTTON_FRAME_WIDTH) {
+          SetAPen(ui_rastport, UIOV_SLIDER_STOP_COLOR);
+          RectFill(ui_rastport, track_x1 + UIOV_BUTTON_FRAME_WIDTH,
+                                handle_y2 + 1,
+                                track_x2 - UIOV_BUTTON_FRAME_WIDTH,
+                                y2 - UIOV_BUTTON_FRAME_HEIGHT);
+        }
+      }
+      else {
+        if (handle_y2 < y2) {
+          SetAPen(ui_rastport, UIOV_SLIDER_STOP_COLOR);
+          RectFill(ui_rastport, track_x1,
+                                handle_y2 + 1,
+                                track_x2,
+                                y2);
+        }
+      }
+    }
+
+    //Draw the handle
+    //***************
+    SetAPen(ui_rastport, handle_pen);
+    RectFill(ui_rastport, handle_x1, handle_y1, handle_x2, handle_y2);
+    if (self->flags & UIOF_FRAMED)
+      drawFrame(handle_x1, handle_y1, handle_x2, handle_y2, FS_BUTTON);
+  }
+
+  if (self->flags & UIOF_DISABLED) {
+    drawDisabledPattern(x1, y1, x2, y2);
+  }
+}
+#endif //UI_USE_SLIDERS
+///
 
 /*************************
  * ACTIONS               *
@@ -3195,13 +3525,13 @@ scroll_horizontal:
       }
       else {
         //Check where has been clicked
-        if (pointer_x < x1_bar) { // Top of the scrollbar
+        if (pointer_x < x1_bar) { // Left the scrollbar
           ui_active_object = self;
           state = SBS_PAGE_UP;
           page_delay = SB_PAGE_DELAY;
           goto scroll_horizontal;
         }
-        else if (pointer_x > x2_bar) { // Bottom of the scrollbar
+        else if (pointer_x > x2_bar) { // Right of the scrollbar
           ui_active_object = self;
           state = SBS_PAGE_DOWN;
           page_delay = SB_PAGE_DELAY;
@@ -3568,7 +3898,6 @@ VOID actionString(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL pr
           }
           ui_active_object = NULL;
           turnInputBufferOff();
-          initInputBuffer();
         }
 
         if (self->draw) self->draw(self);
@@ -3653,7 +3982,6 @@ VOID actionString(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL pr
           self->flags &= ~UIOF_CURSOR_ON;
           ui_active_object = NULL;
           turnInputBufferOff();
-          initInputBuffer();
 #ifdef UI_USE_INTEGER_GADGETS
           if (self->type == UIOT_INTEGER) {
             struct UIO_Integer* integer = (struct UIO_Integer*)self;
@@ -3716,6 +4044,105 @@ VOID actionString(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL pr
   }
 }
 #endif // UI_USE_STRING_GADGETS
+///
+///actionSlider(self, pointer_x, pointer_y, pressed)
+/******************************************************************************
+ * Default onActive method for slider objects.                                *
+ ******************************************************************************/
+#ifdef UI_USE_SLIDERS
+VOID actionSlider(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL pressed)
+{
+  struct UIO_Slider* slider = (struct UIO_Slider*)self;
+  WORD x1 = inheritX(self);
+  WORD y1 = inheritY(self);
+//WORD x2 = x1 + self->width;
+  WORD y2 = y1 + self->height;
+  ULONG slider_value = slider->value - slider->min;
+  WORD value_height = self->flags & UIOF_DRAW_VALUE ? ui_rastport->Font->tf_YSize + UIOV_SLIDER_VALUE_SPACING : 0;
+  WORD track_length;
+  WORD handle_size;
+  WORD handle_start;
+  WORD handle_end;
+  WORD pointer_value;
+  WORD new_value;
+  static WORD old_pointer_value = 0;
+  static WORD grab_offset = 0;
+
+  if (self->flags & UIOF_HORIZONTAL) {
+    pointer_value = pointer_x - x1;
+    handle_size = (UIOV_SLIDER_HANDLE_SIZE + UIOV_BUTTON_FRAME_HEIGHT * 2);
+    track_length = self->width - handle_size;
+  }
+  else { // UIOF_VERTICAL
+    pointer_value = y2 - pointer_y;
+    handle_size = (UIOV_SLIDER_HANDLE_SIZE + UIOV_BUTTON_FRAME_WIDTH * 2);
+    track_length = self->height - value_height - handle_size;
+  }
+  handle_start = slider->value == slider->max ? track_length : slider_value * (track_length) / (slider->max - slider->min);
+  handle_end = handle_start + handle_size;
+
+  if (pressed) {
+    if (ui_active_object == self) {
+      if (pointer_value != old_pointer_value) {
+        handle_start = pointer_value - grab_offset;
+        if (handle_start < 0) handle_start = 0;
+        if (handle_start > track_length) handle_start = track_length;
+        new_value = handle_start * (slider->max - slider->min) / track_length;
+        if (slider->u_slider_flags & SLIDER_STRICT) new_value -= new_value % slider->increment;
+        new_value += slider->min;
+        if (new_value != slider->value) {
+          slider->value = new_value;
+          if (self->draw) self->draw(self);
+        }
+        old_pointer_value = pointer_value;
+      }
+    }
+    else {
+      //Check where has been clicked
+      ui_active_object = self;
+      if (pointer_value >= handle_start && pointer_value < handle_end) { // Handle itself
+        grab_offset = pointer_value - handle_start;
+        self->flags |= UIOF_PRESSED;
+        if (self->draw) self->draw(self);
+      }
+      else { // Track area
+        if (pointer_value < handle_start) { // Decrement
+          new_value = slider->value - slider->min - 1;
+          if (new_value < 0) new_value = 0;
+          else {
+            new_value -= new_value % slider->increment;
+          }
+          new_value += slider->min;
+        }
+        else { // Increment
+          new_value = slider->value + slider->increment;
+          if (new_value >= slider->max) new_value = slider->max;
+          else {
+            new_value -= slider->min;
+            new_value -= new_value % slider->increment;
+            new_value += slider->min;
+          }
+        }
+
+        if (new_value != slider->value) {
+          slider->value = new_value;
+          if (self->draw) self->draw(self);
+        }
+        grab_offset = 0;
+      }
+      old_pointer_value = pointer_value;
+    }
+  }
+  else {
+    if (self->flags & UIOF_PRESSED) {
+      self->flags &= ~UIOF_PRESSED;
+      if (self->draw) self->draw(self);
+    }
+
+    ui_active_object = NULL;
+  }
+}
+#endif //UI_USE_SLIDERS
 ///
 
 /*************************
@@ -3888,6 +4315,33 @@ VOID hoverString(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL hov
 }
 #endif // UI_USE_STRING_GADGETS
 ///
+///hoverSlider(self, pointer_x, pointer_y, hovered)
+/******************************************************************************
+ * Default onHover method for slider objects.                                 *
+ ******************************************************************************/
+#ifdef UI_USE_SLIDERS
+VOID hoverSlider(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL hovered)
+{
+  // IMPLEMENT YOUR ON HOVER ACTIVITIES HERE
+  if (hovered) {
+    if (self->flags & UIOF_HOVERED) {
+      // We can set a counter here to display bubble help or animate while being
+      // hovered.
+    }
+    else {
+      self->flags |= UIOF_HOVERED;
+      if (self->draw) self->draw(self);
+    }
+  }
+  else {
+    if (self->flags & UIOF_HOVERED) {
+      self->flags &= ~UIOF_HOVERED;
+      if (self->draw) self->draw(self);
+    }
+  }
+}
+#endif //UI_USE_SLIDERS
+///
 
 /*************************
  * ACCESS FUNCTIONS      *
@@ -3919,10 +4373,12 @@ VOID setIntegerValue(struct UIO_Integer* object, LONG value, BOOL redraw)
 {
   if (value > object->max) value = object->max;
   if (value < object->min) value = object->min;
-  object->value = value;
-  sprintf(object->string.content, "%ld", value);
-  object->string.content_length = strlen(object->string.content);
-  if (redraw && object->string.draw) object->string.draw((struct UIObject*)object);
+  if (value != object->value) {
+    object->value = value;
+    sprintf(object->string.content, "%ld", value);
+    object->string.content_length = strlen(object->string.content);
+    if (redraw && object->string.draw) object->string.draw((struct UIObject*)object);
+  }
 }
 #endif // UI_USE_INTEGER_GADGETS
 ///
@@ -3951,6 +4407,24 @@ VOID decrementIntegerValue(struct UIO_Integer* integer, BOOL redraw)
   setIntegerValue(integer, integer->value - integer->increment, redraw);
 }
 #endif // UI_USE_INTEGER_GADGETS
+///
+///setSliderValue(slider, value)
+/******************************************************************************
+ * Sets the given LONG value into a slider gadget respecting min/max          *
+ * restrictions and increment strictness.                                     *
+ ******************************************************************************/
+#ifdef UI_USE_SLIDERS
+VOID setSliderValue(struct UIO_Slider* slider, LONG value, BOOL redraw)
+{
+  if (slider->u_slider_flags & SLIDER_STRICT) value -= value % slider->increment;
+  if (value > slider->max) value = slider->max;
+  if (value < slider->min) value = slider->min;
+  if (value != slider->value) {
+    slider->value = value;
+    if (redraw && slider->draw) slider->draw((struct UIObject*)slider);
+  }
+}
+#endif //UI_USE_SLIDERS
 ///
 
 /*************************

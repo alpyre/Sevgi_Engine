@@ -29,6 +29,19 @@
 ///defines
 #define VPOSMASK  0x01FF00
 #define INPUT_BUFFER_SIZE 16
+/******************************************************************************
+ * The defines below set up the key repeat treshold and key repeat interval   *
+ * delays for held keys. Values are number of display frames to wait.         *
+ ******************************************************************************/
+#define HELD_KEY_TRESHOLD 25
+#define HELD_KEY_INTERVAL  2
+/******************************************************************************
+ * Held key states.                                                           *
+ ******************************************************************************/
+#define HELD_KEY_NONE   0
+#define HELD_KEY_DELAY  1
+#define HELD_KEY_REPEAT 2
+#define IECODE_NONE     0xFFFF
 ///
 ///structs
 struct InputBuffer {
@@ -64,6 +77,10 @@ STATIC struct IOStdReq *input_ioreq;
 STATIC struct Interrupt input_handler;
 STATIC struct Interrupt vblank_handler;
 STATIC VOID (*volatile vblankEvents)(VOID);
+STATIC volatile ULONG held_key_timer = 0;
+STATIC volatile UWORD held_key_code  = IECODE_NONE;
+STATIC volatile UBYTE held_key_char  = 0;
+STATIC volatile UBYTE held_key_state = HELD_KEY_NONE;
 STATIC BOOL	device_ok = FALSE;
 ///
 
@@ -95,58 +112,97 @@ VOID removeVBlankEvents(VOID)
 STATIC INLINE VOID inputEventToInputBuffer(struct InputEvent* inputevent) {
 	while (inputevent) {
 		if (inputevent->ie_Class == IECLASS_RAWKEY) {
-			UBYTE ch = 0;
-
-			switch (inputevent->ie_Code) {
-				case RAW_BACKSPACE:
-					if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
-						ch = ASCII_BACKSPACE_ALL;
-					else
-						ch = ASCII_BACKSPACE;
-				break;
-				case RAW_TAB:
-					ch = ASCII_TAB;
-				break;
-				case RAW_NUM_ENTER:
-				case RAW_RETURN:
-					ch = ASCII_RETURN;
-				break;
-				case RAW_ESC:
-					ch = ASCII_ESC;
-				break;
-				case RAW_DEL:
-					if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
-						ch = ASCII_DEL_ALL;
-					else
-						ch = ASCII_DEL;
-				break;
-				case RAW_UP:
-					ch = ASCII_UP;
-				break;
-				case RAW_DOWN:
-					ch = ASCII_DOWN;
-				break;
-				case RAW_RIGHT:
-					if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
-						ch = ASCII_END;
-					else
-						ch = ASCII_RIGHT;
-				break;
-				case RAW_LEFT:
-					if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
-						ch = ASCII_HOME;
-					else
-						ch = ASCII_LEFT;
-				break;
-				default:
-					MapRawKey(inputevent, (STRPTR)&ch, 1, NULL);
-					if (ch < 32) ch = 0;
-				break;
+			if (inputevent->ie_Code & IECODE_UP_PREFIX) {
+				if (held_key_code == (inputevent->ie_Code & ~IECODE_UP_PREFIX)) {
+					held_key_state = HELD_KEY_NONE;
+				}
 			}
+			else {
+				UBYTE ch = 0;
 
-			pushInputBuffer(ch);
+				switch (inputevent->ie_Code) {
+					case RAW_BACKSPACE:
+						if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
+							ch = ASCII_BACKSPACE_ALL;
+						else
+							ch = ASCII_BACKSPACE;
+					break;
+					case RAW_TAB:
+						ch = ASCII_TAB;
+					break;
+					case RAW_NUM_ENTER:
+					case RAW_RETURN:
+						ch = ASCII_RETURN;
+					break;
+					case RAW_ESC:
+						ch = ASCII_ESC;
+					break;
+					case RAW_DEL:
+						if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
+							ch = ASCII_DEL_ALL;
+						else
+							ch = ASCII_DEL;
+					break;
+					case RAW_UP:
+						ch = ASCII_UP;
+					break;
+					case RAW_DOWN:
+						ch = ASCII_DOWN;
+					break;
+					case RAW_RIGHT:
+						if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
+							ch = ASCII_END;
+						else
+							ch = ASCII_RIGHT;
+					break;
+					case RAW_LEFT:
+						if (inputevent->ie_Qualifier & (IEQUALIFIER_LSHIFT | IEQUALIFIER_RSHIFT))
+							ch = ASCII_HOME;
+						else
+							ch = ASCII_LEFT;
+					break;
+					default:
+						MapRawKey(inputevent, (STRPTR)&ch, 1, NULL);
+						if (ch < 32) ch = 0;
+					break;
+				}
+
+				if (ch) {
+					held_key_timer = initDelayFrames(HELD_KEY_TRESHOLD);
+					held_key_code  = inputevent->ie_Code;
+					held_key_char  = ch;
+					held_key_state = HELD_KEY_DELAY;
+					pushInputBuffer(ch);
+				}
+			}
 		}
 		inputevent = inputevent->ie_NextEvent;
+	}
+}
+///
+///heldKeyRepeat()
+/******************************************************************************
+ * Repeats held keyboard keys by pushing the ASCII equivalent of the last     *
+ * pressed (and held key) to the g_input_buffer, respecting the "key repeat   *
+ * treshold" and the "key repeat interval" settings.                          *
+ ******************************************************************************/
+VOID heldKeyRepeat()
+{
+	switch (held_key_state) {
+		case HELD_KEY_DELAY:
+			if (testDelay(held_key_timer)) {
+				held_key_timer = initDelayFrames(HELD_KEY_INTERVAL);
+				held_key_state = HELD_KEY_REPEAT;
+			}
+		break;
+		case HELD_KEY_REPEAT:
+			if (testDelay(held_key_timer)) {
+				held_key_timer = initDelayFrames(HELD_KEY_INTERVAL);
+				pushInputBuffer(held_key_char);
+			}
+		break;
+		case HELD_KEY_NONE:
+		break;
 	}
 }
 ///
@@ -169,6 +225,10 @@ HANDLERPROTO(customVBlankHandler, LONG, struct InputEvent *inputevent, APTR user
 	//WARNING: system's VBL handler also messes with COLOR00 register (sets it to 0)
 
 	vblankEvents();
+
+	if (g_get_input) {
+		heldKeyRepeat();
+	}
 
 	// Clear the z flag of the CPU to break interrupt server chain!
 	return 1;
@@ -310,6 +370,7 @@ VOID giveBackSystem()
 	deactivateNullCopperList();
 
 	PT_TerminatePTPlayer();
+
 	// remove custom input handler
 	if (device_ok) {
 		input_ioreq->io_Command = IND_REMHANDLER;
@@ -464,6 +525,7 @@ VOID turnInputBufferOn()
 VOID turnInputBufferOff()
 {
 	g_get_input = FALSE;
+	held_key_state = HELD_KEY_NONE;
 }
 ///
 ///pushInputBuffer(UBYTE ch)

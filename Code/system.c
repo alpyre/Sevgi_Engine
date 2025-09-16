@@ -186,7 +186,7 @@ STATIC INLINE VOID inputEventToInputBuffer(struct InputEvent* inputevent) {
  * pressed (and held key) to the g_input_buffer, respecting the "key repeat   *
  * treshold" and the "key repeat interval" settings.                          *
  ******************************************************************************/
-VOID heldKeyRepeat()
+VOID heldKeyRepeat(VOID)
 {
 	switch (held_key_state) {
 		case HELD_KEY_DELAY:
@@ -507,7 +507,7 @@ VOID busyWaitBlit()
 ///
 
 ///initInputBuffer()
-VOID initInputBuffer()
+VOID initInputBuffer(VOID)
 {
 	g_input_buffer.write_ptr = g_input_buffer.buffer;
 	g_input_buffer.read_ptr = g_input_buffer.buffer;

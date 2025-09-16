@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.182
+                             Version 0.183
 
                         Developer Documentation
 
@@ -1889,7 +1889,8 @@ UI_USE_CHECKBOXES
 UI_USE_CYCLEBOXES
 UI_USE_STRING_GADGETS
 UI_USE_INTEGER_GADGETS
-UI_USE_LISTVIEWS
+UI_USE_SLIDERS
+UI_USE_JOYSTICK_CONTROL
 UI_USE_RELAYOUTING
 
 Especially if you are not going to use the tabbed groups and/or scroll groups
@@ -1900,6 +1901,14 @@ If your UI layout is too complex and scrolling renders some glitches onto the
 screen defining UI_SCROLL_USING_REDRAW (see the UI SETTINGS section of ui.h)
 may fix it. However, scrolling by blitting (the default implementation) will be
 much performant on real hardware.
+
+@{b}CONTROL@{ub}
+=======
+Sevgi_Engine's UI objects are intended to be primarily operated with the mouse
+and keyboard. But since this is a game engine, the UI objects' onActive methods
+also allow for being controlled by the joystick (on port 1). However, by
+undefining UI_USE_JOYSTICK_CONTROL you can remove the routines that provide
+joystick control from the code if you wish to disable this feature.
 
 @endnode
 

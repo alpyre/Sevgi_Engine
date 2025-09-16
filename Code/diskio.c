@@ -575,11 +575,11 @@ struct SpriteBank* loadSpriteBank(STRPTR fileName)
       }
       else printf("SpriteBank %s is not compatible with compiled image/hitbox sizes:\nPlease check BIG_IMAGE_SIZES, SMALL_IMAGE_SIZES and SMALL_HITBOX_SIZES defines\n", fileName);
     }
-    else printf("File %s is not a sprite bank file!", fileName);
+    else printf("File %s is not a sprite bank file!\n", fileName);
 
     Close(fh);
   }
-  else printf("Could not open sprite bank file: %s", fileName);
+  else printf("Could not open sprite bank file: %s\n", fileName);
 
   return bank;
 }

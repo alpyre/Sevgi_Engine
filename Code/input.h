@@ -1,6 +1,9 @@
 #ifndef INPUT_H
 #define INPUT_H
 
+#include <hardware/custom.h>
+#include <hardware/cia.h>
+
 //for joystick on port 0 (mouse port) a = 0
 //for joystick on port 1 (joystick port) a = 1
 #define JOY_LEFT(a)    (custom.joy##a##dat & 512)

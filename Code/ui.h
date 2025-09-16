@@ -17,7 +17,7 @@
 #define UI_USE_STRING_GADGETS
 #define UI_USE_INTEGER_GADGETS
 #define UI_USE_SLIDERS
-//#define UI_USE_LISTVIEWS
+#define UI_USE_JOYSTICK_CONTROL
 //#define UI_USE_RELAYOUTING
 //#define UI_SCROLL_USING_REDRAW
 
@@ -80,6 +80,10 @@
 #define UIOV_STRING_CURSOR_BLINK_DELAY 25
 #define UIOV_STRING_PASSWORD_CHAR      '*'
 #define UIOV_STRING_DOTTED_CHAR        '.'
+#define UIOV_STRING_JOYSTICK_MIN_CH    ' '
+#define UIOV_STRING_JOYSTICK_MAX_CH    '~'
+#define UIOV_STRING_JOYSTICK_START_CH  '0'
+#define UIOV_STRING_JOYSTICK_END_CH    'z'
 
 #define UIOV_CYCLEBOX_SEPARATOR_WIDTH  4
 
@@ -111,10 +115,10 @@
  ******************************************************************************/
 #define UI_REDRAW           TRUE
 #define UI_NO_REDRAW        FALSE
-#define UI_CALCULATE_WIDTH  1
-#define UI_CALCULATE_HEIGHT 2
 #define UI_INT_MIN          0x80000000
 #define UI_INT_MAX          0x7FFFFFFF
+#define UI_TRESHOLD_DELAY   25
+#define UI_REPEAT_DELAY      2
 
 /******************************************************************************
  * UI OBJECT TYPES                                                            *
@@ -171,8 +175,10 @@
 // UIOT_SLIDER type specific flags
 // *********************************
 #define UIOF_DRAW_VALUE       0x400
+#define SLIDER_NONE           0x0
 #define SLIDER_STRICT         0x1
 #define SLIDER_ELAPSED        0x2
+#define SLIDER_KEYBOARD_MODE  0x4
 
 // drawFrame() style flags
 // NOTE: compatible with UIOF_ flags
@@ -236,7 +242,7 @@ STATIC struct UIObject* name ## _group_children[] = {(struct UIObject*)&name, (s
 UI_GROUP(name ## _group, #name "_group", UIOF_HORIZONTAL | ((flags) & UIOF_INHERIT_ALL), name ## _group_children, child_gap, 1, 0)
 
 #define UI_SLIDER(name, flags, slider_flags, initial_value, min, max, increment, mark_increment, onUpdate)\
-struct UIO_Slider name = {{NULL,NULL}, 0, slider_flags, UIOT_SLIDER, flags, NULL, NULL, 0, 0, 0, 0, sizeSlider, drawSlider, hoverSlider, actionSlider, onUpdate, UI_ANIM_STRUCT, initial_value, min, max, increment, mark_increment}
+struct UIO_Slider name = {{NULL,NULL}, 0, slider_flags, UIOT_SLIDER, flags, #name, NULL, 0, 0, 0, 0, sizeSlider, drawSlider, hoverSlider, actionSlider, onUpdate, UI_ANIM_STRUCT, initial_value, min, max, increment, mark_increment}
 
 /******************************************************************************
  * UI STORAGE TYPES                                                           *
@@ -291,14 +297,12 @@ struct UIO_Anim {
   struct UIO_Anim anim
   // TYPE SPECIFIC MEMBERS FOLLOW
 
-
 // UI OBJECT (access to common members)
 // ************************************
 struct UIObject {
   UIOBJECT_COMMON;
   // TYPE SPECIFIC MEMBERS FOLLOW
 };
-
 
 // LAYOUT GROUP OBJECT
 // *******************
@@ -434,7 +438,7 @@ VOID sizeCheckbox(struct UIObject* self);
 VOID drawCheckbox(struct UIObject* self);
 VOID hoverCheckbox(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL hovered);
 VOID actionCheckbox(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL pressed);
-#define isChecked(checkbox) (checkbox->flags & UIOF_CHECKED)
+#define isChecked(checkbox) ((checkbox)->flags & UIOF_CHECKED)
 
 // CYCLEBOX OBJECT
 // ***************

@@ -76,6 +76,7 @@
 extern struct Custom custom;
 extern struct CIA ciaa, ciab;
 extern volatile LONG new_frame_flag;                   // from system.o
+extern volatile ULONG g_frame_counter;                 // from system.o
 extern UWORD NULL_SPRITE_ADDRESS_H;                    // from display.o
 extern UWORD NULL_SPRITE_ADDRESS_L;                    // from display.o
 extern struct TextFont* textFonts[NUM_TEXTFONTS];      // from fonts.o
@@ -85,6 +86,7 @@ extern struct Level current_level;                     // from level.o
 extern struct BitMap* BOBsBackBuffer;                  // from gameobject.o
 extern struct GameObject* spriteList[NUM_SPRITES + 1]; // from gameobject.o
 extern struct GameObject* bobList[NUM_BOBS + 1];       // from gameobject.o
+extern struct UIObject* ui_active_object;              // from ui.o
 
 // private globals
 STATIC struct GameObject* gameobjects;
@@ -316,17 +318,17 @@ STATIC VOID switchToMenuCopperList()
 ///startMenuDisplay()
 ULONG startMenuDisplay()
 {
-  ULONG retVal = 0;
+  ULONG return_value = 0;
 
   if (openDisplay()) {
     switchToMenuCopperList();
-    retVal = menuDisplayLoop();
+    return_value = menuDisplayLoop();
     switchToNullCopperList();
     //PT_StopAudio();
   }
 
   closeDisplay();
-  return retVal;
+  return return_value;
 }
 ///
 
@@ -371,8 +373,8 @@ STATIC VOID drawScreen()
 STATIC ULONG menuDisplayLoop()
 {
   BOOL exiting = FALSE;
-  ULONG retVal = 0;
-  LONG inputDelay = 0;
+  ULONG return_value = 0;
+  ULONG input_delay = 0;
   clicked_button = NULL;
 
   color_table->state = CT_FADE_IN;
@@ -408,50 +410,44 @@ STATIC ULONG menuDisplayLoop()
       break;
     }
 
-
     if (!exiting) {
       // Check if a button was clicked by the ui
       if (clicked_button) {
-        retVal = clicked_button;
+        return_value = clicked_button;
         PT_PlaySFX(current_level.sound_sample[BUTTON_ACKNOWLEDGE_SOUND]);
         goto init_exit;
       }
 
-      // Handle key presses
-      if (keyState(RAW_ESC) && !exiting) {
-        retVal  = MENU_RV_QUIT;
-        goto init_exit;
-      };
-
-      if (keyState(RAW_UP) || JOY_UP(1)) {
-        if (!inputDelay) {
-          inputDelay = INPUT_DELAY;
-          PT_PlaySFX(current_level.sound_sample[BUTTON_SELECT_SOUND]);
-          prevObject();
-        }
-      }
-      else if (keyState(RAW_DOWN) || JOY_DOWN(1)) {
-        if (!inputDelay) {
-          inputDelay = INPUT_DELAY;
-          PT_PlaySFX(current_level.sound_sample[BUTTON_SELECT_SOUND]);
-          nextObject();
-        }
-      }
-      else inputDelay = 0;
-
-      if (keyState(RAW_RETURN) || keyState(RAW_SPACE) || JOY_BUTTON1(1)) {
-        struct UIObject* selected;
-        if ((selected = getSelectedObject())) {
-          retVal = selected->id;
-          PT_PlaySFX(current_level.sound_sample[BUTTON_ACKNOWLEDGE_SOUND]);
+      if (!ui_active_object) {
+        // Handle key presses
+        if (keyState(RAW_ESC) && !exiting) {
+          return_value  = MENU_RV_QUIT;
           goto init_exit;
+        };
+
+        if (keyState(RAW_UP) || JOY_UP(1)) {
+          if (testDelay(input_delay)) {
+            input_delay = initDelayFrames(INPUT_DELAY);
+            PT_PlaySFX(current_level.sound_sample[BUTTON_SELECT_SOUND]);
+            prevObject();
+          }
+        }
+        else if (keyState(RAW_DOWN) || keyState(RAW_TAB) || JOY_DOWN(1)) {
+          if (testDelay(input_delay)) {
+            input_delay = initDelayFrames(INPUT_DELAY);
+            PT_PlaySFX(current_level.sound_sample[BUTTON_SELECT_SOUND]);
+            nextObject();
+          }
+        }
+        else input_delay = 0;
+
+        if (keyState(RAW_RETURN) || keyState(RAW_SPACE) || JOY_BUTTON1(1)) {
+          activateObject();
         }
       }
 
       updateUI(&group_root, (WORD)mouse_pointer.x, (WORD)mouse_pointer.y, ms.buttons & LEFT_MOUSE_BUTTON);
     }
-
-    if (inputDelay) inputDelay--;
 
     //updateGameObjects();
     updateBOBs();
@@ -466,7 +462,7 @@ STATIC ULONG menuDisplayLoop()
 
   resetUI();
 
-  return retVal;
+  return return_value;
 }
 ///
 

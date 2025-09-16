@@ -6,8 +6,6 @@
  * would require a completely different implementation.                       *
  ******************************************************************************/
 #include <exec/exec.h>
-#include <hardware/custom.h>
-#include <hardware/cia.h>
 
 #include "input.h"
 

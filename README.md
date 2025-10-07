@@ -1,18 +1,20 @@
 ![Sevgi Engine](https://s14.gifyu.com/images/bsCeR.gif)
 
-Sevgi Engine is a new open source video game engine for classic Amiga computers that provides the required tools and generates the boilerplate code to create high-performing Amiga games using only the C programming language. It is built around the great [ScrollingTricks](https://aminet.net/package/dev/src/ScrollingTrick) by Georg Steger.
+Sevgi Engine is a new open-source video game engine designed for classic Amiga computers. It delivers the necessary tools and generates the boilerplate code to enable the development of high-performance Amiga games using only the C programming language. It is built around the great [ScrollingTricks](https://aminet.net/package/dev/src/ScrollingTrick) by Georg Steger.
 
 ### Features
 * **Performance**
   <br>All display algorithms aim to perform at a locked 50fps on a single buffered native Amiga chipset display. It implements an optimized version of the algorithm Scroller_XYUnlimited2_64 from [ScrollingTricks](https://aminet.net/package/dev/src/ScrollingTrick). Benefits highly from Fast Ram where available.</br>
 * **System friendly**
-  <br>Aims to work on all ROM versions (2.0+) providing a clean quit back to OS without needing WHDLoad.</br>
+  <br>Aims to work on all ROM versions (2.0+) providing a clean quit back to OS without the need for WHDLoad.</br>
 * **AGA Support**
   <br>Supports all features provided by the AGA chipset.</br>
 * **No limitations**
-  <br>Designed to support all the well known visual tricks known by the popular Amiga video game titles while not limiting more experimental effects to be implemented.</br>
+  <br>Designed to support all the well-known visual tricks used on popular Amiga video game titles while not limiting more experimental effects from being implemented.</br>
 * **UI**
-  <br>Code to create customizable mouse driven GUI objects (buttons, input gadgets, checkboxes etc.) with auto-layout and modern features, which can also be accessed by the keyboard or the joysticks. ***NEW FEATURE***</br>
+  <br>Code to create customizable mouse driven GUI objects (buttons, input gadgets, checkboxes etc.) with auto-layout and modern features, which can also be accessed by the keyboard or the joysticks.</br>
+* **Controllers**
+  <br>Supports very optimized input from mice, joysticks and CD32 JoyPads ***NEW*** from both joystick ports, as well as the keyboard.</br>
 * **Easy development**
   <br>A native editor program is provided to generate code, manage game assets, edit color palettes etc. called **Sevgi Editor**. Other elements like game logic, animation and events require programming knowledge in C. The programming and compiling can be made natively (on the Amiga OS - using native compilers) or cross platfrom (on Windows or Linux PCs - using cross development tools). Sevgi Editor can import game maps made in [Tiled](https://www.mapeditor.org/).</br>
 * **Templates**
@@ -22,7 +24,7 @@ Sevgi Engine is a new open source video game engine for classic Amiga computers 
 * **No third party dependencies**
   <br>The game executable will not require any libraries[^1]</br>
 * **Documentation**
-  <br>The engine code is very well commented and documented in detail in Amigaguide format.</br>
+  <br>The engine code is well-commented and comprehensively documented in AmigaGuide format.</br>
 
 [^1]:Except diskfont.library. And even that is avoidable if you do not use any Amiga font asset.
 
@@ -46,7 +48,7 @@ Compiled binaries can also be acquired from [aminet](https://aminet.net/package/
 Sevgi Engine code is suitable to be compiled with any Amiga compiler. Makefiles for SAS/C and gcc are provided and these compilers are tested to work. It includes and uses SDI_headers, so (hopefully) it is compiler agnostic.
 
 [^2]:These toolchains should be built using MUI and CGX prefixes of course.
-[^3]:Since this source includes and utilizes SDI_headers, it can be compiled also for MorphOS and AmigaOS4 targets, yet these two are not tested to work.
+[^3]:Since this source includes and utilizes SDI_headers, it can be compiled also for MorphOS and AmigaOS4 targets, yet these two are not tested.
 
 ### Templates
 Sevgi Editor comes with some ready to compile and run game templates from different genres which demonstrates its features using some free assets.

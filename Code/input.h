@@ -28,4 +28,15 @@ struct MouseState {
 
 ULONG readMouse(ULONG);
 
+//CD32 Joypad Buttons
+#define CD32_BLUE      0x01
+#define CD32_RED       0x02
+#define CD32_YELLOW    0x04
+#define CD32_GREEN     0x08
+#define CD32_RSHOULDER 0x10 // Fast Forward
+#define CD32_LSHOULDER 0x20 // Rewind
+#define CD32_PAUSE     0x40
+
+ULONG readCD32JoyPadButtons(ULONG port);
+
 #endif /* INPUT_H */

@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.183
+                             Version 0.184
 
                         Developer Documentation
 
@@ -243,6 +243,7 @@ can be found in input.c and keyboard.c files.
 
     @{u}Functions exported:@{uu}
     @{"readMouse()" link "63-readMouse"}
+    @{"readCD32JoyPadButtons()" link "63-readCD32JoyPadButtons"}
 
 @{b}keyboard.c@{ub}
     Provides a fast and easy interface to check for key presses. Please take a
@@ -2178,6 +2179,7 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" PT_StopSFX                " link "61-PT_StopSFX"}
 @{" PT_TerminatePTPlayer      " link "62-PT_TerminatePTPlayer"}
 @{" pushInputBuffer           " link "63-pushInputBuffer"}
+@{" readCD32JoyPadButtons     " link "63-readCD32JoyPadButtons"}
 @{" readMouse                 " link "63-readMouse"}
 @{" removeClip                " link "63-removeClip"}
 @{" removeVBlankEvents        " link "64-removeVBlankEvents"}
@@ -4606,6 +4608,55 @@ SEE ALSO
 
 @endnode
 
+@node "63-readCD32JoyPadButtons" "Sevgi_Engine.guide/Function Reference/readCD32JoyPadButtons"
+NAME
+    readCD32JoyPadButtons - Read button states from CD32 JoyPads
+
+SYNOPSIS
+    readCD32JoyPadButtons(port)
+
+    ULONG readCD32JoyPadButtons(ULONG port);
+
+FUNCTION
+    This function will return the current state of the buttons on a CD32 JoyPad
+    plugged into the port given. Does not read the states of direction buttons.
+    You can check direction button states using the JOY_LEFT, JOY_RIGHT, JOY_UP
+    and JOY_DOWN macros as you do for ordinary Amiga joysticks.
+
+INPUTS
+    port - port number to read (0..1)
+
+RESULTS
+    The value returned is a bitfield of the buttons pressed. You can later check
+    for the bits using:
+      CD32_BLUE
+      CD32_RED
+      CD32_YELLOW
+      CD32_GREEN
+      CD32_RSHOULDER
+      CD32_LSHOULDER
+      CD32_PAUSE
+
+NOTES
+    It is safe to call this function when there is an ordinary Amiga joystick
+    (or mouse) plugged in the port. In that case the bit CD32_RED will represent
+    the state of the button one and the bit CD32_BLUE will represent the state
+    of the button two of the ordinary joystick.
+
+    It is also safe to call this function before (or after) readMouse() on the
+    same port in your display loops.
+
+BUGS
+    This function relies on some busy waits to achieve the microsecond delays
+    required for the voltages on the joystick ports to stabilize. Because of
+    this, this function should be excluded from compiler optimizations which
+    could re-order or remove these busy waits.
+
+SEE ALSO
+    @{"Input" link "Concepts_02Input"} @{"readMouse()" link "63-readMouse"}
+
+@endnode
+
 @node "63-readMouse" "Sevgi_Engine.guide/Function Reference/readMouse"
 NAME
     readMouse - Read current mouse state
@@ -4645,7 +4696,7 @@ RESULTS
     deltaY  - how much the mouse has been moved vertically since the last call
 
 SEE ALSO
-    @{"Input" link "Concepts_02Input"}
+    @{"Input" link "Concepts_02Input"} @{"readCD32JoyPadButtons()" link "63-readCD32JoyPadButtons"}
 
 @endnode
 

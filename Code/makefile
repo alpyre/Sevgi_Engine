@@ -16,6 +16,7 @@ DEBUG =
 IDIRS =
 
 CFLAGS = $(WARNINGS) $(OPTIMIZE) $(DEBUG) $(CPU) $(OPTIONS) $(IDIRS)
+CFLAGS_NOOPT = $(WARNINGS) -O0 $(DEBUG) $(CPU) $(OPTIONS) $(IDIRS)
 AFLAGS = -Faout $(CPU)
 
 DEPS = assets.h palettes.h settings.h version.h
@@ -59,6 +60,9 @@ fonts.o : fonts.c fonts.h assets.h settings.h
 
 gameobject.o : gameobject.c gameobject.h anims.h collisions.h settings.h
 	$(CC) $< $(CFLAGS)
+
+input.o : input.c input.h
+	$(CC) $< $(CFLAGS_NOOPT)
 
 level.o : level.c level.h assets.h settings.h palettes.h
 	$(CC) $< $(CFLAGS)

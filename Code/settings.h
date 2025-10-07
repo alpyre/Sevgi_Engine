@@ -76,6 +76,8 @@
  * GAMEOBJECTS                                                                *
  ******************************************************************************/
 
+#define NUM_LEVELS 2 // Number of levels in the game
+
 #define NUM_SPRITES 8
 #define NUM_BOBS    10
 #define NUM_GAMEOBJECTS 0

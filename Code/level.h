@@ -1,7 +1,7 @@
 #ifndef LEVEL_H
 #define LEVEL_H
 
-#define NUM_LEVELS 2
+#include "settings.h"
 
 //TO ACCESS CURRENT LEVEL ADD THIS LINE INTO YOUR .c FILE:
 //extern struct Level current_level;

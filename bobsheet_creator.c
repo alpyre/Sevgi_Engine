@@ -7,6 +7,7 @@
 #define MUIM_BobsheetCreator_SourceAcknowledge 0x80430416
 #define MUIM_BobsheetCreator_Create            0x80430417
 #define MUIM_BobsheetCreator_DisplaySource     0x80430418
+#define MUIM_BobsheetCreator_SetHotspotMargins 0x80430419
 ///
 ///Includes
 #include <string.h>
@@ -360,6 +361,30 @@ STATIC ULONG m_DisplaySource(struct IClass* cl, Object* obj, struct cl_Msg* msg)
   return 0;
 }
 ///
+///m_SetHotspotMargins()
+STATIC ULONG m_SetHotspotMargins(struct IClass* cl, Object* obj, struct cl_Msg* msg)
+{
+  struct cl_Data *data = INST_DATA(cl, obj);
+  ULONG small_sizes;
+
+  get(data->obj_table.small, MUIA_Selected, &small_sizes);
+
+  if (small_sizes) {
+    DoMethod(data->obj_table.hotspot_x, MUIM_Set, MUIA_Integer_Max, 127);
+    DoMethod(data->obj_table.hotspot_x, MUIM_Set, MUIA_Integer_Min, -128);
+    DoMethod(data->obj_table.hotspot_y, MUIM_Set, MUIA_Integer_Max, 127);
+    DoMethod(data->obj_table.hotspot_y, MUIM_Set, MUIA_Integer_Min, -128);
+  }
+  else {
+    DoMethod(data->obj_table.hotspot_x, MUIM_Set, MUIA_Integer_Max, 32767);
+    DoMethod(data->obj_table.hotspot_x, MUIM_Set, MUIA_Integer_Min, -32768);
+    DoMethod(data->obj_table.hotspot_y, MUIM_Set, MUIA_Integer_Max, 32767);
+    DoMethod(data->obj_table.hotspot_y, MUIM_Set, MUIA_Integer_Min, -32768);
+  }
+
+  return 0;
+}
+///
 
 //<DEFINE SUBCLASS METHODS HERE>
 
@@ -431,8 +456,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_Integer_Incr, 1,
           MUIA_Integer_Buttons, TRUE,
           MUIA_Integer_Min, 0,
-          MUIA_Integer_Max, 256,
-          MUIA_String_MaxLen, 3,
+          MUIA_Integer_Max, 8192,
+          MUIA_String_MaxLen, 5,
         TAG_END)),
         MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Rows:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.rows, TAG_END),
         MUIA_Group_Child, (objects.rows = NewObject(MUIC_Integer->mcc_Class, NULL,
@@ -442,8 +467,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_Integer_Incr, 1,
           MUIA_Integer_Buttons, TRUE,
           MUIA_Integer_Min, 0,
-          MUIA_Integer_Max, 256,
-          MUIA_String_MaxLen, 3,
+          MUIA_Integer_Max, 8192,
+          MUIA_String_MaxLen, 5,
         TAG_END)),
         MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Width:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.width, TAG_END),
         MUIA_Group_Child, (objects.width = NewObject(MUIC_Integer->mcc_Class, NULL,
@@ -453,8 +478,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_Integer_Incr, 1,
           MUIA_Integer_Buttons, TRUE,
           MUIA_Integer_Min, 0,
-          MUIA_Integer_Max, 256,
-          MUIA_String_MaxLen, 3,
+          MUIA_Integer_Max, 8192,
+          MUIA_String_MaxLen, 5,
         TAG_END)),
         MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Height:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.height, TAG_END),
         MUIA_Group_Child, (objects.height = NewObject(MUIC_Integer->mcc_Class, NULL,
@@ -464,8 +489,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_Integer_Incr, 1,
           MUIA_Integer_Buttons, TRUE,
           MUIA_Integer_Min, 0,
-          MUIA_Integer_Max, 256,
-          MUIA_String_MaxLen, 3,
+          MUIA_Integer_Max, 8192,
+          MUIA_String_MaxLen, 5,
         TAG_END)),
         MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Margin:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.margin, TAG_END),
         MUIA_Group_Child, MUI_NewObject(MUIC_Group,
@@ -478,8 +503,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
             MUIA_Integer_Incr, 1,
             MUIA_Integer_Buttons, TRUE,
             MUIA_Integer_Min, 0,
-            MUIA_Integer_Max, 128,
-            MUIA_String_MaxLen, 3,
+            MUIA_Integer_Max, 8192,
+            MUIA_String_MaxLen, 5,
           TAG_END)),
           MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Y:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.margin_y, TAG_END),
           MUIA_Group_Child, (objects.margin_y = NewObject(MUIC_Integer->mcc_Class, NULL,
@@ -489,8 +514,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
             MUIA_Integer_Incr, 1,
             MUIA_Integer_Buttons, TRUE,
             MUIA_Integer_Min, 0,
-            MUIA_Integer_Max, 128,
-            MUIA_String_MaxLen, 3,
+            MUIA_Integer_Max, 8192,
+            MUIA_String_MaxLen, 5,
           TAG_END)),
         TAG_END),
         MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Spacing:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.spacing, TAG_END),
@@ -504,8 +529,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
             MUIA_Integer_Incr, 1,
             MUIA_Integer_Buttons, TRUE,
             MUIA_Integer_Min, 0,
-            MUIA_Integer_Max, 128,
-            MUIA_String_MaxLen, 3,
+            MUIA_Integer_Max, 8192,
+            MUIA_String_MaxLen, 5,
           TAG_END)),
           MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Y:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.spacing_y, TAG_END),
           MUIA_Group_Child, (objects.spacing_y = NewObject(MUIC_Integer->mcc_Class, NULL,
@@ -515,8 +540,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
             MUIA_Integer_Incr, 1,
             MUIA_Integer_Buttons, TRUE,
             MUIA_Integer_Min, 0,
-            MUIA_Integer_Max, 128,
-            MUIA_String_MaxLen, 3,
+            MUIA_Integer_Max, 8192,
+            MUIA_String_MaxLen, 5,
           TAG_END)),
         TAG_END),
         MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Hotspot:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.hotspot, TAG_END),
@@ -531,7 +556,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
             MUIA_Integer_Buttons, TRUE,
             MUIA_Integer_Min, -128,
             MUIA_Integer_Max, 128,
-            MUIA_String_MaxLen, 3,
+            MUIA_String_MaxLen, 7,
           TAG_END)),
           MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Y:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.hotspot_y, TAG_END),
           MUIA_Group_Child, (objects.hotspot_y = NewObject(MUIC_Integer->mcc_Class, NULL,
@@ -542,7 +567,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
             MUIA_Integer_Buttons, TRUE,
             MUIA_Integer_Min, -128,
             MUIA_Integer_Max, 128,
-            MUIA_String_MaxLen, 3,
+            MUIA_String_MaxLen, 7,
           TAG_END)),
         TAG_END),
         MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Reverse:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.reverse, TAG_END),
@@ -659,6 +684,9 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     DoMethod(data->obj_table.source_btn, MUIM_Notify, MUIA_Pressed, FALSE, obj, 1,
       MUIM_BobsheetCreator_DisplaySource);
 
+    DoMethod(data->obj_table.small, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, obj, 1,
+      MUIM_BobsheetCreator_SetHotspotMargins);
+
     //<SUBCLASS INITIALIZATION HERE>
     if (/*<Success of your initializations>*/ TRUE) {
 
@@ -743,6 +771,8 @@ SDISPATCHER(cl_Dispatcher)
       return m_Create(cl, obj, (struct cl_Msg*) msg);
     case MUIM_BobsheetCreator_DisplaySource:
       return m_DisplaySource(cl, obj, (struct cl_Msg*) msg);
+    case MUIM_BobsheetCreator_SetHotspotMargins:
+      return m_SetHotspotMargins(cl, obj, (struct cl_Msg*) msg);
 
     //<DISPATCH SUBCLASS METHODS HERE>
 

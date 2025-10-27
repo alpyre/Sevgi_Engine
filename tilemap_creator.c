@@ -180,9 +180,26 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
 
       DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
 
-      //TODO: set here the headerfile
-      sprintf(command, "%s \"%s\" Path=\"%s\" %s",
-      g_Tools.convert_map, source, g_FileReq->fr_Drawer, add_zero ? "ADDZERO" : "");
+      /************************************************************************
+       ConvertMap tool can parse the custom members on the GameObject and
+       GameObjectBank structs and create the compatible gameobject files. For
+       this to happen, the project with the custom headers has to be opened.
+       Otherwise it will create gameobject files compatible with the vanilla
+       headers only.
+      *************************************************************************/
+      if (g_Project.directory) {
+        STRPTR header = makePath(g_Project.directory, "gameobject.h", NULL);
+        if (header) {
+          sprintf(command, "%s \"%s\" Path=\"%s\" Header=\"%s\" %s",
+          g_Tools.convert_map, source, g_FileReq->fr_Drawer, header, add_zero ? "ADDZERO" : "");
+
+          freeString(header);
+        }
+      }
+      else {
+        sprintf(command, "%s \"%s\" Path=\"%s\" %s",
+        g_Tools.convert_map, source, g_FileReq->fr_Drawer, add_zero ? "ADDZERO" : "");
+      }
 
       if (execute(&rtrn, command))
         error_string = rtrn.string;

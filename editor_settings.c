@@ -247,6 +247,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           ASLFR_PositiveText, "Select",
           ASLFR_DrawersOnly, FALSE,
           ASLFR_DoPatterns, FALSE,
+          ASLFR_InitialPattern, "",
           ASLFR_InitialFile, "",
           ASLFR_InitialDrawer, "SYS:",
         TAG_END)),

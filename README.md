@@ -4,7 +4,7 @@ Sevgi Engine is a new open-source video game engine designed for classic Amiga c
 
 ### Features
 * **Performance**
-  <br>All display algorithms aim to perform at a locked 50fps on a single buffered native Amiga chipset display. It implements an optimized version of the algorithm Scroller_XYUnlimited2_64 from [ScrollingTricks](https://aminet.net/package/dev/src/ScrollingTrick). Benefits highly from Fast Ram where available.</br>
+  <br>All display algorithms aim to perform at a locked 50fps on a single buffered[^2] native Amiga chipset display. It implements an optimized version of the algorithm Scroller_XYUnlimited2_64 from [ScrollingTricks](https://aminet.net/package/dev/src/ScrollingTrick). Benefits highly from Fast Ram where available.</br>
 * **System friendly**
   <br>Aims to work on all ROM versions (2.0+) providing a clean quit back to OS without the need for WHDLoad.</br>
 * **AGA Support**
@@ -22,11 +22,12 @@ Sevgi Engine is a new open-source video game engine designed for classic Amiga c
 * **ptplayer**
   <br>Implements the great [ptplayer](https://aminet.net/package/mus/play/ptplayer) by Frank Wille for music and audio effects.</br>
 * **No third party dependencies**
-  <br>The game executable will not require any libraries[^1]</br>
+  <br>The game executable will not require any libraries[^2]</br>
 * **Documentation**
   <br>The engine code is well-commented and comprehensively documented in AmigaGuide format.</br>
 
-[^1]:Except diskfont.library. And even that is avoidable if you do not use any Amiga font asset.
+[^1]:Now also supports double buffering.
+[^2]:Except diskfont.library. And even that is avoidable if you do not use any Amiga font asset.
 
 ### Sevgi Editor
 Sevgi Engine code and template assets are generated using the provided editor called Sevgi Editor.

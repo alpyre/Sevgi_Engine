@@ -102,6 +102,7 @@ struct Gradient {
 struct ColorTable* newColorTable(UBYTE* table, UWORD fade_steps, ULONG step);
 struct ColorTable* newColorTable_CL(UWORD* copperlist, UWORD fade_steps, ULONG step);
 struct ColorTable* newColorTable_GRD(struct Gradient* grd, UWORD fade_steps, ULONG step);
+VOID initColorTable(struct ColorTable* ct);
 VOID freeColorTable(struct ColorTable* ct);
 #define updateColorTable(ct) updateColorTable_Partial(ct, 0, ct->colors)
 VOID updateColorTable_Partial(struct ColorTable* ct, ULONG start, ULONG end);

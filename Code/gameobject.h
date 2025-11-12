@@ -119,15 +119,21 @@ struct BOBSheet {
 
 struct BOB {
   UBYTE* background;
+#ifndef DOUBLE_BUFFER
+  struct GameObject* cl2drList[NUM_BOBS]; //these BOBs have to be cleared before this BOB to be drawn
+#endif
   struct GameObject* drawList[NUM_BOBS];  //these BOBs have to be drawn before this BOB to be drawn
   struct GameObject* clearList[NUM_BOBS]; //these BOBs have to be cleared before this BOB to be cleared
   UBYTE drawList_index;
   UBYTE clearList_index;
   UWORD flags;
   struct {
-    LONG x;                   // gameobject->x during blitBOB() (but clipped)
-    LONG y;                   // gameobject->y during blitBOB() (but clipped)
+    LONG x1;                  // gameobject->x1 during blitBOB() (but clipped)
+    LONG y1;                  // gameobject->y1 during blitBOB() (but clipped)
+#ifndef DOUBLE_BUFFER
+    LONG x2;                  // gameobject->x2 during blitBOB() NOTE: Not used when single buffered
     LONG y2;                  // gameobject->y2 during blitBOB() (but clipped)
+#endif
     struct BitMap* bob_sheet; // Bob sheet of the image used in blitBOB()
     UWORD words;              // Width of the blit in words
     UWORD rows;               // Height of the blit in pixellines
@@ -167,7 +173,21 @@ struct GameObject {
     VOID (*func)(struct GameObject*);
   }anim;
   struct ImageCommon* image; // A pointer to a BOBImage or SpriteImage depending on type
-  APTR  medium;    // A pointer to a BOB or to a Sprite depending on type
+  union { //doublebuffered medium
+#ifdef DOUBLE_BUFFER
+    struct {
+      APTR medium1; // A pointer to a BOB or to a Sprite depending on type
+      APTR medium2; // doublebuffer
+    }doublebuffered_medium;
+    APTR mediums[2]; // Conditional access to above two mediums
+#else
+    struct {
+      APTR medium1; // A pointer to a BOB or to a Sprite depending on type
+    }singlebuffered_medium;
+    APTR mediums[1]; // NOTE: g_active_buffer is a defined constant and always 0
+#endif
+    APTR medium;     // Access to medium1
+  }u;
   BYTE  priority;  // Display priority (higher is in front of lower)
   //struct Physics physics;  // Define your physics struct and functions in physics.c/.h
 };

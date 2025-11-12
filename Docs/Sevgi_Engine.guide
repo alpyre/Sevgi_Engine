@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.184
+                             Version 0.185
 
                         Developer Documentation
 
@@ -128,7 +128,7 @@ tools needed (which is planned).
 - Implements custom code which hits hardware directly for operations that
   require speed.
 - Provides a glitch free, single buffered, 8 way scrollable native game level
-  display locked at 50fps.
+  display locked at 50fps*.
 - Provides a non blitting sprite engine, which supports priority, vertical
   hardware sprite reuse and all AGA sprite fetch modes.
 - A beam chasing BOB update engine.
@@ -143,6 +143,9 @@ tools needed (which is planned).
   (thanks to ptplayer by Frank Wille).
 - A GUI editor for creating engine code, editing game settings and assets called
   Sevgi_Editor.
+
+(*) With version 0.185 it is no possible to double buffer the level screen and
+    set lower fps rates.
 
 @endnode
 
@@ -172,6 +175,11 @@ Sevgi_Engine can be looked into by the following concepts:
 @{" Levels      " link "Concepts_17Levels"}     Handles assets for each game level
 @{" Functions   " link "Concepts_18Functions"}     Functions to call on gameobjects on events
 @{" UI          " link "Concepts_19UI"}     Graphical User Interface elements
+
+Advanced topics:
+@{" Dynamic Copperlist " link "Concepts_20DynamicCopperlist"} Create a new copperlist every frame
+@{" Smart Sprites      " link "Concepts_21SmartSprites"} Auto-select hardware sprites
+@{" Double Buffering   " link "Concepts_22DoubleBuffering"} Prevent video glitches
 
 @endnode
 
@@ -981,6 +989,13 @@ in a manageable way. Fortunately it is all covered for you by Sevgi_Engine. All
 you need to do is to create your gameobjects in @{"Tiled" link "Concepts_00Tiled"} and set their properties
 there.
 
+To be able to support BOB updates in @{"Double Buffering" link "Concepts_22DoubleBuffering"}, the medium member on
+struct GameObject is also double buffered (v0.185). That's why its definition
+looks a little different in gameobject.h. In this mode gameobjects will assign
+two BOB mediums, one for the odd frames and the other for even frames. So you
+have to define twice the value for NUM_BOBS. For example, if you want maximum 10
+BOBs visible at the same time, you should set NUM_BOBS to 20.
+
 @endnode
 
 @node "Concepts_16Gameobjects" "Sevgi_Engine.guide/Concepts/Gameobjects"
@@ -1026,9 +1041,9 @@ struct GameObject {
   //struct Physics physics; // Define your physics struct in physics.c/.h
 };
 
-You should study the members of this struct very well (except the medium member,
-that is handled by @{"updateGameObjects()" link "84-updateGameObjects"} function), to be able to get your game
-entities behave the way you want them to.
+You should study the members of this struct very well to be able to get your
+game entities behave the way you want them to. Except the @{"Medium" link "Concepts_15Mediums"} member. That
+one is handled by the @{"updateGameObjects()" link "84-updateGameObjects"} function.
 
 x and y members determine the position of the gameobject. Think of these
 coordinates as a point handle to pin the gameobject onto the game map. If the
@@ -1910,6 +1925,83 @@ and keyboard. But since this is a game engine, the UI objects' onActive methods
 also allow for being controlled by the joystick (on port 1). However, by
 undefining UI_USE_JOYSTICK_CONTROL you can remove the routines that provide
 joystick control from the code if you wish to disable this feature.
+
+@endnode
+
+@node "Concepts_20DynamicCopperlist" "Sevgi_Engine.guide/Concepts/Dynamic Copperlist"
+@{b}Dynamic Copperlist@{ub}
+==================
+
+Dynamic Copperlist is an implementation to recreate the copperlist used for
+displaying the level screen every frame, depending on the state of the vertical
+scroll of the tilemap, scroll of the rainbow gradient and the positions of Smart
+Sprites (if enabled).
+
+It achieves this by double buffering the copperlist and displaying one while
+working on the other. The algorithm relies on the concept @{"CopOps" link "Concepts_10CopOps"} to optimize
+this copperlist creation.
+
+@{"Smart Sprites" link "Concepts_21SmartSprites"} and @{"Double Buffering" link "Concepts_22DoubleBuffering"} (the bitmap) relies on this.
+
+Dynamic Copperlist can be enabled by defining DYNAMIC_COPPERLIST in settings.h
+or using @{"Sevgi Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings}.
+
+@endnode
+
+@node "Concepts_21SmartSprites" "Sevgi_Engine.guide/Concepts/Smart Sprites"
+@{b}Smart Sprites@{ub}
+=============
+
+The hsn member on sprite images (struct SpriteImage) determines which hardware
+sprite to use to display sprite images of gameobjects.
+
+Activating Smart Sprites allows to auto-select the best available hardware
+sprite to display these sprite images at runtime.
+
+Amiga Hardware allows for reusing same hardware sprites for different images
+on different vertical raster positions. Smart Sprites also provides this
+feature. It achives this by resetting sprite registers for different sprite
+data just as the video beam is at correct position. Since the best place to do
+this is in the copperlist, Smart Sprites relies on @{"CopOps" link "Concepts_10CopOps"} and @{"Dynamic Copperlist" link "Concepts_20DynamicCopperlist"}.
+
+@endnode
+
+@node "Concepts_22DoubleBuffering" "Sevgi_Engine.guide/Concepts/Double Buffering"
+@{b}Double Buffering@{ub}
+================
+
+While Sevgi Engine implements and strongly advocates Single Buffering, in cases
+where your game logic is too complex, your BOBs are too large and numerous,
+the actual Amiga hardware may not be able to update the screen in one frame.
+
+This can cause ugly video glitches. In such cases, you can either cut down the
+game features to optimize or activate Double Buffering to trade these video
+glitches with occasional frame drops (slowdowns).
+
+Bear in mind that Double Buffering will use twice the Chip RAM to display the
+level bitmap (playfield 1 if in DualPlayfield mode) and double the blitter use
+when scrolling. It will also double the number of required BOB @{"mediums" link "Concepts_15Mediums"} to
+display gameobjects.
+
+Double Buffering can be activated by defining DOUBLE_BUFFER in settings.h or
+using @{"Sevgi Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings}.
+
+And if you have resorted to use Double Buffering but don't want to have varying
+FPS rates (because of the occasional frame drops) when the screen update gets
+busier, you can settle to a steady lower frame rate by setting a value to the
+define FRAME_SKIP in settings.h.
+
+A value of 1 (meaning every other frame will be skipped) setting the FPS to
+25 FPS. Possible frame rates are:
+0: 50 FPS    (will slowdown if busy)
+1: 25 FPS    (will slowdown if busy)
+2: 16.6 FPS  (probably you need optimizing if you still get slowdowns)
+3: 12.5 FPS
+
+Since Double Buffering also requires the double buffering of the copperlist, it
+relies on @{"Dynamic Copperlist" link "Concepts_20DynamicCopperlist"}.
+
+Double Buffering also requires double buffering BOB @{"mediums" link "Concepts_15Mediums" 50}.
 
 @endnode
 

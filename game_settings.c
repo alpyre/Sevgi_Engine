@@ -40,6 +40,8 @@ struct cl_ObjTable
   Object* chk_dynamicCL;
   Object* chk_smartSprites;
   Object* chk_dualplayfield;
+  Object* chk_doublebuffer;
+  Object* int_frameSkip;
   Object* cyc_videoSystem;
   Object* int_scrWidth;
   Object* int_scrHeight;
@@ -107,6 +109,7 @@ STRPTR save_strings[] = {
 "//Un-comment to activate per-frame dynamic copperlist generation.",
 "//Un-comment to activate smart sprite algorithms.",
 "//Un-comment to activate dual-playfield mode.",
+"//Activate double buffering on display_level.c and gameobjects.c",
 "//Select bitplane and sprite fetch modes",
 "   // Bitplane fetch mode (1, 2 or 4)",
 "   // Sprite fetch mode (1, 2 or 4)",
@@ -134,6 +137,8 @@ STRPTR save_strings[] = {
 "DYNAMIC_COPPERLIST",
 "SMART_SPRITES",
 "DUALPLAYFIELD",
+"DOUBLE_BUFFER",
+"FRAME_SKIP ",
 "BPL_FMODE ",
 "SPR_FMODE ",
 "TOP_PANEL_HEIGHT ",
@@ -179,6 +184,7 @@ enum {
   SS_COMMENT_DYNAMIC_CL,
   SS_COMMENT_SMART_SPRITES,
   SS_COMMENT_DUALPLAYFIELD,
+  SS_COMMENT_DOUBLEBUFFER,
   SS_COMMENT_FETCH_MODES,
   SS_COMMENT_BPL_FETCH,
   SS_COMMENT_SPR_FETCH,
@@ -206,6 +212,8 @@ enum {
   SS_DEF_DYNAMIC_COPPERLIST,
   SS_DEF_SMART_SPRITES,
   SS_DEF_DUALPLAYFIELD,
+  SS_DEF_DOUBLEBUFFER,
+  SS_DEF_FRAME_SKIP,
   SS_DEF_BPL_FMODE,
   SS_DEF_SPR_FMODE,
   SS_DEF_TOP_PANEL_HEIGHT,
@@ -240,6 +248,8 @@ static struct {
   STRPTR dynamic_cl;
   STRPTR smart_spr;
   STRPTR dualplayfield;
+  STRPTR doublebuffer;
+  STRPTR frameSkip;
   STRPTR video_system;
   STRPTR scr_width;
   STRPTR scr_height;
@@ -268,6 +278,8 @@ static struct {
   "Activates Dynamic Copperlist mode in level display.",
   "Activates Smart Sprites mode in in level display.",
   "Activates dualplayfield mode on the level display.",
+  "Activates double buffering on the level display.\n\nDouble buffering will require twice the number of BOB mediums.\nDon't forget to tweak the \"Max. BOBs\" setting below accordingly.",
+  "Determines the maximum FPS in double buffered mode.\n0 means 50 FPS\n1 means 25 FPS\n2 means 16.6 FPS\n3 means 12.5 FPS",
   "Select video system.\nNTSC is NOT IMPLEMENTED YET!",
   "Screen width for the level display in pixels.\nValues other than 320 is NOT IMPLEMENTED YET!",
   "Screen height for the level display in pixels.\nThis value is the height of the tile map display.\nDoes not include top and bottom panels heights.",
@@ -473,6 +485,7 @@ STATIC ULONG m_Load(struct IClass* cl, Object* obj, struct cl_Msg* msg)
       if (fh) {
         if (Read(fh, buffer, fib.fib_Size) > 0) {
           ULONG dynamic_cl;
+          ULONG doublebuffer;
 
           data->custom_level_display = readSetting(buffer, SS_DEF_CUSTOM_LEVEL_DISPLAY, IS_BOOL);
           DoMethod(data->obj_table.grp_video, MUIM_Set, MUIA_Disabled, data->custom_level_display);
@@ -481,6 +494,8 @@ STATIC ULONG m_Load(struct IClass* cl, Object* obj, struct cl_Msg* msg)
           DoMethod(data->obj_table.chk_dynamicCL, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_DYNAMIC_COPPERLIST, IS_BOOL));
           DoMethod(data->obj_table.chk_smartSprites, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_SMART_SPRITES, IS_BOOL));
           DoMethod(data->obj_table.chk_dualplayfield, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_DUALPLAYFIELD, IS_BOOL));
+          DoMethod(data->obj_table.chk_doublebuffer, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_DOUBLEBUFFER, IS_BOOL));
+          DoMethod(data->obj_table.int_frameSkip, MUIM_NoNotifySet, MUIA_Integer_Value, readSetting(buffer, SS_DEF_FRAME_SKIP, IS_VALUE));
           m_SetDepthLimits(cl, obj, (Msg) msg);
           m_SetPF2DepthLimits(cl, obj, (Msg) msg);
           DoMethod(data->obj_table.int_scrWidth, MUIM_NoNotifySet, MUIA_Integer_Value, readSetting(buffer, SS_DEF_SCREEN_WIDTH, IS_VALUE));
@@ -511,10 +526,21 @@ STATIC ULONG m_Load(struct IClass* cl, Object* obj, struct cl_Msg* msg)
           get(data->obj_table.chk_dynamicCL, MUIA_Selected, &dynamic_cl);
           if (dynamic_cl) {
             DoMethod(data->obj_table.chk_smartSprites, MUIM_NoNotifySet, MUIA_Disabled, FALSE);
+            DoMethod(data->obj_table.chk_doublebuffer, MUIM_NoNotifySet, MUIA_Disabled, FALSE);
           }
           else {
             DoMethod(data->obj_table.chk_smartSprites, MUIM_NoNotifySet, MUIA_Selected, FALSE);
             DoMethod(data->obj_table.chk_smartSprites, MUIM_NoNotifySet, MUIA_Disabled, TRUE);
+            DoMethod(data->obj_table.chk_doublebuffer, MUIM_NoNotifySet, MUIA_Selected, FALSE);
+            DoMethod(data->obj_table.chk_doublebuffer, MUIM_NoNotifySet, MUIA_Disabled, TRUE);
+          }
+          get(data->obj_table.chk_doublebuffer, MUIA_Selected, &doublebuffer);
+          if (doublebuffer) {
+            DoMethod(data->obj_table.int_frameSkip, MUIM_NoNotifySet, MUIA_Disabled, FALSE);
+          }
+          else {
+            DoMethod(data->obj_table.int_frameSkip, MUIM_NoNotifySet, MUIA_Disabled, TRUE);
+            DoMethod(data->obj_table.int_frameSkip, MUIM_NoNotifySet, MUIA_Integer_Value, 0);
           }
 
           data->edited = FALSE;
@@ -539,6 +565,8 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
     ULONG dynamic_cl;
     ULONG smart_spr;
     ULONG dualplayfield;
+    ULONG doublebuffer;
+    ULONG frame_skip;
     ULONG video_system;
     ULONG screen_width;
     ULONG screen_height;
@@ -570,6 +598,8 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
     get(data->obj_table.chk_dynamicCL, MUIA_Selected, &settings.dynamic_cl);
     get(data->obj_table.chk_smartSprites, MUIA_Selected, &settings.smart_spr);
     get(data->obj_table.chk_dualplayfield, MUIA_Selected, &settings.dualplayfield);
+    get(data->obj_table.chk_doublebuffer, MUIA_Selected, &settings.doublebuffer);
+    get(data->obj_table.int_frameSkip, MUIA_Integer_Value, &settings.frame_skip);
     get(data->obj_table.cyc_videoSystem, MUIA_Cycle_Active, &settings.video_system);
     get(data->obj_table.int_scrWidth, MUIA_Integer_Value, &settings.screen_width);
     get(data->obj_table.int_scrHeight, MUIA_Integer_Value, &settings.screen_height);
@@ -622,6 +652,9 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
 
     writeSetting(fh, SS_COMMENT_BITMAP_DEPTH_PF2, SS_DEF_BITMAP_DEPTH_PF2, NULL, settings.screen_pf2_depth, NULL, FALSE, FALSE);
     writeSetting(fh, NULL, SS_DEF_BITMAP_HEIGHT_PF2, NULL, settings.screen_pf2_height, NULL, FALSE, TRUE);
+
+    writeSetting(fh, SS_COMMENT_DOUBLEBUFFER, SS_DEF_DOUBLEBUFFER, NULL, NO_VALUE, NULL, !settings.doublebuffer, FALSE);
+    writeSetting(fh, NULL, SS_DEF_FRAME_SKIP, NULL, settings.frame_skip, NULL, !settings.doublebuffer, TRUE);
 
     WriteSaveString(SS_CUSTOM_LEVEL_DISPLAY_END);
 
@@ -684,6 +717,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* chk_dynamicCL;
     Object* chk_smartSprites;
     Object* chk_dualplayfield;
+    Object* chk_doublebuffer;
+    Object* int_frameSkip;
     Object* cyc_videoSystem;
     Object* int_scrWidth;
     Object* int_scrHeight;
@@ -958,6 +993,29 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
         TAG_END),
         MUIA_Group_Child, MUI_NewObject(MUIC_Group,
           MUIA_Frame, MUIV_Frame_Group,
+          MUIA_FrameTitle, "Double Buffering",
+          MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_doublebuffer, FALSE, "Double Buffer", 'b', help_string.doublebuffer),
+          MUIA_Group_Child, MUI_NewObject(MUIC_Group,
+            MUIA_Group_Columns, 2,
+            MUIA_Group_Child, MUI_NewObject(MUIC_Text,
+              MUIA_Text_Contents, "Frame Skip:",
+              MUIA_ShortHelp, help_string.frameSkip,
+            TAG_END),
+            MUIA_Group_Child, (objects.int_frameSkip = NewObject(MUIC_Integer->mcc_Class, NULL,
+              MUIA_Integer_Input, TRUE,
+              MUIA_Integer_Value, 0,
+              MUIA_Integer_Incr, 1,
+              MUIA_Integer_Buttons, TRUE,
+              MUIA_Integer_Min, 0,
+              MUIA_Integer_Max, 3,
+              MUIA_String_MaxLen, 2,
+              MUIA_ShortHelp, help_string.frameSkip,
+              MUIA_Disabled, TRUE,
+            TAG_END)),
+          TAG_END),
+        TAG_END),
+        MUIA_Group_Child, MUI_NewObject(MUIC_Group,
+          MUIA_Frame, MUIV_Frame_Group,
           MUIA_FrameTitle, "Gameobjects",
           MUIA_Group_Child, MUI_NewObject(MUIC_Group,
             MUIA_Group_Columns, 2,
@@ -1073,6 +1131,15 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     DoMethod(objects.chk_dynamicCL, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, objects.chk_smartSprites, 3,
       MUIM_Set, MUIA_Disabled, MUIV_NotTriggerValue);
 
+    DoMethod(objects.chk_dynamicCL, MUIM_Notify, MUIA_Selected, FALSE, objects.chk_doublebuffer, 3,
+      MUIM_Set, MUIA_Selected, FALSE);
+
+    DoMethod(objects.chk_dynamicCL, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, objects.chk_doublebuffer, 3,
+      MUIM_Set, MUIA_Disabled, MUIV_NotTriggerValue);
+
+    DoMethod(objects.chk_doublebuffer, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, objects.int_frameSkip, 3,
+      MUIM_Set, MUIA_Disabled, MUIV_NotTriggerValue);
+
     DoMethod(objects.int_scrDepth, MUIM_Notify, MUIA_Integer_Value, MUIV_EveryTime, obj, 1,
       MUIM_GameSettings_SetPF2DepthLimits);
 
@@ -1094,6 +1161,12 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     	MUIM_Set, MUIA_GameSettings_Edited, TRUE);
 
     DoMethod(objects.chk_smartSprites, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, obj, 3,
+    	MUIM_Set, MUIA_GameSettings_Edited, TRUE);
+
+    DoMethod(objects.chk_doublebuffer, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, obj, 3,
+    	MUIM_Set, MUIA_GameSettings_Edited, TRUE);
+
+    DoMethod(objects.int_frameSkip, MUIM_Notify, MUIA_Integer_Value, MUIV_EveryTime, obj, 3,
     	MUIM_Set, MUIA_GameSettings_Edited, TRUE);
 
     DoMethod(objects.int_scrWidth, MUIM_Notify, MUIA_Integer_Value, MUIV_EveryTime, obj, 3,
@@ -1165,6 +1238,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     data->obj_table.chk_dynamicCL = objects.chk_dynamicCL;
     data->obj_table.chk_smartSprites = objects.chk_smartSprites;
     data->obj_table.chk_dualplayfield = objects.chk_dualplayfield;
+    data->obj_table.chk_doublebuffer = objects.chk_doublebuffer;
+    data->obj_table.int_frameSkip = objects.int_frameSkip;
     data->obj_table.int_scrWidth = objects.int_scrWidth;
     data->obj_table.int_scrHeight = objects.int_scrHeight;
     data->obj_table.int_scrDepth = objects.int_scrDepth;

@@ -16,7 +16,7 @@ STATIC VOID levelDisplayLoop()
     struct ScrollInfo si;
     struct MouseState ms;
 
-    #ifdef DYNAMIC_COPPERLIST
+    #if !defined DOUBLE_BUFFER && defined DYNAMIC_COPPERLIST
     if (new_frame_flag % 2) {
       //Unsync detected. Re-scync with the copperlist set by the copper
       if (CopperList == CopperList1)
@@ -132,7 +132,12 @@ STATIC VOID levelDisplayLoop()
     updateBOBs();
 
     //Wait until current frame completes
+    #ifdef DOUBLE_BUFFER
+    waitNextFrame();
+    swapBuffers();
+    #else
     waitTOF();
+    #endif
 
     //blit the remaining secondPart tiles first thing on the next frame
     scrollRemaining(&si);

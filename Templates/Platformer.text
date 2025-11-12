@@ -1,5 +1,5 @@
 Name: Platformer Template
-Version: 0.3
+Version: 0.4
 Author: Ibrahim Alper Sönmez
 Features:
 - Limitless 8 way scrolling tilemap on a dual playfield
@@ -15,6 +15,7 @@ Supports:
 - AGA
 - Top and bottom panel dashboards
 - Multi copper gradients (Dynamic Copperlist)
+- Double buffering (Dynamic Copperlist)
 - Hardware sprite re-use and clipping (Smart Sprites)
 - In game music and sound effects
 Requires:

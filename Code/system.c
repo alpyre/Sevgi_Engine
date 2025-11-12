@@ -467,7 +467,7 @@ INLINE VOID waitTOF()
  ******************************************************************************/
 VOID waitVBeam(ULONG line)
 {
-	ULONG vposr;
+	volatile ULONG vposr;
 	line <<= 8;
 
 	do { vposr = *(ULONG*)&custom.vposr; }
@@ -484,7 +484,7 @@ VOID waitVBeam(ULONG line)
  ******************************************************************************/
 VOID WaitVBeam(ULONG line)
 {
-	ULONG vposr;
+	volatile ULONG vposr;
 	line <<= 8;
 
 	do { vposr = *(ULONG*)&custom.vposr; }

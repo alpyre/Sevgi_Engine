@@ -283,6 +283,7 @@ STATIC BOOL openDisplay()
         color_table = current_level.color_table[0];
         gameobjects = current_level.gameobject_bank[0]->gameobjects;
 
+        blackOut();
         prepMousePointer();
         drawScreen();
         return TRUE;
@@ -349,7 +350,7 @@ STATIC VOID prepMousePointer()
   mouse_pointer.me_mask = 0x00;
   mouse_pointer.hit_mask = 0x01;
   mouse_pointer.image = (struct ImageCommon*)mouse_image;
-  mouse_pointer.medium = NULL;
+  mouse_pointer.u.medium = NULL;
   mouse_pointer.priority = 0;
 
   //Set mouse pointer colors directly to hardware registers:
@@ -469,7 +470,7 @@ STATIC ULONG menuDisplayLoop()
 ///MD_setSprite(gameobject)
 STATIC INLINE VOID MD_setSprite(struct GameObject* go)
 {
-  setSprite((struct SpriteImage*)go->image, go->x, go->y, CL_SPR0PTH, DIWSTART_V, 0, SPR_FMODE);
+  setSprite((struct SpriteImage*)go->image, go->x, go->y, CL_SPR0PTH, DIWSTART_V, 0, MENU_SPR_FMODE);
 }
 ///
 ///MD_blitBOB(gameobject)
@@ -482,7 +483,7 @@ STATIC INLINE VOID MD_setSprite(struct GameObject* go)
  ******************************************************************************/
 VOID MD_blitBOB(struct GameObject* go)
 {
-  struct BOB* bob = (struct BOB*)go->medium;
+  struct BOB* bob = (struct BOB*)go->u.medium;
   struct BOBImage* image = (struct BOBImage*)go->image;
   UWORD row = image->bytesPerRow; // WARNING: we've utilized this member as row here!
 
@@ -495,8 +496,8 @@ VOID MD_blitBOB(struct GameObject* go)
   LONG ySize = image->height - ySrc - (go->y2 > MENU_BITMAP_HEIGHT ? go->y2 - MENU_BITMAP_HEIGHT : 0);
 
   // Preserve bob background
-  bob->lastBlt.x = xDest;
-  bob->lastBlt.y = yDest;
+  bob->lastBlt.x1 = xDest;
+  bob->lastBlt.y1 = yDest;
   bob->lastBlt.words = xSize; //WARNING: we've utilized this member as pixel size here!
   bob->lastBlt.rows  = ySize; //WARNING: we've utilized this member as pixel size here!
 
@@ -514,9 +515,9 @@ VOID MD_blitBOB(struct GameObject* go)
  ******************************************************************************/
 VOID MD_unBlitBOB(struct GameObject* go)
 {
-  struct BOB* bob = (struct BOB*)go->medium;
+  struct BOB* bob = (struct BOB*)go->u.medium;
 
   busyWaitBlit();
-  BltBitMapRastPort(BOBsBackBuffer, (bob->background - BOBsBackBuffer->Planes[0]) * 8, 0, rastPort, bob->lastBlt.x, bob->lastBlt.y, bob->lastBlt.words, bob->lastBlt.rows, 0x0C0);
+  BltBitMapRastPort(BOBsBackBuffer, (bob->background - BOBsBackBuffer->Planes[0]) * 8, 0, rastPort, bob->lastBlt.x1, bob->lastBlt.y1, bob->lastBlt.words, bob->lastBlt.rows, 0x0C0);
 }
 ///

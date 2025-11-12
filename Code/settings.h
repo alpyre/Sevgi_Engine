@@ -39,6 +39,10 @@
 #define BITMAP_DEPTH_PF2 5
 #define BITMAP_HEIGHT_PF2 256
 
+//Activate double buffering on display_level.c and gameobjects.c
+//#define DOUBLE_BUFFER
+//#define FRAME_SKIP 0
+
 #endif //CUSTOM_LEVEL_DISPLAY
 
 /******************************************************************************

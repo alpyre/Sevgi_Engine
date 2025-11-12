@@ -7,7 +7,7 @@
 
                 Asset creator and manager for Sevgi_Engine
 
-                             Version 0.152
+                             Version 0.153
 
                           User Documentation
 
@@ -145,8 +145,10 @@ screen (implemented in display_level.c).
 
 @{b}Bitplane Fetch Mode:@{ub}
     You can select the bitplane fetch modes available in AGA chipsets for the
-    level display. Higher fetch modes disable some of the sprites!
-    Fetch Mode 1 is recommended
+    level display. Higher fetch modes improve blitter performance (by providing
+    more DMA time) but disable some of the sprites!
+    Fetch Mode 1 is recommended if you plan to use at least 7 hardare sprites.
+    Fetch Mode 2 and 4 are recommended if plan to heavily use BOBs.
 
 @{b}Sprite Fetch Mode:@{ub}
     Select the sprite fetch modes which makes wider sprites possible on AGA
@@ -167,7 +169,7 @@ screen (implemented in display_level.c).
     The default fade in/out speed for color tables. The value is the number of
     video frames a complete fade in/out would take. Which means lower values
     faster and higher values slower.
-
+________________________________________________________________________________
 
 The settings in the "Audio" group define the default values for audio playback
 by ptplayer.
@@ -192,6 +194,38 @@ by ptplayer.
     The default priority to play all loaded sound samples. ptplayer prioritizes
     playing samples with higher priority values.
 
+Using settings in the "Double Buffering" group you can convert the engine from
+a beam chaser into a double buffered one.
+
+@{b}Double Buffer:@{ub}
+    Implements double buffering on the level display's frame buffer. This option
+    allocates twice the Chip RAM to display the tile map and BOBs on the level
+    display (playfield 1 if it is a dualplayfield display). This is useful if
+    your game logic is too busy, them number of gameobjects are too many and/or
+    the sizes of your BOBs are too big to be updated in a single frame on real
+    hardware. In single buffered mode this condition will cause an ugly video
+    glitch. In such a case you either can cut down game features to optimize or
+    activate double buffering and get rid of the video glitches trading with
+    occasional frame drops (slowdowns). Bear in mind that single buffering is
+    slightly heavier on the CPU and double buffering is twice heavy on the
+    blitter and Chip RAM.
+
+    @{b}IMPORTANT NOTE:@{ub} Double Buffering requires twice the amount of BOB mediums.
+    i.e. if you plan to display maximum 10 BOBs at once, you should set the
+    "Max. BOBs" setting to 20. Half of them will be assigned in even frames and
+    the other half in odd frames.
+
+@{b}Frame Skip:@{ub}
+    If you have resorted to use double buffering and don't want to have varying
+    FPS rates because of the occasional frame drops when the screen update gets
+    busier, you can settle to a steady lower frame rate using this value.
+    A value of 1 (meaning every other frame will be skipped) setting the FPS to
+    25 FPS. Possible frame rates are:
+    0: 50 FPS    (will slowdown if busy)
+    1: 25 FPS    (will slowdown if busy)
+    2: 16.6 FPS  (probably you need optimizing if you still get slowdowns)
+    3: 12.5 FPS
+________________________________________________________________________________
 
 The settings in the "Gameobjects" group let's you select some very important
 values for gameobject.c module.
@@ -205,6 +239,11 @@ values for gameobject.c module.
     number of BOB images displayable on screen at the same time. You can
     optimize the value testing your game's performance without glitching.
     This is actually the value of the define NUM_BOBS.
+
+    @{b}IMPORTANT NOTE:@{ub} Double Buffering requires twice the amount of BOB mediums.
+    i.e. if you plan to display maximum 10 BOBs at once, you should set the
+    "Max. BOBs" setting to 20. Half of them will be assigned in even frames and
+    the other half in odd frames.
 
 @{b}Max. Sprites:@{ub}
     Sets the number of Sprite Mediums on level display. Which means the maximum

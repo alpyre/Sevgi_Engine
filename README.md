@@ -4,7 +4,7 @@ Sevgi Engine is a new open-source video game engine designed for classic Amiga c
 
 ### Features
 * **Performance**
-  <br>All display algorithms aim to perform at a locked 50fps on a single buffered[^2] native Amiga chipset display. It implements an optimized version of the algorithm Scroller_XYUnlimited2_64 from [ScrollingTricks](https://aminet.net/package/dev/src/ScrollingTrick). Benefits highly from Fast Ram where available.</br>
+  <br>All display algorithms aim to perform at a locked 50fps on a single buffered[^1] native Amiga chipset display. It implements an optimized version of the algorithm Scroller_XYUnlimited2_64 from [ScrollingTricks](https://aminet.net/package/dev/src/ScrollingTrick). Benefits highly from Fast Ram where available.</br>
 * **System friendly**
   <br>Aims to work on all ROM versions (2.0+) providing a clean quit back to OS without the need for WHDLoad.</br>
 * **AGA Support**
@@ -39,8 +39,8 @@ Sevgi Engine code and template assets are generated using the provided editor ca
 * MUI 3.8 (for Sevgi Editor)
 
 ### Build
-This source code which creates Sevgi Editor (which then can generate the engine code) is developed to be compiled with gcc (using any of [adtools](https://github.com/jens-maus/amigaos-cross-toolchain) or [bebbo's](https://github.com/bebbo/amiga-gcc) cross toolchains[^2]).
-To compile for 68k[^3] target:
+This source code which creates Sevgi Editor (which then can generate the engine code) is developed to be compiled with gcc (using any of [adtools](https://github.com/jens-maus/amigaos-cross-toolchain) or [bebbo's](https://github.com/bebbo/amiga-gcc) cross toolchains[^3]).
+To compile for 68k[^4] target:
 
 `make`
 
@@ -48,8 +48,8 @@ Compiled binaries can also be acquired from [aminet](https://aminet.net/package/
 
 Sevgi Engine code is suitable to be compiled with any Amiga compiler. Makefiles for SAS/C and gcc are provided and these compilers are tested to work. It includes and uses SDI_headers, so (hopefully) it is compiler agnostic.
 
-[^2]:These toolchains should be built using MUI and CGX prefixes of course.
-[^3]:Since this source includes and utilizes SDI_headers, it can be compiled also for MorphOS and AmigaOS4 targets, yet these two are not tested.
+[^3]:These toolchains should be built using MUI and CGX prefixes of course.
+[^4]:Since this source includes and utilizes SDI_headers, it can be compiled also for MorphOS and AmigaOS4 targets, yet these two are not tested.
 
 ### Templates
 Sevgi Editor comes with some ready to compile and run game templates from different genres which demonstrates its features using some free assets.

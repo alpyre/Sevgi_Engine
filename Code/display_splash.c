@@ -25,6 +25,7 @@
 #include "input.h"
 #include "keyboard.h"
 #include "diskio.h"
+#include "settings.h"
 
 #include "version.h"
 #include "fonts.h"
@@ -143,12 +144,19 @@ struct Coords g_coords[ORBIT_STEPS] = {
 ///copperlist
 STATIC UWORD* CopperList = (UWORD*) 0;
 
+#ifdef USE_CLP
+STATIC UWORD* CL_PALETTE = (UWORD*) 0;
+#endif // USE_CLP
+
 STATIC UWORD* CL_BPL1PTH = (UWORD*) 0;
 STATIC UWORD* CL_SPR0PTH = (UWORD*) 0;
 
 STATIC ULONG copperList_Instructions[] = {
                                               // Access Ptr:  Action:
-  MOVE(COLOR00, 0),                           //              Set color 0 to black
+#ifdef USE_CLP
+  #define CLP_DEPTH SPLASH_SCREEN_DEPTH
+  #include "clp.c"
+#endif // USE_CLP
   MOVE(FMODE,   0),                           //              Set Sprite/Bitplane Fetch Modes
   MOVE(BPLCON0, BPLCON0_V),                   //              Set a ECS Lowres display
   MOVE(BPLCON1, 0),                           // CL_BPLCON1   Set h_scroll register
@@ -705,7 +713,11 @@ STATIC VOID drawScreen(VOID)
 ///vblankEvents()
 STATIC VOID vblankEvents(VOID)
 {
+#ifdef USE_CLP
+  setColorTable_CLP(color_table, CL_PALETTE, 1, color_table->colors);
+#else
   setColorTable(color_table);
+#endif // USE_CLP
 }
 ///
 

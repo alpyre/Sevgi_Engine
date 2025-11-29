@@ -7,7 +7,7 @@
 
                 Asset creator and manager for Sevgi_Engine
 
-                             Version 0.153
+                             Version 0.154
 
                           User Documentation
 
@@ -114,6 +114,18 @@ screen (implemented in display_level.c).
     tilemap). Will activate the disabled gadgets so you can set the depth to be
     used for the background playfield.
 
+@{b}Palette on copperlist:@{ub}
+    Creates a section of MOVE instructions (@{"CLP" LINK Sevgi_Engine.guide/Concepts_08CLP}) on the copperlist of level
+    display (and all other non-custom displays) for setting color registers.
+    When this is set, color updates (like fade in/out) will be done modifiying
+    the instructions on the copperlists. When this is disabled color updates are
+    done on color registers directly on vertical blanks (which has been reported
+    to cause glitches on some accelerated systems and this is why this is the
+    new default).
+    It is obligatory to also set correctly the number of colors on the palettes
+    that will be used for level display on the gadget labeled "Size" right next
+    to it.
+
 @{b}Video System:@{ub}
     - NOT IMPLEMENTED -
 
@@ -193,6 +205,7 @@ by ptplayer.
 @{b}Default SFX Priority:@{ub}
     The default priority to play all loaded sound samples. ptplayer prioritizes
     playing samples with higher priority values.
+________________________________________________________________________________
 
 Using settings in the "Double Buffering" group you can convert the engine from
 a beam chaser into a double buffered one.
@@ -201,18 +214,18 @@ a beam chaser into a double buffered one.
     Implements double buffering on the level display's frame buffer. This option
     allocates twice the Chip RAM to display the tile map and BOBs on the level
     display (playfield 1 if it is a dualplayfield display). This is useful if
-    your game logic is too busy, them number of gameobjects are too many and/or
+    your game logic is too busy, the number of gameobjects are too many and/or
     the sizes of your BOBs are too big to be updated in a single frame on real
     hardware. In single buffered mode this condition will cause an ugly video
-    glitch. In such a case you either can cut down game features to optimize or
-    activate double buffering and get rid of the video glitches trading with
+    glitch. In such a case you can either cut down game features to optimize or
+    activate double buffering and get rid of the video glitches, trading with
     occasional frame drops (slowdowns). Bear in mind that single buffering is
-    slightly heavier on the CPU and double buffering is twice heavy on the
-    blitter and Chip RAM.
+    slightly heavier on the CPU and double buffering is heavier on the
+    blitter and Chip RAM usage.
 
     @{b}IMPORTANT NOTE:@{ub} Double Buffering requires twice the amount of BOB mediums.
     i.e. if you plan to display maximum 10 BOBs at once, you should set the
-    "Max. BOBs" setting to 20. Half of them will be assigned in even frames and
+    "Max. BOBs" setting to 20. Half of them to be assigned in even frames and
     the other half in odd frames.
 
 @{b}Frame Skip:@{ub}
@@ -221,10 +234,12 @@ a beam chaser into a double buffered one.
     busier, you can settle to a steady lower frame rate using this value.
     A value of 1 (meaning every other frame will be skipped) setting the FPS to
     25 FPS. Possible frame rates are:
-    0: 50 FPS    (will slowdown if busy)
-    1: 25 FPS    (will slowdown if busy)
+    0: 50 FPS    (will slowdown when busy)
+    1: 25 FPS    (may slowdown if even busier)
     2: 16.6 FPS  (probably you need optimizing if you still get slowdowns)
     3: 12.5 FPS
+
+    As double buffering, this also effects only the level display.
 ________________________________________________________________________________
 
 The settings in the "Gameobjects" group let's you select some very important

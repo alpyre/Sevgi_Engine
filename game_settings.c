@@ -40,6 +40,8 @@ struct cl_ObjTable
   Object* chk_dynamicCL;
   Object* chk_smartSprites;
   Object* chk_dualplayfield;
+  Object* chk_pltOnCL;
+  Object* int_pltSize;
   Object* chk_doublebuffer;
   Object* int_frameSkip;
   Object* cyc_videoSystem;
@@ -109,6 +111,7 @@ STRPTR save_strings[] = {
 "//Un-comment to activate per-frame dynamic copperlist generation.",
 "//Un-comment to activate smart sprite algorithms.",
 "//Un-comment to activate dual-playfield mode.",
+"//Do color register updates on copperlist",
 "//Activate double buffering on display_level.c and gameobjects.c",
 "//Select bitplane and sprite fetch modes",
 "   // Bitplane fetch mode (1, 2 or 4)",
@@ -137,6 +140,7 @@ STRPTR save_strings[] = {
 "DYNAMIC_COPPERLIST",
 "SMART_SPRITES",
 "DUALPLAYFIELD",
+"USE_CLP ",
 "DOUBLE_BUFFER",
 "FRAME_SKIP ",
 "BPL_FMODE ",
@@ -184,6 +188,7 @@ enum {
   SS_COMMENT_DYNAMIC_CL,
   SS_COMMENT_SMART_SPRITES,
   SS_COMMENT_DUALPLAYFIELD,
+  SS_COMMENT_USE_CLP,
   SS_COMMENT_DOUBLEBUFFER,
   SS_COMMENT_FETCH_MODES,
   SS_COMMENT_BPL_FETCH,
@@ -212,6 +217,7 @@ enum {
   SS_DEF_DYNAMIC_COPPERLIST,
   SS_DEF_SMART_SPRITES,
   SS_DEF_DUALPLAYFIELD,
+  SS_DEF_USE_CLP,
   SS_DEF_DOUBLEBUFFER,
   SS_DEF_FRAME_SKIP,
   SS_DEF_BPL_FMODE,
@@ -248,6 +254,8 @@ static struct {
   STRPTR dynamic_cl;
   STRPTR smart_spr;
   STRPTR dualplayfield;
+  STRPTR pltOnCL;
+  STRPTR pltSize;
   STRPTR doublebuffer;
   STRPTR frameSkip;
   STRPTR video_system;
@@ -278,6 +286,8 @@ static struct {
   "Activates Dynamic Copperlist mode in level display.",
   "Activates Smart Sprites mode in in level display.",
   "Activates dualplayfield mode on the level display.",
+  "Creates a section of MOVE instructions (CLP) on the copperlist of level display\nfor setting color registers. When this is set, color updates (like fade in/out)\nwill be done modifiying the copperlist. When this is disabled color updates are\ndone on color registers directly (this has been reported to cause glitches on\nsome accelerated systems). This is why this is set by default.",
+  "Size of the palette to be used on level display.\nMUST match the sizes of palettes you set for levels in Assets Editor.",
   "Activates double buffering on the level display.\n\nDouble buffering will require twice the number of BOB mediums.\nDon't forget to tweak the \"Max. BOBs\" setting below accordingly.",
   "Determines the maximum FPS in double buffered mode.\n0 means 50 FPS\n1 means 25 FPS\n2 means 16.6 FPS\n3 means 12.5 FPS",
   "Select video system.\nNTSC is NOT IMPLEMENTED YET!",
@@ -486,6 +496,7 @@ STATIC ULONG m_Load(struct IClass* cl, Object* obj, struct cl_Msg* msg)
         if (Read(fh, buffer, fib.fib_Size) > 0) {
           ULONG dynamic_cl;
           ULONG doublebuffer;
+          ULONG pltOnCL;
 
           data->custom_level_display = readSetting(buffer, SS_DEF_CUSTOM_LEVEL_DISPLAY, IS_BOOL);
           DoMethod(data->obj_table.grp_video, MUIM_Set, MUIA_Disabled, data->custom_level_display);
@@ -494,6 +505,8 @@ STATIC ULONG m_Load(struct IClass* cl, Object* obj, struct cl_Msg* msg)
           DoMethod(data->obj_table.chk_dynamicCL, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_DYNAMIC_COPPERLIST, IS_BOOL));
           DoMethod(data->obj_table.chk_smartSprites, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_SMART_SPRITES, IS_BOOL));
           DoMethod(data->obj_table.chk_dualplayfield, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_DUALPLAYFIELD, IS_BOOL));
+          DoMethod(data->obj_table.chk_pltOnCL, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_USE_CLP, IS_BOOL));
+          DoMethod(data->obj_table.int_pltSize, MUIM_NoNotifySet, MUIA_Integer_Value, 1 << readSetting(buffer, SS_DEF_USE_CLP, IS_VALUE));
           DoMethod(data->obj_table.chk_doublebuffer, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_DOUBLEBUFFER, IS_BOOL));
           DoMethod(data->obj_table.int_frameSkip, MUIM_NoNotifySet, MUIA_Integer_Value, readSetting(buffer, SS_DEF_FRAME_SKIP, IS_VALUE));
           m_SetDepthLimits(cl, obj, (Msg) msg);
@@ -542,6 +555,13 @@ STATIC ULONG m_Load(struct IClass* cl, Object* obj, struct cl_Msg* msg)
             DoMethod(data->obj_table.int_frameSkip, MUIM_NoNotifySet, MUIA_Disabled, TRUE);
             DoMethod(data->obj_table.int_frameSkip, MUIM_NoNotifySet, MUIA_Integer_Value, 0);
           }
+          get(data->obj_table.chk_pltOnCL, MUIA_Selected, &pltOnCL);
+          if (pltOnCL) {
+            DoMethod(data->obj_table.int_pltSize, MUIM_NoNotifySet, MUIA_Disabled, FALSE);
+          }
+          else {
+            DoMethod(data->obj_table.int_pltSize, MUIM_NoNotifySet, MUIA_Disabled, TRUE);
+          }
 
           data->edited = FALSE;
         }
@@ -565,6 +585,8 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
     ULONG dynamic_cl;
     ULONG smart_spr;
     ULONG dualplayfield;
+    ULONG pltOnCL;
+    ULONG pltSize;
     ULONG doublebuffer;
     ULONG frame_skip;
     ULONG video_system;
@@ -599,6 +621,8 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
     get(data->obj_table.chk_smartSprites, MUIA_Selected, &settings.smart_spr);
     get(data->obj_table.chk_dualplayfield, MUIA_Selected, &settings.dualplayfield);
     get(data->obj_table.chk_doublebuffer, MUIA_Selected, &settings.doublebuffer);
+    get(data->obj_table.chk_pltOnCL, MUIA_Selected, &settings.pltOnCL);
+    get(data->obj_table.int_pltSize, MUIA_Integer_Value, &settings.pltSize);
     get(data->obj_table.int_frameSkip, MUIA_Integer_Value, &settings.frame_skip);
     get(data->obj_table.cyc_videoSystem, MUIA_Cycle_Active, &settings.video_system);
     get(data->obj_table.int_scrWidth, MUIA_Integer_Value, &settings.screen_width);
@@ -655,6 +679,8 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
 
     writeSetting(fh, SS_COMMENT_DOUBLEBUFFER, SS_DEF_DOUBLEBUFFER, NULL, NO_VALUE, NULL, !settings.doublebuffer, FALSE);
     writeSetting(fh, NULL, SS_DEF_FRAME_SKIP, NULL, settings.frame_skip, NULL, !settings.doublebuffer, TRUE);
+
+    writeSetting(fh, SS_COMMENT_USE_CLP, SS_DEF_USE_CLP, NULL, colors2depth(settings.pltSize), NULL, !settings.pltOnCL, TRUE);
 
     WriteSaveString(SS_CUSTOM_LEVEL_DISPLAY_END);
 
@@ -717,6 +743,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* chk_dynamicCL;
     Object* chk_smartSprites;
     Object* chk_dualplayfield;
+    Object* chk_pltOnCL;
+    Object* int_pltSize;
     Object* chk_doublebuffer;
     Object* int_frameSkip;
     Object* cyc_videoSystem;
@@ -758,6 +786,24 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
         MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_dynamicCL, FALSE, "Dynamic Copperlist", 'c', help_string.dynamic_cl),
         MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_smartSprites, FALSE, "Smart Sprites", 's', help_string.smart_spr),
         MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_dualplayfield, FALSE, "Dualplayfield", 'd', help_string.dualplayfield),
+        MUIA_Group_Child, MUI_NewObject(MUIC_Group,
+          MUIA_Group_Horiz, TRUE,
+          MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_pltOnCL, TRUE, "Palette on copperlist", 'p', help_string.pltOnCL),
+          MUIA_Group_Child, MUI_NewObject(MUIC_Group,
+            MUIA_Group_Horiz, TRUE,
+            MUIA_Group_Child, MUI_NewObject(MUIC_Text,
+              MUIA_Text_Contents, "Size:",
+              MUIA_Text_SetMax, TRUE,
+              MUIA_ShortHelp, help_string.pltSize,
+            TAG_END),
+            MUIA_Group_Child, (objects.int_pltSize = NewObject(MUIC_Integer->mcc_Class, NULL,
+              MUIA_Integer_PaletteSize, TRUE,
+              MUIA_Integer_Value, 32,
+              MUIA_FixWidthTxt, "256 ",
+              MUIA_ShortHelp, help_string.pltSize,
+            TAG_END)),
+          TAG_END),
+        TAG_END),
         MUIA_Group_Child, MUI_NewObject(MUIC_Group,
           MUIA_Group_Columns, 2,
           MUIA_Group_Child, MUI_NewObject(MUIC_Text,
@@ -1131,6 +1177,9 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     DoMethod(objects.chk_dynamicCL, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, objects.chk_smartSprites, 3,
       MUIM_Set, MUIA_Disabled, MUIV_NotTriggerValue);
 
+    DoMethod(objects.chk_pltOnCL, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, objects.int_pltSize, 3,
+      MUIM_Set, MUIA_Disabled, MUIV_NotTriggerValue);
+
     DoMethod(objects.chk_dynamicCL, MUIM_Notify, MUIA_Selected, FALSE, objects.chk_doublebuffer, 3,
       MUIM_Set, MUIA_Selected, FALSE);
 
@@ -1161,6 +1210,12 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     	MUIM_Set, MUIA_GameSettings_Edited, TRUE);
 
     DoMethod(objects.chk_smartSprites, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, obj, 3,
+    	MUIM_Set, MUIA_GameSettings_Edited, TRUE);
+
+    DoMethod(objects.chk_pltOnCL, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, obj, 3,
+    	MUIM_Set, MUIA_GameSettings_Edited, TRUE);
+
+    DoMethod(objects.int_pltSize, MUIM_Notify, MUIA_Integer_Value, MUIV_EveryTime, obj, 3,
     	MUIM_Set, MUIA_GameSettings_Edited, TRUE);
 
     DoMethod(objects.chk_doublebuffer, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, obj, 3,
@@ -1238,6 +1293,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     data->obj_table.chk_dynamicCL = objects.chk_dynamicCL;
     data->obj_table.chk_smartSprites = objects.chk_smartSprites;
     data->obj_table.chk_dualplayfield = objects.chk_dualplayfield;
+    data->obj_table.chk_pltOnCL = objects.chk_pltOnCL;
+    data->obj_table.int_pltSize = objects.int_pltSize;
     data->obj_table.chk_doublebuffer = objects.chk_doublebuffer;
     data->obj_table.int_frameSkip = objects.int_frameSkip;
     data->obj_table.int_scrWidth = objects.int_scrWidth;
@@ -1321,6 +1378,9 @@ static ULONG m_Get(struct IClass* cl, Object* obj, struct opGet* msg)
     return TRUE;
     case MUIA_GameSettings_AGACheck:
       *msg->opg_Storage = (ULONG)data->obj_table.chk_AGA;
+    return TRUE;
+    case MUIA_GameSettings_CLPCheck:
+      *msg->opg_Storage = (ULONG)data->obj_table.chk_pltOnCL;
     return TRUE;
   }
 

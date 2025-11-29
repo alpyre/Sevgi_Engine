@@ -5,6 +5,7 @@
 //<SUBCLASS ATTRIBUTES HERE> ex: #define MUIA_GameSettings_{Attribute} 0x80430801
 #define MUIA_GameSettings_Edited   0x80430801 //(.SG)
 #define MUIA_GameSettings_AGACheck 0x80430802 //(..G)
+#define MUIA_GameSettings_CLPCheck 0x80430803 //(..G)
 
 //Public Methods
 //<SUBCLASS METHODS HERE>    ex: #define MUIM_GameSettings_{Method}    0x80430801

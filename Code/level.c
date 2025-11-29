@@ -22,7 +22,9 @@
 extern volatile ULONG loading_gauge_total;       // from loading_display.o
 extern volatile ULONG loading_gauge_current;     // from loading_display.o
 
+#if NUM_BOBS
 extern struct BitMap* BOBsBackBuffer;            // from gameobject.o
+#endif // NUM_BOBS
 
 // exported globals
 struct Level current_level = {0}; //current_level is a singleton...
@@ -46,7 +48,9 @@ struct Level* loadLevel(ULONG num)
   ULONG assets = 0;
   UWORD max_bob_width = 0;
   UWORD max_bob_height = 0;
+#if NUM_BOBS
   UWORD max_bob_depth = 0;
+#endif // NUM_BOBS
   UWORD max_sprite_height = 0;
   UWORD max_image_height = 0;
   UWORD max_gameobject_height = 0;
@@ -111,6 +115,7 @@ struct Level* loadLevel(ULONG num)
   }
 
   //load the bob_sheets of this level
+  #if NUM_BOBS
   if (level->num.bob_sheets) {
     level->bob_sheet = (struct BOBSheet**)AllocMem(sizeof(struct BOBSheet*) * level->num.bob_sheets, MEMF_ANY);
     if (level->bob_sheet) {
@@ -132,7 +137,7 @@ struct Level* loadLevel(ULONG num)
       }
     }
 
-    if (NUM_BOBS && level->num.bob_sheets) {
+    if (level->num.bob_sheets) {
       BOBsBackBuffer = allocBOBBackgroundBuffer(max_bob_width, max_bob_height, max_bob_depth);
       if (!BOBsBackBuffer) {
         printf("Not enough memory for BOBsBackBuffer\n");
@@ -141,6 +146,7 @@ struct Level* loadLevel(ULONG num)
     }
     else BOBsBackBuffer = NULL;
   }
+  #endif // NUM_BOBS
 
   //load the sprite_banks of this level
   if (level->num.sprite_banks) {
@@ -348,6 +354,7 @@ VOID unloadLevel()
   }
 
   //free all bob_sheets in this level
+  #if NUM_BOBS
   if (level->bob_sheet) {
     for (i = level->num.bob_sheets - 1; i >= 0; i--) {
       struct BOBSheet* bs = level->bob_sheet[i];
@@ -362,6 +369,7 @@ VOID unloadLevel()
     FreeBitMap(BOBsBackBuffer);
     BOBsBackBuffer = NULL;
   }
+  #endif
 
   //free all tilemaps in this level
   if (level->tilemap) {

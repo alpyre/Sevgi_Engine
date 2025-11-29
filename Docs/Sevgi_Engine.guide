@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.185
+                             Version 0.186
 
                         Developer Documentation
 
@@ -144,7 +144,7 @@ tools needed (which is planned).
 - A GUI editor for creating engine code, editing game settings and assets called
   Sevgi_Editor.
 
-(*) With version 0.185 it is no possible to double buffer the level screen and
+(*) With version 0.185 it is now possible to double buffer the level screen and
     set lower fps rates.
 
 @endnode
@@ -165,6 +165,7 @@ Sevgi_Engine can be looked into by the following concepts:
 @{" Displays    " link "Concepts_07Displays"}     Screens in Sevgi_Engine
 @{" Colors      " link "Concepts_08Colors"}     Fadeable color palettes
 @{" Copperlists " link "Concepts_09Copperlists"}     Hardware tricks for each display
+@{" CLP         " link "Concepts_08CLP"}     Palette on Copperlist
 @{" CopOps      " link "Concepts_10CopOps"}     Short for "Copper Operations"
 @{" Gradients   " link "Concepts_11Gradients"}     Vertical color gradients
 @{" Rainbows    " link "Concepts_12Rainbows"}     Movable/Scrollable color gradients
@@ -508,7 +509,10 @@ these palettes.
    the case when it fades copper gradients. That's why there is three variations
    of newColorTable() functions.
 
+   See also: @{"CLP" link "Concepts_08CLP"}
+
 @{u}Functions exported:@{uu}
+@{"blackOut" link "03-blackOut"}
 @{"newColorTable" link "40-newColorTable"}
 @{"newColorTable_CL" link "41-newColorTable_CL"}
 @{"newColorTable_GRD" link "42-newColorTable_GRD"}
@@ -520,6 +524,7 @@ these palettes.
 @{"setColorTable_CL" link "68-setColorTable_CL"}
 @{"setColorTable_GRD" link "69-setColorTable_GRD"}
 @{"setColor" link "65-setColor"}
+@{"setColorToAll" link "70-setColorToAll"}
 @{"setColors" link "66-setColors"}
 @{"updateColor" link "81-updateColor"}
 @{"changeFadeSteps" link "04-changeFadeSteps"}
@@ -619,6 +624,127 @@ pointers to the instructions they create.
 If you want more information on how to program a copper list please refer to the
 Amiga Hardware Reference Manual. Also for some practical examples please check
 the great @{u}https://codetapper.com/@{uu}.
+
+@endnode
+
+@node "Concepts_08CLP" "Sevgi_Engine.guide/Concepts/CLP"
+@{b}CLP@{ub}
+===
+
+CLP stands for (C)opper(L)ist(P)alette. This concept refers to the conventional
+way of setting color registers using the copperlist. As explained in @{"Colors" link "Concepts_08Colors"},
+Sevgi Engine displays do not use copperlist instructions to set and update color
+registers of the Amiga for optimization purposes. With version 0.186 now you
+have the option to use this conventional method.
+
+This method comes in handy if you want different palettes on different vertical
+sections of the display (i.e., a different palette for the top panel, a
+different palette for the level area, and another different palette for the
+bottom panel) and to be able to fade them independently.
+
+This also changes the functions to call to set color tables to registers and
+where to have them called. In the vanilla method this was always done on
+vertical blanks. In this method, it depends on DYNAMIC_COPPERLIST being defined
+and if not (which means you have to do beam chasing); it has to be called on
+your display loops.
+
+To have a CLP, you need to define a number of MOVE instructions on you display's
+copperlist. The number of these instructions depend on the number of colors on
+your palette and graphics architecture (OCS/AGA). Especially for AGA CLPs, the
+number of these instructions may go up all the way to 528*.
+
+Also to be able to use the provided functions to fade in/out these palettes
+these instructions have to be in a compatible form.
+
+For OCS/ECS, it is just as many MOVE(COLORXX, 0) instructions as the number of
+colors on the palette (first one being a MOVE_PH preferably to get an access
+pointer).
+
+The proper form of OCS/ECS CLPs is:
+MOVE_PH(COLOR00, 0),                    A placeholder on the first instruction
+MOVE(COLOR01, 0),                       will give you an access pointer to the
+MOVE(COLOR02, 0),                       CLP. See @{"allocCopperList()" link "01-allocCopperList"}.
+...                                     Go on until the palette is complete.
+
+For AGA you also have to define MOVE instructions to set the bank and LOCT bits
+on BPLCON3.
+
+The proper form for AGA CLPs is:
+MOVE_PH(BPLCON3, BPLCON3_V),            One instruction to reset the color bank
+MOVE(COLOR00, 0),                       Starting from the first color register
+MOVE(COLOR01, 0),                       upto the number of colors on the palette
+...
+MOVE(COLOR31, 0),                       if the number of colors exceeds 32
+MOVE(BPLCON3, BPLCON3_V | (1 << 13)),   one instruction to set the bank to the
+                                        next bank after every 32 colors.
+MOVE(COLOR00, 0),                       and go on until your palette is complete
+...                                     Once complete...
+MOVE(BPLCON3, BPLCON3_V | BPLCON3_LOCT),reset the bank back to 0 while setting
+                                        the LOCT bit on BPLCON3...
+MOVE(COLOR00, 0),                       and start over the palette to set the
+...                                     lower precision nibbles of every color
+                                        and go on until the palette is complete
+                                        setting the next bank the same way above
+                                        except also setting the LOCT bit this
+MOVE(COLOR31, 0),                       time if there are more than 32 colors.
+MOVE(BPLCON3, BPLCON3_V | BPLCON3_LOCT | (1 << 13)),
+MOVE(COLOR00, 0),
+...
+
+The best way to have these CLPs defined properly without making mistakes is to
+use the clp.c file on your copperlist as below:
+
+STATIC ULONG copperList_Instructions[] = {
+  #define CLP_DEPTH USE_CLP
+  #include "clp.c"
+  MOVE(FMODE, FMODE_V),
+  MOVE(DIWSTRT, DIWSTART_V),
+  ...
+  END
+};
+
+The macro CLP_DEPTH will determine the number of MOVE instructions to be
+defined for your CLP section, and it MUST be compatible with the palette size of
+the color_table you are going to fade in/out these color instructions. You may
+need to undefine and redefine this macro if you plan to use more than one CLP
+with different sizes on your copperlist.
+
+Bear in mind that this file included will define a placeholder instruction to
+get an access pointer for the CLP from @{"allocCopperList()" link "01-allocCopperList"}. CL_PALETTE is used
+conventionally for this access pointer and is required by the CLP functions.
+
+You can also create your own custom CLPs following the rules given above.
+Studying the form in the clp.c file can also help.
+
+To update colors on CLPs, you can use these variants below of the related
+functions. The same color tables created by newColorTable() are used on CLPs.
+
+@{u}Functions exported by color.c regading CLP@{uu}
+@{"setColor_CLP" link "65-setColor_CLP"}
+@{"setColorTable_CLP" link "70-setColorTable_CLP"}
+@{"setColorToAll_CLP" link "70-setColorToAll_CLP"}
+
+(*): Do not forget that updating all the 256 registers of an AGA Amiga from
+copperlist will cost the copper about 8 scanlines. That's why the main CLP is
+placed at the very beginning of the copperlist (when the display is at vertical
+blanking). So doing such a change mid display may not be feasible. You can still
+go for partial changes, defining smaller custom CLPs and associating them with
+same size palettes and color tables. You can even create palettes in
+non-conventional sizes (3, 5, 7, etc.), but you won't be able to edit them using
+the Palette Editor on Sevgi Editor. With OCS/ECS CLPs, you can start with any
+color register and set them in any order as long as the color order matches the
+one on the palette (and the color table). With AGA CLPs, it is obligatory to
+have the BPLCON3 instruction at the beginning to set the bank, then again you
+can start at any color register and go in any order as long as you do not cross
+over to another color bank. And follow with the LOCT instructions at the same
+order.
+If this method comes too complicated, you can try some other methods as well.
+See @{"newColorTable_CL()" link "41-newColorTable_CL"} and @{"setColorTable_CL()" link "68-setColorTable_CL"}.
+
+@{u}NOTE:@{uu} Because the method of directly setting the color registers is reported to
+cause glitches on some accelerated systems, CLP is now the default way to set
+color registers. You can still disable it by undefining the USE_CLP macro (or by
+disabling it on @{"Sevgi Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings}) if you still want to.
 
 @endnode
 
@@ -1458,10 +1584,10 @@ for your UI objects.
 
 @{b}UI_SCROLL_GROUP_VERT@{ub}(name, label, x, y, width, height, flags, children,
                      child_gap, columns, margin)
-  Declares a group object together with a vertial scrollbar. As explained above,
-  you should either set a predetermined fixed height or use UIOF_INHERIT_HEIGHT
-  flag on this kind of group object. You can set height to zero for auto
-  calculation.
+  Declares a group object together with a vertical scrollbar. As explained
+  above, you should either set a predetermined fixed height or use
+  UIOF_INHERIT_HEIGHT flag on this kind of group object. You can set height to
+  zero for auto calculation.
 
 @{b}UI_SCROLL_GROUP_HORIZ@{ub}(name, label, x, y, width, height, flags, children,
                       child_gap, columns, margin)
@@ -2195,6 +2321,7 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" allocBOBBackgroundBuffer  " link "00-allocBOBBackgroundBuffer"}
 @{" allocCopperList           " link "01-allocCopperList"}
 @{" allocRastPort             " link "02-allocRastPort"}
+@{" blackOut                  " link "03-blackOut"}
 @{" busyWaitBlit              " link "03-busyWaitBlit"}
 @{" changeFadeSteps           " link "04-changeFadeSteps"}
 @{" changeVolumeSteps         " link "05-changeVolumeSteps"}
@@ -2283,11 +2410,15 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" selectObjectAtIndex       " link "64-selectObjectAtIndex"}
 @{" setClip                   " link "64-setClip"}
 @{" setColor                  " link "65-setColor"}
+@{" setColor_CLP              " link "65-setColor_CLP"}
 @{" setColors                 " link "66-setColors"}
 @{" setColorTable             " link "67-setColorTable"}
 @{" setColorTable_CL          " link "68-setColorTable_CL"}
+@{" setColorTable_CLP         " link "70-setColorTable_CLP"}
 @{" setColorTable_GRD         " link "69-setColorTable_GRD"}
 @{" setColorTable_Partial     " link "70-setColorTable_Partial"}
+@{" setColorToAll             " link "70-setColorToAll"}
+@{" setColorToAll_CLP         " link "70-setColorToAll_CLP"}
 @{" setGameObjectImage        " link "71-setGameObjectImage"}
 @{" setGameObjectPos          " link "72-setGameObjectPos"}
 @{" setGradientScrollPos      " link "72-setGradientScrollPos"}
@@ -2564,6 +2695,28 @@ NOTES
 
 SEE ALSO
     @{"Displays" link "Concepts_07Displays"}, @{"freeRastPort()" link "24-freeRastPort"}, @{"allocBitMap()" link "00-allocBitMap"}
+
+@endnode
+
+@node "03-blackOut" "Sevgi_Engine.guide/Function Reference/blackOut"
+NAME
+    blackOut - Sets all color registers to black
+
+SYNOPSIS
+    blackOut()
+
+    VOID blackOut(VOID);
+
+FUNCTION
+    Sets all color registers to black so there is no bitmap visible when
+    switching between displays.
+
+NOTES
+    This function may not have the effect you expected during display loops if
+    USE_CLP is defined. See setColorToAll_CLP().
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"setColorToAll()" link "70-setColorToAll"}, @{"setColorToAll_CLP()" link "70-setColorToAll_CLP"}
 
 @endnode
 
@@ -5050,6 +5203,39 @@ SEE ALSO
 
 @endnode
 
+@node "65-setColor_CLP" "Sevgi_Engine.guide/Function Reference/setColor_CLP"
+NAME
+    setColor_CLP - Sets a color on a CLP to an RGB value
+
+SYNOPSIS
+    setColor_CLP(index, address, size, R, G, B)
+
+    VOID setColor_CLP(ULONG index, UWORD* address, ULONG size,
+      UBYTE R, UBYTE G, UBYTE B);
+
+FUNCTION
+    Sets the color at the given index of a CLP (palette on copperlist) at the
+    given address to the given RGB value. Can set 24 bit AGA colors when CT_AGA
+    is defined.
+
+INPUTS
+    index   - the index of the color on the CLP to change
+    address - the CL_PALETTE value got from allocCopperList()
+    size    - number of colors on the CLP (only required for AGA)
+
+NOTES
+    The index must be valid and size must match the number of colors defined on
+    the CLP. Otherwise the copperlist will get corrupted.
+    Does not update the color table. You can call updateColor() afterwards if
+    you also want to update the color table and the palette associated with it.
+    This function isn't a part of the fade routine. It is just an utility
+    function.
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"updateColor()" link "81-updateColor"}
+
+@endnode
+
 @node "66-setColors" "Sevgi_Engine.guide/Function Reference/setColors"
 NAME
     setColors - Sets the colors of a palette to the color registers
@@ -5169,11 +5355,92 @@ FUNCTION
     between some index to another.
 
 INPUTS
-    start - the first color to be set in the table (zero indexed).
-    end   - the last color to be set PLUS ONE!!!
+    color_table - the color table to set the color registers to
+    start       - the first color to be set in the table (zero indexed)
+    end         - the last color to be set PLUS ONE!!!
 
 SEE ALSO
     @{"Colors" link "Concepts_08Colors"}, @{"newColorTable()" link "40-newColorTable"}, @{"setColorTable()" link "67-setColorTable"}
+
+@endnode
+
+@node "70-setColorTable_CLP" "Sevgi_Engine.guide/Function Reference/setColorTable_CLP"
+NAME
+    setColorTable_CLP - Sets a color table to a CLP
+
+SYNOPSIS
+    setColorTable_CLP(color_table, address, start, end)
+
+    VOID setColorTable_CLP(struct ColorTable* color_table, UWORD* address,
+        ULONG start, ULONG end);
+
+FUNCTION
+    Very similar to setColorTable() and setColorTable_Partial() but this one
+    sets the color states on the table to the color instructions of the color
+    palette section of a copperlist (CLP).
+    The CLP must be in the form explained in concept @{"CLP" link "Concepts_08CLP" 33}.
+
+INPUTS
+    color_table - the color table to get the color states from
+    address     - the CL_PALETTE value got from allocCopperList()
+    start       - the first color to be set from the table (zero indexed)
+    end         - the last color to be set PLUS ONE!!!
+
+NOTES
+    The color table and the CLP section MUST have the same number of colors.
+    Otherwise the copperlist will get corrupted.
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"setColorTable()" link "67-setColorTable"}, @{"setColorTable_Partial()" link "70-setColorTable_Partial"}, @{"newColorTable()" link "40-newColorTable"}
+
+@endnode
+
+@node "70-setColorToAll" "Sevgi_Engine.guide/Function Reference/setColorToAll"
+NAME
+    setColorToAll - Sets all color registers to an RBG value
+
+SYNOPSIS
+    setColorToAll(R, G, B)
+
+    VOID setColorToAll(UBYTE R, UBYTE G, UBYTE B);
+
+FUNCTION
+    Sets all color registers to the RGB value specified.
+
+NOTES
+    Does not alter the color states on the color table or any palette. Can be
+    used to create color flashes or similar effects. Using this function will
+    have no effect if USE_CLP is defined. See setColorToAll_CLP().
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"setColorToAll_CLP()" link "70-setColorToAll_CLP"}, @{"blackOut()" link "03-blackOut"}
+
+@endnode
+
+@node "70-setColorToAll_CLP" "Sevgi_Engine.guide/Function Reference/setColorToAll_CLP"
+NAME
+    setColorToAll_CLP - Sets all colors on a CLP to an RBG value
+
+SYNOPSIS
+    setColorToAll_CLP(address, size, R, G, B)
+
+    VOID setColorToAll_CLP(UWORD* address, ULONG size,
+      UBYTE R, UBYTE G, UBYTE B);
+
+FUNCTION
+    Similar to setColorToAll(). But this one sets all color instructions on a
+    palette on a copperlist (CLP) to the specified RGB value.
+
+INPUTS
+    address - the CL_PALETTE value got from allocCopperList()
+    size    - number of colors on the CLP
+
+NOTES
+    Does not alter the color states on the color table or any palette. Can be
+    used to create color flashes or similar effects.
+
+SEE ALSO
+    @{"Colors" link "Concepts_08Colors"}, @{"setColorToAll()" link "70-setColorToAll"}, @{"blackOut()" link "03-blackOut"}
 
 @endnode
 

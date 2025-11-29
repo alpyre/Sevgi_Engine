@@ -33,7 +33,12 @@
 #define BITMAP_DEPTH_PF2 3
 #define BITMAP_HEIGHT_PF2 320
 
-#define MAX_SCROLL_SPEED 16  // pixels per frame
+//Activate double buffering on display_level.c and gameobjects.c
+//#define DOUBLE_BUFFER
+//#define FRAME_SKIP 0
+
+//Do color register updates on copperlist
+#define USE_CLP 5
 
 /******************************************************************************
  * AUDIO                                                                      *

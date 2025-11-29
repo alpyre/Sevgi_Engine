@@ -44,12 +44,29 @@ STATIC VOID levelDisplayLoop()
 
     if (main_char_direction) main_char->anim.direction = main_char_direction;
 
+    #if TRUE
+    // This routine below scrolls the tilemap following main_char
     scroll_x = main_char->x - *mapPosX - (SCREEN_WIDTH / 2);
     scroll_y = main_char->y - *mapPosY - (SCREEN_HEIGHT / 2);
     if (scroll_x > 0) si.right =  scroll_x;
     if (scroll_x < 0) si.left  = -scroll_x;
     if (scroll_y > 0) si.down  =  scroll_y;
     if (scroll_y < 0) si.up    = -scroll_y;
+    #else
+    // This routine below scrolls the tilemap with mouse inputs
+    if (UL_VALUE(ms)) {
+      if (ms.deltaX > 0) si.right =  ms.deltaX;
+      if (ms.deltaX < 0) si.left  = -ms.deltaX;
+      if (ms.deltaY > 0) si.down  =  ms.deltaY;
+      if (ms.deltaY < 0) si.up    = -ms.deltaY;
+
+      #define MAX_SCROLL_SPEED 16  // pixels per frame
+      if (si.right > MAX_SCROLL_SPEED) si.right = MAX_SCROLL_SPEED;
+      if (si.left  > MAX_SCROLL_SPEED) si.left  = MAX_SCROLL_SPEED;
+      if (si.down  > MAX_SCROLL_SPEED) si.down  = MAX_SCROLL_SPEED;
+      if (si.up    > MAX_SCROLL_SPEED) si.up    = MAX_SCROLL_SPEED;
+    }
+    #endif
 
     scroll(&si);
 
@@ -58,8 +75,13 @@ STATIC VOID levelDisplayLoop()
     updateGameObjects();
     #ifdef DYNAMIC_COPPERLIST
     updateDynamicCopperList();
+    #else
+    #ifdef USE_CLP
+    waitVBeam(8); //Make sure all color instructions on the copperlist are read
+    setColorTable_CLP(color_table, CL_PALETTE, 1, color_table->colors); //No need to fade color 0
     #endif
-//    *(WORD*)0xDFF180 = 0; //DEBUG (displays performance of the above algorithms)
+    #endif
+//    *(UWORD*)0xDFF180 = 0; //DEBUG (displays performance of the above algorithms)
     updateBOBs();
 
     //Wait until current frame completes
@@ -73,6 +95,6 @@ STATIC VOID levelDisplayLoop()
     //blit the remaining secondPart tiles first thing on the next frame
     scrollRemaining(&si);
 
-//    *(WORD*)0xDFF180 = 0x0F00; //DEBUG (displays performance of the above algorithms)
+//    *(UWORD*)0xDFF180 = 0x0F00; //DEBUG (displays performance of the above algorithms)
   }
 }

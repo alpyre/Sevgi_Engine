@@ -101,7 +101,7 @@ BOOL CopyFile(STRPTR fileSrc, STRPTR fileDest)
   if (cmd) {
     strcpy(cmd, cmd_str1);
     strcat(cmd, fileSrc);
-    strcat(cmd, "\" \"");
+    strcat(cmd, cmd_str2);
     strcat(cmd, fileDest);
     strcat(cmd, cmd_str3);
 
@@ -854,6 +854,20 @@ BOOL getString(BPTR fh, STRPTR* dest_string)
   else *dest_string = makeString(buffer);
 
   return retval;
+}
+///
+///colors2depth(num_colors)
+/******************************************************************************
+ * Give it a palette size, it will tell you how many bitplanes needed (depth) *
+ * to display that palette.                                                   *
+ ******************************************************************************/
+ULONG colors2depth(ULONG num_colors)
+{
+  ULONG depth = 0;
+
+  while (num_colors >>= 1) depth++;
+
+  return depth;
 }
 ///
 

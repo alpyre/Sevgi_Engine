@@ -43,6 +43,9 @@
 //#define DOUBLE_BUFFER
 //#define FRAME_SKIP 0
 
+//Do color register updates on copperlist
+#define USE_CLP 5
+
 #endif //CUSTOM_LEVEL_DISPLAY
 
 /******************************************************************************

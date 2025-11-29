@@ -7,9 +7,9 @@
 ///defines
 #define PROGRAMNAME     "Sevgi Editor"
 #define VERSION         0
-#define REVISION        153
-#define VERSIONSTRING   "0.153"
-#define AUTHOR          "Ibrahim Alper Sönmez"
+#define REVISION        154
+#define VERSIONSTRING   "0.154"
+#define AUTHOR          "Ibrahim Alper Sï¿½nmez"
 #define COPYRIGHT       "@ 2024 " AUTHOR
 #define CONTACT         "amithlondestek@gmail.com"
 #define DESCRIPTION     "Game Editor for Sevgi Engine"
@@ -602,6 +602,7 @@ Object *buildGUI()
     Object* tmc_add_zero;
     Object* lst_palettes;
     Object* chk_aga;
+    Object* chk_clp;
 
     get(Win, MUIA_Window_Window, &g_Window);
 
@@ -685,6 +686,9 @@ Object *buildGUI()
 
     get(window.settingsEditor, MUIA_GameSettings_AGACheck, &chk_aga);
     DoMethod(window.displayCreator, MUIM_Set, MUIA_DisplayCreator_AGACheck, chk_aga);
+
+    get(window.settingsEditor, MUIA_GameSettings_CLPCheck, &chk_clp);
+    DoMethod(window.displayCreator, MUIM_Set, MUIA_DisplayCreator_CLPCheck, chk_clp);
 
     DoMethod(toolbar.editor, MUIM_Notify, MUIA_Pressed, FALSE, App, 2,
       MUIM_Application_ReturnID, MUIV_App_RetID_Open_In_IDE);

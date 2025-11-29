@@ -166,8 +166,10 @@ extern UWORD NULL_SPRITE_ADDRESS_H;
 extern UWORD NULL_SPRITE_ADDRESS_L;
 
 extern struct GameObject* spriteList[NUM_SPRITES + 1];
+#if NUM_BOBS
 extern struct GameObject* bobList[NUM_BOBS + 1];
 extern struct BitMap* BOBsBackBuffer;
+#endif // NUM_BOBS
 
 extern LONG* mapPosX;  // map's horizontal position in pixels
 extern LONG* mapPosY;  // map's vertical position in pixels
@@ -250,7 +252,9 @@ STATIC PLANEPTR *planes2 = NULL;  //the one above holds the active one
 #ifdef DUALPLAYFIELD
 STATIC PLANEPTR *planes_pf2 = NULL; //access pointer for playfield 2's bitmap
 #endif
+#if NUM_BOBS
 STATIC ULONG bobs_back_buffer_mod;
+#endif // NUM_BOBS
 
 #ifdef DYNAMIC_COPPERLIST
   ULONG num_cl_header_instructions = 0;
@@ -279,6 +283,10 @@ STATIC ULONG bobs_back_buffer_mod;
 ///
 ///copperlist
 STATIC UWORD* CopperList    = (UWORD*)0;
+
+#ifdef USE_CLP
+STATIC UWORD* CL_PALETTE    = (UWORD*)0;
+#endif
 
 #ifndef SMART_SPRITES
 STATIC UWORD* CL_SPR0PTH    = (UWORD*)0;
@@ -322,6 +330,10 @@ STATIC UWORD* CL_END        = (UWORD*)0;
 
 STATIC ULONG copperList_Instructions[] = {
                                               // Access Ptr:  Action:
+#ifdef USE_CLP
+  #define CLP_DEPTH USE_CLP
+  #include "clp.c"
+#endif //USE_CLP
   MOVE(FMODE,   FMODE_V),                     //              Set Sprite/Bitplane Fetch Modes
   MOVE(DIWSTRT, DIWSTART_V),                  //              Set Display Window Start
   MOVE(DIWSTOP, DIWSTOP_V),                   //              Set Display Window Stop
@@ -356,7 +368,7 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(BPLCON0, BPLCON0_V_TP),                //              Set display properties for top panel
   MOVE(BPLCON1, 0),                           //              No scroll
   MOVE(BPLCON2, 0x23F),                       //              Default plane priorities
-  MOVE(BPLCON3, BPLCON3_BRDNBLNK),            //              Border blank only
+  MOVE(BPLCON3, BPLCON3_V),                   //              Border blank
   MOVE(BPLCON4, 0x0),                         //              Default sprite colors
   MOVE(BPL1MOD, BPLXMOD_TP),                  //              Set bitplane mods for top panel
   MOVE(BPL2MOD, BPLXMOD_TP),                  //               "     "       "   "   "    "
@@ -385,7 +397,7 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(BPLCON0, BPLCON0_V),                   //              Set display properties
   MOVE_PH(BPLCON1, 0),                        // CL_BPLCON1   Set h_scroll register
   MOVE(BPLCON2, 0x23F),
-  MOVE(BPLCON3, BPLCON3_V),
+  MOVE(BPLCON3, BPLCON3_V),                   //              Reset bank and loct
   MOVE(BPLCON4, 0x11),
   MOVE(BPL1MOD, BPLXMOD_V),                   //              Set bitplane mods
   MOVE(BPL2MOD, BPLXMOD_V_PF2),               //               "     "       "
@@ -492,7 +504,7 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(BPLCON0, BPLCON0_V_BP),                //              Set display properties for bottom panel
   MOVE(BPLCON1, 0),                           //              No scroll
   MOVE(BPLCON2, 0x23F),                       //              Default plane priorities
-  MOVE(BPLCON3, BPLCON3_BRDNBLNK),            //              Border blank only
+  MOVE(BPLCON3, BPLCON3_V),                   //              Border blank
   MOVE(BPLCON4, 0x0),                         //              Default sprite colors
   MOVE(BPL1MOD, BPLXMOD_BP),                  //              Set bitplane mods for bottom panel
   MOVE(BPL2MOD, BPLXMOD_BP),                  //               "     "       "   "   "    "
@@ -527,7 +539,7 @@ STATIC ULONG end_Instructions[] = {
   MOVE(BPLCON0, BPLCON0_V_BP),                //              Set display properties for bottom panel
   MOVE(BPLCON1, 0),                           //              No scroll
   MOVE(BPLCON2, 0x23F),                       //              Default plane priorities
-  MOVE(BPLCON3, BPLCON3_BRDNBLNK),            //              Border blank only
+  MOVE(BPLCON3, BPLCON3_V),                   //              Border blank only
   MOVE(BPLCON4, 0x0),                         //              Default sprite colors
   MOVE(BPL1MOD, BPLXMOD_BP),                  //              Set bitplane mods for bottom panel
   MOVE(BPL2MOD, BPLXMOD_BP),                  //               "     "       "   "   "    "
@@ -888,9 +900,10 @@ VOID calcTileOffsets(UBYTE* tilesPerStep, UBYTE* posPerStep, UWORD num_steps, UW
 
 STATIC VOID initLevelDisplay()
 {
+#if NUM_BOBS
   if (BOBsBackBuffer) bobs_back_buffer_mod = BOBsBackBuffer->BytesPerRow / BOBsBackBuffer->Depth;
+#endif // NUM_BOBS
   color_table = current_level.color_table[current_level.current.color_table];
-  color_table->state = CT_FADE_IN;
   tileset = current_level.tileset[current_level.current.tileset];
   map = current_level.tilemap[current_level.current.tilemap];
 
@@ -1628,6 +1641,7 @@ STATIC INLINE VOID scrollRemaining(struct ScrollInfo* si)
 ///LD_blitBOB(gameobject)
 VOID LD_blitBOB(struct GameObject* go)
 {
+#if NUM_BOBS
   struct BOBImage* image = (struct BOBImage*)go->image;
   struct BOB* bob = (struct BOB*)go->u.mediums[g_active_buffer];
   UBYTE* mask = (UBYTE*)image->mask;
@@ -1810,11 +1824,13 @@ VOID LD_blitBOB(struct GameObject* go)
     custom.bltdpt  = bltdpt;
     custom.bltsize = (((rows - firstPartRows) * image->bob_sheet->Depth) << 6) | words;
   }
+#endif // NUM_BOBS
 }
 ///
 ///LD_unBlitBOB(gameobject)
 VOID LD_unBlitBOB(struct GameObject* go)
 {
+#if NUM_BOBS
   struct BOB* bob = (struct BOB*)go->u.mediums[g_active_buffer];
 
   UWORD bx = vidPosX + TILESIZE + bob->lastBlt.x1 - *mapPosX;
@@ -1867,19 +1883,21 @@ VOID LD_unBlitBOB(struct GameObject* go)
     custom.bltdpt  = bltdpt;
     custom.bltsize = (((bob->lastBlt.rows - firstPartRows) * bob->lastBlt.bob_sheet->Depth) << 6) | bob->lastBlt.words;
   }
-
+#endif // NUM_BOBS
 }
 ///
 
 ///vblankEvents()
 /******************************************************************************
- * This should be moved to the display.c of level display.                    *
+ * Events to execute at every vertical blank.                                 *
+ * WARNING: This function gets called from vblank interrupt.                  *
  ******************************************************************************/
 STATIC VOID vblankEvents(VOID)
 {
   updateCopperList();
-  //No need to fade color 0
+#ifndef USE_CLP
   setColorTable_REG(color_table, 1, color_table->colors);
+#endif // USE_CLP
 }
 ///
 
@@ -1991,6 +2009,9 @@ STATIC UWORD* createCopperList()
 #endif //DOUBLE_BUFFER
 
         //In doublebuffered copperlist the access pointers to the header are offsets
+#ifdef USE_CLP
+        CL_PALETTE = (UWORD*)((ULONG)CL_PALETTE - (ULONG)CopperList);
+#endif //USE_CLP
         CL_BPLCON1 = (UWORD*)((ULONG)CL_BPLCON1 - (ULONG)CopperList);
         CL_BPL1PTH = (UWORD*)((ULONG)CL_BPL1PTH - (ULONG)CopperList);
         CL_BPL1PTL = (UWORD*)((ULONG)CL_BPL1PTL - (ULONG)CopperList);
@@ -2120,12 +2141,12 @@ STATIC VOID switchToLevelCopperList()
 ///startLevelDisplay(level_num)
 VOID startLevelDisplay(ULONG level_num)
 {
-  if ((openDisplay(level_num))) {
-    startLoadingDisplay();
-    if (loadLevel(level_num)) {
-      endLoadingDisplay();
-      initLevelDisplay();
+  startLoadingDisplay();
+  if (loadLevel(level_num)) {
+    endLoadingDisplay();
+    initLevelDisplay();
 
+    if ((openDisplay(level_num))) {
 #ifdef DUALPLAYFIELD
       // prep the background bitmap
       if (current_level.num.bitmaps) {
@@ -2141,6 +2162,7 @@ VOID startLevelDisplay(ULONG level_num)
       }
 
       volume_table.state = PTVT_FADE_IN;
+      color_table->state = CT_FADE_IN;
 
       // take over blitter
       OwnBlitter();
@@ -2161,12 +2183,12 @@ VOID startLevelDisplay(ULONG level_num)
 
       PT_StopAudio();
 
-      unloadLevel();
+      closeDisplay();
     }
-    else endLoadingDisplay();
 
-    closeDisplay();
+    unloadLevel();
   }
+  else endLoadingDisplay();
 }
 ///
 
@@ -2276,6 +2298,10 @@ STATIC VOID updateDynamicCopperList()
     CopperList = CopperList2;
   else
     CopperList = CopperList1;
+#endif
+
+#ifdef USE_CLP
+  setColorTable_CLP(color_table, (UWORD*)((ULONG)CopperList + (ULONG)CL_PALETTE), 1, color_table->colors);
 #endif
 
   // Calculate the scroll value for playfield 1 (tilemap)
@@ -2594,7 +2620,7 @@ STATIC VOID updateDynamicCopperList()
                 CL_ptr += size;
               }
 
-              r = &rainbow->copOps[index + 1];
+              r = r_end + 1; // pointer arithmetic
             }
             else {
               size += r_end->size;
@@ -2602,7 +2628,7 @@ STATIC VOID updateDynamicCopperList()
               CL_ptr += size;
               blitCopperInstruction(CL_ptr, med->pointer, med->size);
               CL_ptr += med->size;
-              r = &rainbow->copOps[index + 1];
+              r = r_end + 1; // pointer arithmetic
             }
             last_wait = med->wait;
           }
@@ -2615,7 +2641,7 @@ STATIC VOID updateDynamicCopperList()
       else {
         if (v->wait <= s->wait) {
           min = v++;
-          if (v->wait == s->wait) {
+          if (min->wait == s->wait) {
             //a sprite coincides with the video-split: Blit video-split instructions first and then blit the sprite instructions
             blitCopperInstruction(CL_ptr, min->pointer, min->size);
             CL_ptr += min->size;
@@ -2632,6 +2658,7 @@ STATIC VOID updateDynamicCopperList()
           s = *s_ptr;
         }
       }
+
       if (last_wait == min->wait) {
         blitCopperInstruction(CL_ptr, min->pointer + 1, min->size - 1);
         CL_ptr += min->size - 1;
@@ -2677,8 +2704,14 @@ STATIC VOID updateDynamicCopperList()
           if (r_end->wait == v->wait) {
             blitCopperInstruction(CL_ptr, r->pointer, size + 1);
             CL_ptr += size + 1;
-            blitCopperInstruction(CL_ptr, v->pointer + 1, v->size - 1);
-            CL_ptr += v->size - 1;
+            if (v->wait == 256) {
+              blitCopperInstruction(CL_ptr, v->pointer, v->size);
+              CL_ptr += v->size;
+            }
+            else {
+              blitCopperInstruction(CL_ptr, v->pointer + 1, v->size - 1);
+              CL_ptr += v->size - 1;
+            }
 
             size = r_end->size - 1;
             if (size) {
@@ -2686,7 +2719,7 @@ STATIC VOID updateDynamicCopperList()
               CL_ptr += size;
             }
 
-            r = &rainbow->copOps[index + 1];
+            r = r_end + 1; // pointer arithmetic
           }
           else {
             size += r_end->size;
@@ -2694,7 +2727,7 @@ STATIC VOID updateDynamicCopperList()
             CL_ptr += size;
             blitCopperInstruction(CL_ptr, v->pointer, v->size);
             CL_ptr += v->size;
-            r = &rainbow->copOps[index + 1];
+            r = r_end + 1; // pointer arithmetic
           }
         }
       }

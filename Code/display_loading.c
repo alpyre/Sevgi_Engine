@@ -25,6 +25,7 @@
 #include "input.h"
 #include "diskio.h"
 #include "fonts.h"
+#include "settings.h"
 
 #include "display.h"
 #include "display_loading.h"
@@ -41,10 +42,6 @@
 
 #define LOADING_SCREEN_START  ((LOADING_SCREEN_HEIGHT - LOADING_BITMAP_HEIGHT) / 2)
 #define LOADING_SCREEN_END    (LOADING_SCREEN_START + LOADING_BITMAP_HEIGHT - 1)
-
-#define COPPERLIST_INSTRUCTIONS 38
-#define COPPERLIST_SIZE (COPPERLIST_INSTRUCTIONS * 4)     // A copper instruction is 4 bytes
-#define COPPERLIST_ALLOC_SIZE COPPERLIST_SIZE
 
 #define DDFSTART_V 0x0038
 #define DDFSTOP_V  0x00D0
@@ -99,14 +96,26 @@ volatile ULONG loading_gauge_current;     // assets loaded so far
 // private globals
 static struct BitMap* bitmap = NULL; // BitMap for the loading display
 static struct RastPort* rastPort = NULL;
-static WORD* CopperList  = (WORD*) 0;
+///
+///copperlist
+static UWORD* CopperList  = (WORD*) 0;
 
-static ULONG copperList_Instructions[COPPERLIST_INSTRUCTIONS] = {
+#ifdef USE_CLP
+static UWORD* CL_PALETTE  = (WORD*) 0;
+#endif //USE_CLP
+
+static UWORD* CL_BPL1PTH = (WORD*) 0;
+static UWORD* CL_SPR0PTH = (WORD*) 0;
+
+static ULONG copperList_Instructions[] = {
                                               // Access Ptr:  Action:
-  MOVE(COLOR00, 0),                           //              Set color 0 to black
+  #ifdef USE_CLP
+    #define CLP_DEPTH LOADING_SCREEN_DEPTH
+    #include "clp.c"
+  #endif //USE_CLP
   MOVE(FMODE,   0),                           //              Set Sprite/Bitplane Fetch Modes
   MOVE(BPLCON0, BPLCON0_V),                   //              Set a lowres display
-  MOVE(BPLCON1, 0),                           // CL_BPLCON1   Set h_scroll register
+  MOVE(BPLCON1, 0),                           //              Set h_scroll register
   MOVE(BPLCON2, 0x264),
   MOVE(BPL1MOD, BPLXMOD_V1),                  //              Set bitplane mods to show same raster line
   MOVE(BPL2MOD, BPLXMOD_V1),                  //               "     "       "
@@ -114,26 +123,26 @@ static ULONG copperList_Instructions[COPPERLIST_INSTRUCTIONS] = {
   MOVE(DIWSTOP, DIWSTOP_V),                   //              Set Display Window Stop
   MOVE(DDFSTRT, DDFSTART_V),                  //              Set Data Fetch Start to fetch early
   MOVE(DDFSTOP, DDFSTOP_V),                   //              Set Data Fetch Stop
-  MOVE(BPL1PTH, 0),                           // CL_BPL1PTH   Set bitplane addresses
-  MOVE(BPL1PTL, 0),                           // CL_BPL1PTL    "      "       "
-  MOVE(BPL2PTH, 0),                           // CL_BPL2PTH    "      "       "
-  MOVE(BPL2PTL, 0),                           // CL_BPL2PTL    "      "       "
-  MOVE(SPR0PTH, 0),                           // CL_SPR0PTH   Set sprite pointers
-  MOVE(SPR0PTL, 0),                           // CL_SPT0PTL    "     "      "
-  MOVE(SPR1PTH, 0),                           // CL_SPT1PTH    "     "      "
-  MOVE(SPR1PTL, 0),                           // CL_SPT1PTL    "     "      "
-  MOVE(SPR2PTH, 0),                           // CL_SPT2PTH    "     "      "
-  MOVE(SPR2PTL, 0),                           // CL_SPT2PTL    "     "      "
-  MOVE(SPR3PTH, 0),                           // CL_SPT3PTH    "     "      "
-  MOVE(SPR3PTL, 0),                           // CL_SPT3PTL    "     "      "
-  MOVE(SPR4PTH, 0),                           // CL_SPT4PTH    "     "      "
-  MOVE(SPR4PTL, 0),                           // CL_SPT4PTL    "     "      "
-  MOVE(SPR5PTH, 0),                           // CL_SPT5PTH    "     "      "
-  MOVE(SPR5PTL, 0),                           // CL_SPT5PTL    "     "      "
-  MOVE(SPR6PTH, 0),                           // CL_SPT6PTH    "     "      "
-  MOVE(SPR6PTL, 0),                           // CL_SPT6PTL    "     "      "
-  MOVE(SPR7PTH, 0),                           // CL_SPT7PTH    "     "      "
-  MOVE(SPR7PTL, 0),                           // CL_SPT7PTL    "     "      "
+  MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH   Set bitplane addresses
+  MOVE(BPL1PTL, 0),                           //               "      "       "
+  MOVE(BPL2PTH, 0),                           //               "      "       "
+  MOVE(BPL2PTL, 0),                           //               "      "       "
+  MOVE_PH(SPR0PTH, 0),                        // CL_SPR0PTH   Set sprite pointers
+  MOVE(SPR0PTL, 0),                           //               "     "      "
+  MOVE(SPR1PTH, 0),                           //               "     "      "
+  MOVE(SPR1PTL, 0),                           //               "     "      "
+  MOVE(SPR2PTH, 0),                           //               "     "      "
+  MOVE(SPR2PTL, 0),                           //               "     "      "
+  MOVE(SPR3PTH, 0),                           //               "     "      "
+  MOVE(SPR3PTL, 0),                           //               "     "      "
+  MOVE(SPR4PTH, 0),                           //               "     "      "
+  MOVE(SPR4PTL, 0),                           //               "     "      "
+  MOVE(SPR5PTH, 0),                           //               "     "      "
+  MOVE(SPR5PTL, 0),                           //               "     "      "
+  MOVE(SPR6PTH, 0),                           //               "     "      "
+  MOVE(SPR6PTL, 0),                           //               "     "      "
+  MOVE(SPR7PTH, 0),                           //               "     "      "
+  MOVE(SPR7PTL, 0),                           //               "     "      "
   WAIT(0, ((DIWSTART_V >> 8) + LOADING_SCREEN_START)),
   MOVE(BPL1MOD, BPLXMOD_V2),                  //              Set bitplane mods to regular
   MOVE(BPL2MOD, BPLXMOD_V2),                  //               "     "       "
@@ -155,7 +164,7 @@ static UBYTE colors[] = {(UBYTE)(LOADING_SCREEN_COLORS - 1),
 STATIC VOID vblankEvents(VOID);
 STATIC struct RastPort* openScreen(VOID);
 STATIC VOID closeScreen(VOID);
-STATIC WORD* createCopperList(VOID);
+STATIC UWORD* createCopperList(VOID);
 STATIC VOID disposeCopperList(VOID);
 STATIC VOID switchToLoadingCopperList(VOID);
 STATIC VOID drawBox(UWORD x1, UWORD y1, UWORD x2, UWORD y2);
@@ -172,7 +181,11 @@ STATIC VOID drawLoadingScreen(VOID);
 STATIC VOID vblankEvents()
 {
   updateColorTable(color_table);
+  #ifdef USE_CLP
+  setColorTable_CLP(color_table, CL_PALETTE, 0, color_table->colors);
+  #else
   setColorTable(color_table);
+  #endif //USE_CLP
   updateLoadingGauge(UPDATE);
 }
 ///
@@ -202,30 +215,20 @@ STATIC VOID closeScreen()
 ///
 
 ///createCopperList()
-STATIC WORD* createCopperList()
+STATIC UWORD* createCopperList()
 {
-  WORD* buffer = (WORD*)AllocMem(COPPERLIST_ALLOC_SIZE, MEMF_CHIP);
-  if (buffer) {
-    UWORD* CL_BPL1PTH;
-    UWORD* CL_SPR0PTH;
+  if (allocCopperList(copperList_Instructions, CopperList, CL_SINGLE)) {
     UWORD* wp;
     UWORD* sp;
     ULONG i;
 
-    CopperList = buffer;
-    CopyMem(copperList_Instructions, CopperList, COPPERLIST_SIZE);
-
     //Set bitmap to point to the Loading_bitmap
-    CL_BPL1PTH = CopperList + (11 * 2) + 1;
-
     for (wp = CL_BPL1PTH, i = 0; i < LOADING_SCREEN_DEPTH; i++) {
       *wp = (WORD)((ULONG)bitmap->Planes[i] >> 16); wp += 2;
       *wp = (WORD)((ULONG)bitmap->Planes[i] & 0xFFFF); wp += 2;
     }
 
     //Set all sprite pointers to null_sprite
-    CL_SPR0PTH = CopperList + (15 * 2) + 1;
-
     for (sp = CL_SPR0PTH; sp < CL_SPR0PTH + 32; sp += 2) {
       *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
       *sp = NULL_SPRITE_ADDRESS_L;
@@ -233,14 +236,14 @@ STATIC WORD* createCopperList()
   }
   else puts("Couldn't allocate Loading CopperList!");
 
-  return buffer;
+  return CopperList;
 }
 ///
 ///disposeCopperList()
 STATIC VOID disposeCopperList()
 {
   if (CopperList) {
-    FreeMem(CopperList, COPPERLIST_ALLOC_SIZE);
+    freeCopperList(CopperList);
     CopperList = NULL;
   }
 }

@@ -59,6 +59,7 @@ BOOL locateStrInFile(BPTR fh, STRPTR str);
 BOOL locateArrayStart(BPTR fh);
 BOOL readCStyleDataString(BPTR fh, STRPTR* dest_string);
 BOOL getString(BPTR fh, STRPTR* dest_string);
+ULONG colors2depth(ULONG num_colors);
 
 Object* MUI_NewButton(STRPTR text, UBYTE hi_char, STRPTR short_help);
 Object* MUI_NewCheckMark(Object** obj, BOOL state, STRPTR label, UBYTE key, STRPTR help);

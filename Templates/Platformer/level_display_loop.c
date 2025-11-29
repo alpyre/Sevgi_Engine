@@ -106,6 +106,7 @@ STATIC VOID levelDisplayLoop()
       if (ms.deltaY > 0) si.down  =  ms.deltaY;
       if (ms.deltaY < 0) si.up    = -ms.deltaY;
 
+      #define MAX_SCROLL_SPEED 16  // pixels per frame
       if (si.right > MAX_SCROLL_SPEED) si.right = MAX_SCROLL_SPEED;
       if (si.left  > MAX_SCROLL_SPEED) si.left  = MAX_SCROLL_SPEED;
       if (si.down  > MAX_SCROLL_SPEED) si.down  = MAX_SCROLL_SPEED;
@@ -127,8 +128,13 @@ STATIC VOID levelDisplayLoop()
     updateGameObjects();
     #ifdef DYNAMIC_COPPERLIST
     updateDynamicCopperList();
+    #else
+    #ifdef USE_CLP
+    waitVBeam(8); //Make sure all color instructions on the copperlist are read
+    setColorTable_CLP(color_table, CL_PALETTE, 1, color_table->colors); //No need to fade color 0
     #endif
-//    *(WORD*)0xDFF180 = 0; //DEBUG (displays performance of the above algorithms)
+    #endif
+//    *(UWORD*)0xDFF180 = 0; //DEBUG (displays performance of the above algorithms)
     updateBOBs();
 
     //Wait until current frame completes
@@ -142,6 +148,6 @@ STATIC VOID levelDisplayLoop()
     //blit the remaining secondPart tiles first thing on the next frame
     scrollRemaining(&si);
 
-//    *(WORD*)0xDFF180 = 0x0F00; //DEBUG (displays performance of the above algorithms)
+//    *(UWORD*)0xDFF180 = 0x0F00; //DEBUG (displays performance of the above algorithms)
   }
 }

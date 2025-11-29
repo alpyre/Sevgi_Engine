@@ -102,7 +102,7 @@ struct Gradient {
 struct ColorTable* newColorTable(UBYTE* table, UWORD fade_steps, ULONG step);
 struct ColorTable* newColorTable_CL(UWORD* copperlist, UWORD fade_steps, ULONG step);
 struct ColorTable* newColorTable_GRD(struct Gradient* grd, UWORD fade_steps, ULONG step);
-VOID initColorTable(struct ColorTable* ct);
+VOID changeFadeSteps(struct ColorTable* ct, ULONG steps);
 VOID freeColorTable(struct ColorTable* ct);
 #define updateColorTable(ct) updateColorTable_Partial(ct, 0, ct->colors)
 VOID updateColorTable_Partial(struct ColorTable* ct, ULONG start, ULONG end);
@@ -111,8 +111,13 @@ VOID updateColorTable_Partial(struct ColorTable* ct, ULONG start, ULONG end);
 VOID setColorTable_REG(struct ColorTable* ct, ULONG start, ULONG num_colors);
 VOID setColorTable_CL(struct ColorTable* ct);
 VOID setColorTable_GRD(struct ColorTable* ct);
-VOID setColors(UBYTE* table);
-VOID setColor(ULONG index, UBYTE R, UBYTE G, UBYTE B);
+VOID setColorTable_CLP(struct ColorTable* ct, UWORD* address, ULONG start, ULONG end);
 VOID blackOut(VOID);
+VOID setColorToAll(UBYTE R, UBYTE G, UBYTE B);
+VOID setColorToAll_CLP(UWORD* address, ULONG size, UBYTE R, UBYTE G, UBYTE B);
+VOID setColor(ULONG index, UBYTE R, UBYTE G, UBYTE B);
+VOID setColor_CLP(ULONG index, UWORD* address, ULONG size, UBYTE R, UBYTE G, UBYTE B);
+VOID setColors(UBYTE* palette);
+VOID updateColor(struct ColorTable* ct, ULONG index, UBYTE R, UBYTE G, UBYTE B);
 
 #endif /* COLOR_H, */

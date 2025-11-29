@@ -11,7 +11,6 @@
 #include "system.h"
 #include "cop_inst_macros.h"
 #include "color.h"
-
 ///
 ///defines
 ///
@@ -254,6 +253,29 @@ VOID initColorTable_GRD(struct ColorTable* ct)
   }
 }
 ///
+///changeFadeSteps(color_table, steps)
+/******************************************************************************
+ * Changes the fade steps of a ColorTable. Fade steps is how many frames a    *
+ * complete fade in/out to/from a color palette will take.                    *
+ * WARNING: A value of 1 will cause a division by zero error!                 *                                                           *
+ ******************************************************************************/
+VOID changeFadeSteps(struct ColorTable* ct, ULONG steps)
+{
+  struct ColorState* cs, *cs_end;
+  UWORD old_steps = ct->fade_steps;
+  UWORD new_steps = steps - 1;
+
+  ct->fade_step = ct->fade_step * steps / old_steps--;
+  ct->fade_steps = steps;
+
+  for (cs = ct->states, cs_end = cs + ct->colors; cs < cs_end; cs++) {
+    cs->increment.R = (cs->increment.R * old_steps) / new_steps;
+    cs->increment.G = (cs->increment.G * old_steps) / new_steps;
+    cs->increment.B = (cs->increment.B * old_steps) / new_steps;
+  }
+}
+///
+
 ///updateColorTable(color_table)
 /******************************************************************************
  * Updates the color states on the given ColorTable according to the state it *
@@ -305,6 +327,7 @@ VOID updateColorTable_Partial(struct ColorTable* ct, ULONG start, ULONG end)
   }
 }
 ///
+
 ///setColorTable(color_table)
 /******************************************************************************
  * Updates color registers with the current state of the ColorTable.          *
@@ -453,6 +476,119 @@ VOID setColorTable_GRD(struct ColorTable* ct)
   }
 }
 ///
+///setColorTable_CLP(color_table, address, start, end)
+/******************************************************************************
+ * Updates color instructions of the color palette section of a copperlist    *
+ * (CLP) with the current state of the ColorTable.                            *
+ * The color palette section MUST be in the form below:                       *
+ * For OCS/ECS (CT_AGA not defined)                                           *
+ *   ...                                                                      *
+ *   MOVE_PH(COLOR00, 0x0),                                                   *
+ *   MOVE(COLOR01, 0x0),                                                      *
+ *   MOVE(COLOR02, 0x0),                                                      *
+ *   ... (up to palette size)                                                 *
+ *                                                                            *
+ * For AGA (CT_AGA defined)                                                   *
+ *   ...                                                                      *
+ *   MOVE_PH(BPLCON3, BPLCON3_V),                         // bank 0           *
+ *   MOVE(COLOR00, 0x0),                                                      *
+ *   MOVE(COLOR01, 0x0),                                                      *
+ *   MOVE(COLOR02, 0x0),                                                      *
+ *   ... (up to palette size or COLOR31 if there are more than 32 colors)     *
+ *   MOVE(BPLCON3, BPLCON3_V | (1 << 13)),                // bank 1           *
+ *   MOVE(COLOR00, 0x0),                                                      *
+ *   MOVE(COLOR01, 0x0),                                                      *
+ *   ... (up to palette size or COLOR31 if there are more than 64 colors)     *
+ *   ...                                                                      *
+ *   MOVE(BPLCON3, BPLCON3_V | BPLCON3_LOCT),             // bank 0 LOCT      *
+ *   MOVE(COLOR00, 0x0),                                                      *
+ *   MOVE(COLOR01, 0x0),                                                      *
+ *   ...                                                                      *
+ *   MOVE(BPLCON3, BPLCON3_V | BPLCON3_LOCT | (1 << 13)), // bank 1 LOCT      *
+ *   MOVE(COLOR00, 0x0),                                                      *
+ *   MOVE(COLOR01, 0x0),                                                      *
+ *   ...                                                                      *
+ *                                                                            *
+ * The color instructions MUST cover the number of colors on the color_table. *
+ * This function only updates the color values. The move instructions for     *
+ * bank and LOCT selection MUST initially be set correctly on the array as    *
+ * shown above.                                                               *
+ * Designed to be called during the VBL.                                      *
+ * address: the CL_PALETTE value set by allocCopperList() to the _PH above.   *
+ *          in DYNAMIC_COPPERLIST mode CL_PALETTE is an offset!               *
+ * start: the first color to be set from the palette (zero indexed).          *
+ * end: the last color to be set PLUS ONE!!!                                  *
+ *
+ ******************************************************************************/
+#ifdef USE_CLP
+VOID setColorTable_CLP(struct ColorTable* ct, UWORD* address, ULONG start, ULONG end)
+{
+  if (ct->state == CT_IDLE) return;
+  else {
+#ifdef CT_AGA
+    #define BANK_SIZE 132 // (1 bank inst + 32 color insts) x inst size
+    struct ColorState* cs, *cs_end;
+    ULONG instruction;
+    ULONG inst_start;
+    ULONG inst_end;
+    ULONG start_mod = start % 32;
+    ULONG bank, bank_start, banks_max;
+    ULONG num_banks = (ct->colors + 31) >> 5;
+    ULONG loct_start = ((ULONG)address) + ((num_banks + ct->colors) * 4);
+
+    cs = ct->states + start;
+    cs_end = ct->states + end;
+    bank_start = start >> 5;
+    inst_start = ((ULONG)address) + 4 + (bank_start * BANK_SIZE) + start_mod * 4;
+    inst_end = ((ULONG)address) + 4 + ((bank_start + 1) * BANK_SIZE);
+
+    for (bank = bank_start, banks_max = end >> 5; bank <= banks_max; bank++, inst_start = ((ULONG)address) + 4 + bank * BANK_SIZE, inst_end += BANK_SIZE) {
+      for (instruction = inst_start; cs < cs_end && instruction < inst_end; cs++, instruction += 4) {
+        UWORD* color = (UWORD*)instruction;
+        #if CT_PRECISION == 8
+          *color = (((UWORD)cs->color.bytes.R << 4) & 0xF00) | (cs->color.bytes.G & 0xF0) | (cs->color.bytes.B >> 4);
+        #else
+          *color = ((UWORD)cs->color.bytes.RH << 8) | (cs->color.bytes.GH << 4) | cs->color.bytes.BH;
+        #endif
+      }
+    }
+
+    cs = ct->states + start;
+    inst_start = loct_start + 4 + (bank_start * BANK_SIZE) + start_mod * 4;
+    inst_end = loct_start + 4 + ((bank_start + 1) * BANK_SIZE);
+
+    for (bank = bank_start; bank <= banks_max; bank++, inst_start = loct_start + 4 + bank * BANK_SIZE, inst_end += BANK_SIZE) {
+      for (instruction = inst_start; cs < cs_end && instruction < inst_end; cs++, instruction += 4) {
+        UWORD* color = (UWORD*)instruction;
+        #if CT_PRECISION == 8
+          *color = (((UWORD)cs->color.bytes.R & 0x0F) << 8) | ((cs->color.bytes.G & 0x0F) << 4) | (cs->color.bytes.B & 0x0F);
+        #else
+          *color = ((UWORD)cs->color.bytes.RL << 4 & 0xF00) | (cs->color.bytes.GL & 0xF0) | (cs->color.bytes.BL >> 4);
+        #endif
+      }
+    }
+#else //CT_AGA
+    struct ColorState* cs, *cs_end;
+    ULONG instruction;
+    ULONG inst_start;
+
+    cs = ct->states + start;
+    cs_end = ct->states + end;
+    inst_start = ((ULONG)address) + start * 4;
+
+    for (instruction = inst_start; cs < cs_end; cs++, instruction += 4) {
+      UWORD* color = (UWORD*)instruction;
+      #if CT_PRECISION == 8
+        *color = (((UWORD)cs->color.bytes.R << 4) & 0xF00) | (cs->color.bytes.G & 0xF0) | (cs->color.bytes.B >> 4);
+      #else
+        *color = ((UWORD)cs->color.bytes.RH << 8) | (cs->color.bytes.GH << 4) | cs->color.bytes.BH;
+      #endif
+    }
+#endif //CT_AGA
+  }
+}
+#endif //USE_CLP
+///
 
 ///blackOut()
 /******************************************************************************
@@ -480,6 +616,91 @@ VOID blackOut()
   #endif
 }
 ///
+///setColorToAll(R, G, B)
+/******************************************************************************
+ * Sets all color registers to the specified RGB value.                       *
+ * This function isn't a part of the fade routine.                            *
+ ******************************************************************************/
+VOID setColorToAll(UBYTE R, UBYTE G, UBYTE B)
+{
+#ifdef CT_AGA
+  UWORD color_v = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
+  UWORD color_v_loct = ((UWORD)R << 8 & 0xF00) | (G << 4 & 0xF0) | (B & 0xF);
+  ULONG b, c;
+
+  for (b = 0; b < 8; b++) {
+    custom.bplcon3 = BPLCON3_V | (b << 13);
+
+    for (c = 0; c < 32; c++) {
+      custom.color[c] = color_v;
+    }
+  }
+
+  for (b = 0; b < 8; b++) {
+    custom.bplcon3 = BPLCON3_V | BPLCON3_LOCT | (b << 13);
+
+    for (c = 0; c < 32; c++) {
+      custom.color[c] = color_v_loct;
+    }
+  }
+#else //CT_AGA
+  UWORD color_v = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
+  ULONG c;
+
+  for (c = 0; c < 32; c++) {
+    custom.color[c] = color_v;
+  }
+#endif //CT_AGA
+}
+///
+///setColorToAll_CLP(address, size, R, G, B)
+/******************************************************************************
+ * Sets all color instructions on a CLP (palette on copperlist) to the        *
+ * specified RGB value.                                                       *
+ * address: the CL_PALETTE value got from allocCopperList().                  *
+ *          in DYNAMIC_COPPERLIST mode CL_PALETTE is an offset!               *
+ * size   : number of colors on the palette on copperlist                     *
+ * This function isn't a part of the fade routine.                            *
+ ******************************************************************************/
+VOID setColorToAll_CLP(UWORD* address, ULONG size, UBYTE R, UBYTE G, UBYTE B)
+{
+#ifdef CT_AGA
+  ULONG num_banks = (size + 31) >> 5;
+  UWORD color_v = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
+  UWORD color_v_loct = ((UWORD)R << 8 & 0xF00) | (G << 4 & 0xF0) | (B & 0xF);
+  ULONG instruction = (ULONG)address;
+  ULONG instruction_max;
+  ULONG b, c;
+
+  for (b = 0, c = 0; b < num_banks; b++) {
+    instruction += 4; //skip the bank set instruction (MOVE(BPLCON3...)
+    instruction_max = instruction + 128; // 32 * 4
+    for (; c < size && instruction < instruction_max; c++, instruction += 4) {
+      UWORD* color = (UWORD*)instruction;
+      *color = color_v;
+    }
+  }
+
+  for (b = 0, c = 0; b < num_banks; b++) {
+    instruction += 4; //skip the bank set instruction (MOVE(BPLCON3...)
+    instruction_max = instruction + 128; // 32 * 4
+    for (; c < size && instruction < instruction_max; c++, instruction += 4) {
+      UWORD* color = (UWORD*)instruction;
+      *color = color_v_loct;
+    }
+  }
+#else
+  UWORD color_v = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
+  ULONG instruction;
+  ULONG instruction_max = instruction + size * 4;
+
+  for (instruction = (ULONG)address; instruction < instruction_max; instruction += 4) {
+    UWORD* color = (UWORD*)instruction;
+    *color = color_v;
+  }
+#endif
+}
+///
 ///setColor(index, R, G, B)
 /******************************************************************************
  * Directly sets the given color register to the given RGB value.             *
@@ -501,6 +722,35 @@ INLINE VOID setColor(ULONG index, UBYTE R, UBYTE G, UBYTE B)
   custom.bplcon3 = BPLCON3_V;
   #endif
 }
+///
+///setColor_CLP(index, address, size, R, G, B)
+/******************************************************************************
+ * Sets the color at the given index of a CLP (palette on copperlist) at the  *
+ * given address to the given RGB value.                                      *
+ * index  : the index of the color on the palette (0 indexed).                *
+ * address: the CL_PALETTE value set by allocCopperList() to the _PH above.   *
+ *          in DYNAMIC_COPPERLIST mode CL_PALETTE is an offset!               *
+ * size   : number of colors on the palette on copperlist (only in AGA)       *
+ * Does not update the ColorTable and not optimized to be called from a loop. *
+ * This function isn't a part of the fade routine.                            *
+ ******************************************************************************/
+#ifdef USE_CLP
+INLINE VOID setColor_CLP(ULONG index, UWORD* address, ULONG size, UBYTE R, UBYTE G, UBYTE B)
+{
+#ifdef CT_AGA
+  ULONG num_banks = (size + 31) >> 5;
+  ULONG bank = index / 32;
+  UWORD* color = (UWORD*)((ULONG)address + (index + bank + 1) * 4);
+  UWORD* color_loct = (UWORD*)((ULONG)color + ((num_banks + size) * 4));
+
+  *color = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
+  *color_loct = ((UWORD)R << 8 & 0xF00) | (G << 4 & 0xF0) | (B & 0xF);
+#else //CT_AGA
+  UWORD* color = (UWORD*)((ULONG)address + index * 4);
+  *color = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
+#endif //CT_AGA
+}
+#endif //USE_CLP
 ///
 ///setColors(palette)
 /******************************************************************************
@@ -546,29 +796,8 @@ VOID updateColor(struct ColorTable* ct, ULONG index, UBYTE R, UBYTE G, UBYTE B)
   cs->color.value.R = cs->increment.R * ct->fade_step;
   cs->color.value.G = cs->increment.G * ct->fade_step;
   cs->color.value.B = cs->increment.B * ct->fade_step;
+#ifndef USE_CLP
   setColor(index, R, G, B);
-}
-///
-
-///changeFadeSteps(color_table, steps)
-/******************************************************************************
- * Changes the fade steps of a ColorTable. Fade steps is how many frames a    *
- * complete fade in/out to/from a color palette will take.                    *
- * WARNING: A value of 1 will cause a division by zero error!                 *                                                           *
- ******************************************************************************/
-VOID changeFadeSteps(struct ColorTable* ct, ULONG steps)
-{
-  struct ColorState* cs, *cs_end;
-  UWORD old_steps = ct->fade_steps;
-  UWORD new_steps = steps - 1;
-
-  ct->fade_step = ct->fade_step * steps / old_steps--;
-  ct->fade_steps = steps;
-
-  for (cs = ct->states, cs_end = cs + ct->colors; cs < cs_end; cs++) {
-    cs->increment.R = (cs->increment.R * old_steps) / new_steps;
-    cs->increment.G = (cs->increment.G * old_steps) / new_steps;
-    cs->increment.B = (cs->increment.B * old_steps) / new_steps;
-  }
+#endif //USE_CLP
 }
 ///

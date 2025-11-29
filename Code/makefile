@@ -52,7 +52,7 @@ display_loading.o : display_loading.c display_loading.h settings.h
 display_menu.o : display_menu.c display_menu.h settings.h
 	$(CC) $< $(CFLAGS)
 
-display_splash.o : display_splash.c display_splash.h version.h
+display_splash.o : display_splash.c display_splash.h version.h settings.h
 	$(CC) $< $(CFLAGS)
 
 fonts.o : fonts.c fonts.h assets.h settings.h

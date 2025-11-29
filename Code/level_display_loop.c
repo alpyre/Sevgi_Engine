@@ -54,9 +54,15 @@ STATIC VOID levelDisplayLoop()
 
     updateVolume();
     updateColorTable_Partial(color_table, 1, color_table->colors);
-    updateGameObjects();
+    //updateGameObjects();
+    
     #ifdef DYNAMIC_COPPERLIST
     updateDynamicCopperList();
+    #else
+    #ifdef USE_CLP
+    waitVBeam(8); //Make sure all color instructions on the copperlist are read
+    setColorTable_CLP(color_table, CL_PALETTE, 1, color_table->colors); //No need to fade color 0
+    #endif
     #endif
 //    *(WORD*)0xDFF180 = 0; //DEBUG (displays performance of the above algorithms)
     updateBOBs();

@@ -72,6 +72,7 @@ static struct {
   STRPTR tmpras;
   STRPTR area;
   STRPTR maxvectors;
+  STRPTR pltOnCL;
   STRPTR create;
   STRPTR cancel;
 }help_string = {
@@ -88,6 +89,7 @@ static struct {
   "Allocate a TempRas for your display's RastPort.",
   "Allocate an Area struct for your dispay's RastPort.\nThis makes possible using the Area functions\nfrom the API for drawing.",
   "Size of the vector buffer for Area functions.",
+  "Creates a section of MOVE instructions for the color registers\non the CopperList created for this display.\nThis mandates the use of color functions named with the \"_CLP\"\ntag for color assignments and fade in/out effects.\nAn access pointer pointing to this section named CL_PALETTE\nwill also be defined.",
   "Create new display.",
   "Close this window."
 };
@@ -106,17 +108,24 @@ struct {
   STRPTR define_3_laced;
   STRPTR define_3_AGA_1;
   STRPTR define_3_AGA_2;
-  STRPTR define_3_AGA_3;
   STRPTR globals;
   STRPTR copperlist_0;
   STRPTR copperlist_1;
   STRPTR copperlist_1_laced;
+  STRPTR copperlist_CLP;
+  STRPTR copperlist_CLP_laced;
   STRPTR copperlist_2;
+  STRPTR copperlist_2_disp;
   STRPTR copperlist_2_AGA;
   STRPTR copperlist_bitplanes;
   STRPTR copperlist_2_laced;
   STRPTR copperlist_3;
   STRPTR colors;
+  STRPTR vblank;
+  STRPTR vblank_laced;
+  STRPTR color_table;
+  STRPTR color_table_CLP;
+  STRPTR color_table_CLP_laced;
   STRPTR screen;
   STRPTR copperlist_functions;
   STRPTR copperlist_functions_laced;
@@ -126,7 +135,7 @@ struct {
   STRPTR show;
   STRPTR header_file;
 }code_string = {
-  "///includes\n%s"
+  "///includes\n%s"                                                                       // includes
   "#include <stdio.h>\n"
   "#include <string.h>\n\n"
 
@@ -150,15 +159,16 @@ struct {
   "#include \"keyboard.h\"\n"
   "#include \"diskio.h\"\n"
   "#include \"fonts.h\"\n"
-  "#include \"palettes.h\"\n\n"
+  "#include \"palettes.h\"\n"
+  "#include \"settings.h\"\n\n"
 
   "#include \"display.h\"\n"
   "#include \"display_%s.h\"\n"
   "///\n",
 
-  "#define ECS_SPECIFIC\n\n",
+  "#define ECS_SPECIFIC\n\n",                                                             // include_AGA
 
-  "///defines (private)\n"
+  "///defines (private)\n"                                                                // define_1
   "#define %s_SCREEN_WIDTH  %lu\n"
   "#define %s_SCREEN_HEIGHT %lu\n"
   "#define %s_SCREEN_DEPTH  %lu\n"
@@ -173,15 +183,15 @@ struct {
   "#define DIWSTRT_V DEFAULT_DIWSTRT\n"
   "#define DIWSTOP_V DEFAULT_DIWSTOP\n\n",
 
-  "#define BPLXMOD_V ((%s_BITMAP_WIDTH / 8) & 0xFFFF)\n\n",
+  "#define BPLXMOD_V ((%s_BITMAP_WIDTH / 8) & 0xFFFF)\n\n",                               // define_2
 
-  "#define BPLXMOD_V ((%s_BITMAP_WIDTH / 8 * (%s_BITMAP_DEPTH%s - 1)) & 0xFFFF)\n\n",
+  "#define BPLXMOD_V ((%s_BITMAP_WIDTH / 8 * (%s_BITMAP_DEPTH%s - 1)) & 0xFFFF)\n\n",     // define_2_interleaved
 
-  "#define BPLCON0_V ((%s%s%s_SCREEN_DEPTH * BPLCON0_BPU0) | BPLCON0_COLOR%s%s%s)\n%s\n"
+  "#define BPLCON0_V ((%s%s%s_SCREEN_DEPTH * BPLCON0_BPU0) | BPLCON0_COLOR%s%s%s)\n"    // define_3
 
   "#define MAXVECTORS %lu\n",
 
-  "#define SPR_FMODE %lu\n"
+  "#define SPR_FMODE %lu\n"                                                               // define_3_AGA_0
   "#define BPL_FMODE %lu\n\n"
 
   "#if BPL_FMODE == 1\n"
@@ -200,19 +210,19 @@ struct {
   "  #define FMODE_V (BPL_FMODE_V | FMODE_SPR32 | FMODE_SPAGEM)\n"
   "#endif\n",
 
-  "///\n",
+  "///\n",                                                                                // define_end
 
-  " | BPLCON0_HIRES",
-  " | BPLCON0_LACE",
-  "SCREEN_DEPTH == 8 ? BPLCON0_BPU3 : ",
-  " | USE_BPLCON3",
-  "#define BPLCON3_V  BPLCON3_BRDNBLNK\n",
+  " | BPLCON0_HIRES",                                                                     // define_3_hires
+  " | BPLCON0_LACE",                                                                      // define_3_laced
+  "_SCREEN_DEPTH == 8 ? BPLCON0_BPU3 : ",                                                 // define_3_AGA_1
+  " | USE_BPLCON3",                                                                       // define_3_AGA_2
 
-  "///globals\n"
+  "///globals\n"                                                                          //  globals
   "// imported globals\n"
   "extern struct Custom custom;\n"
   "extern struct CIA ciaa, ciab;\n"
   "extern volatile LONG new_frame_flag;\n"
+  "extern volatile ULONG g_frame_counter;\n"
   "extern UWORD NULL_SPRITE_ADDRESS_H;\n"
   "extern UWORD NULL_SPRITE_ADDRESS_L;\n"
   "extern struct TextFont* textFonts[NUM_TEXTFONTS];\n"
@@ -223,16 +233,16 @@ struct {
   "STATIC struct BitMap* bitmap = NULL;\n"
   "///\n",
 
-  "///copperlist\n"
+  "///copperlist\n"                                                                       // copperlist_0
   "STATIC UWORD* CopperList = (UWORD*) 0;\n\n",
 
-  "STATIC UWORD* CL_BPL1PTH = (UWORD*) 0;\n"
+  "%sSTATIC UWORD* CL_BPL1PTH = (UWORD*) 0;\n"                                            // copperlist_1
   "STATIC UWORD* CL_SPR0PTH = (UWORD*) 0;\n\n",
 
-  "STATIC UWORD* CopperList1 = (UWORD*) 0;\n"
+  "STATIC UWORD* CopperList1 = (UWORD*) 0;\n"                                             // copperlist_1_laced
   "STATIC UWORD* CopperList2 = (UWORD*) 0;\n\n"
 
-  "STATIC UWORD* CL_BPL1PTH_1 = (UWORD*) 0;\n"
+  "%sSTATIC UWORD* CL_BPL1PTH_1 = (UWORD*) 0;\n"
   "STATIC UWORD* CL_BPL1PTH_2 = (UWORD*) 0;\n"
   "STATIC UWORD* CL_COP2LCH_1 = (UWORD*) 0;\n"
   "STATIC UWORD* CL_COP2LCH_2 = (UWORD*) 0;\n"
@@ -241,10 +251,14 @@ struct {
   "STATIC UWORD* CL_SPR0PTH_1 = (UWORD*) 0;\n"
   "STATIC UWORD* CL_SPR0PTH_2 = (UWORD*) 0;\n\n",
 
-  "STATIC ULONG copperList_Instructions[] = {\n"
-  "                                              // Access Ptr:  Action:\n"
-  "  MOVE(COLOR00, 0),                           //              Set color 0 to black\n%s"
-  "  MOVE(BPLCON0, BPLCON0_V),                   //              Set display properties\n"
+  "STATIC UWORD* CL_PALETTE = (UWORD*) 0;\n",                                             // copperlist_CLP
+
+  "STATIC UWORD* CL_PALETTE_1 = (UWORD*) 0;\n"                                            // copperlist_CLP_laced
+  "STATIC UWORD* CL_PALETTE_2 = (UWORD*) 0;\n",
+
+  "STATIC ULONG copperList_Instructions[] = {\n"                                          // copperlist_2
+  "                                              // Access Ptr:  Action:\n",
+  "  MOVE(BPLCON0, BPLCON0_V),                   //              Set display properties\n"// copperlist_2_disp
   "  MOVE(BPLCON1, 0),                           //              Set h_scroll register\n"
   "  MOVE(BPLCON2, 0x264),                       //              Set sprite priorities\n"
   "  MOVE(BPL1MOD, BPLXMOD_V),                   //              Set bitplane mods\n"
@@ -284,22 +298,41 @@ struct {
   "};\n"
   "///\n",
 
-  "///colors\n"
+  "///colors\n"                                                                           // colors
   "STATIC struct ColorTable* color_table = NULL;\n"
   "///\n"
   "///protos (private)\n"
   "STATIC VOID closeScreen(VOID);\n"
   "STATIC VOID closeDisplay(VOID);\n"
-  "///\n\n"
+  "///\n\n",
 
-  "///vblankEvents()\n"
+  "///vblankEvents()\n"                                                                   // vblank
   "STATIC VOID vblankEvents(VOID)\n"
-  "{\n"
-  "  setColorTable(color_table);\n"
+  "{\n%s"
   "}\n"
   "///\n",
 
-  "///openScreen()\n"
+  "///vblankEvents()\n"                                                                   // vblank_laced
+  "STATIC VOID vblankEvents(VOID)\n"
+  "{\n"
+  "  if (CopperList == CopperList2) {\n"
+  "    CopperList = CopperList1;\n"
+  "  }\n"
+  "  else {\n"
+  "    CopperList = CopperList2;\n"
+  "  }\n%s"
+  "}\n"
+  "///\n",
+
+  "  setColorTable(color_table);\n",                                                      // color_table
+  "    waitVBeam(8);\n"                                                                   // color_table_CLP
+  "    setColorTable_CLP(color_table, CL_PALETTE, 0, color_table->colors);\n",
+  "    if (CopperList == CopperList1)\n"                                                  // color_table_CLP_laced
+  "      setColorTable_CLP(color_table, CL_PALETTE_1, 0, color_table->colors);\n"
+  "    else\n"
+  "      setColorTable_CLP(color_table, CL_PALETTE_2, 0, color_table->colors);\n",
+
+  "///openScreen()\n"                                                                     // screen
   "/******************************************************************************\n"
   " * Albeit the name, this one does not open a screen. It just allocates a      *\n"
   " * bitmap and sets up a RastPort for it. A bitmap and a copperlist is enough  *\n"
@@ -334,7 +367,7 @@ struct {
   "}\n"
   "///\n",
 
-  "///createCopperList()\n"
+  "///createCopperList()\n"                                                                // copperlist_functions
   "STATIC UWORD* createCopperList(VOID)\n"
   "{\n"
   "  if (allocCopperList(copperList_Instructions, CopperList, CL_SINGLE)) {\n"
@@ -370,7 +403,7 @@ struct {
   "}\n"
   "///\n",
 
-  "///createCopperList()\n"
+  "///createCopperList()\n"                                                               // copperlist_functions_laced
   "STATIC UWORD* createCopperList()\n"
   "{\n"
   "  if (allocCopperList(copperList_Instructions, CopperList, CL_DOUBLE)) {\n"
@@ -422,15 +455,14 @@ struct {
   "}\n"
   "///\n",
 
-  "///openDisplay()\n"
+  "///openDisplay()\n"                                                                    // display
   "STATIC BOOL openDisplay(VOID)\n"
   "{\n"
   "  if ((color_table = newColorTable(%s, CT_DEFAULT_STEPS, 0))) {\n"
   "    color_table->state = CT_FADE_IN;\n"
   "    if (openScreen()) {\n"
   "      if (createCopperList()) {\n"
-  "        if (createChipData()) return TRUE;\n"
-  "        else closeDisplay();\n"
+  "        return TRUE;\n"
   "      }\n"
   "      else closeDisplay();\n"
   "    }\n"
@@ -464,19 +496,18 @@ struct {
   "    if (keyState(RAW_ESC) && !exiting) {\n"
   "      exiting = TRUE;\n"
   "      color_table->state = CT_FADE_OUT;\n"
-  "      volume_table.state = PTVT_FADE_OUT;\n"
   "    }\n"
   "    if (exiting == TRUE && color_table->state == CT_IDLE) {\n"
   "      break;\n"
   "    }\n\n"
 
-  "    updateColorTable(color_table);\n"
+  "    updateColorTable(color_table);\n%s"
   "    waitTOF();\n"
   "  }\n"
   "}\n"
   "///\n",
 
-  "///switchTo%sCopperList()\n"
+  "///switchTo%sCopperList()\n"                                                           // switch_functions
   "STATIC VOID switchTo%sCopperList(VOID)\n"
   "{\n"
   "  custom.cop2lc = (ULONG)CopperList;\n"
@@ -486,7 +517,7 @@ struct {
   "}\n"
   "///\n",
 
-  "///switchTo%sCopperList()\n"
+  "///switchTo%sCopperList()\n"                                                           // switch_functions_laced
   "STATIC VOID switchTo%sCopperList(VOID)\n"
   "{\n"
   "  WaitVBeam(299);                 // We have to wait Copper to set cop2lc on an interlaced display!\n"
@@ -511,7 +542,7 @@ struct {
   "}\n"
   "///\n",
 
-  "///show%sDisplay()\n"
+  "///show%sDisplay()\n"                                                                  // show
   "VOID show%sDisplay(VOID)\n"
   "{\n"
   "  if(openDisplay()) {\n"
@@ -524,7 +555,7 @@ struct {
   "}\n"
   "///\n",
 
-  "#ifndef %s_DISPLAY_H\n"
+  "#ifndef %s_DISPLAY_H\n"                                                                // header_file
   "#define %s_DISPLAY_H\n\n"
 
   "VOID show%sDisplay(VOID);\n\n"
@@ -556,6 +587,7 @@ struct cl_ObjTable
   Object* chk_TmpRas;
   Object* chk_Area;
   Object* int_maxvectors;
+  Object* chk_pltOnCL;
   Object* btn_create;
   Object* btn_cancel;
 };
@@ -564,6 +596,7 @@ struct cl_Data
 {
   struct cl_ObjTable obj_table;
   Object* AGACheck;
+  Object* CLPCheck;
   UBYTE* palette;
   Object* palette_selector;
   BOOL subscribed_to_palette_selector;
@@ -622,6 +655,53 @@ BOOL isBlackListed(STRPTR str)
   }
 
   return FALSE;
+}
+///
+///createPaletteSection(file_handle, num_colors, aga, NAME)
+/******************************************************************************
+ * Creates a literal CLP section.                                             *
+ * NOTE: Deemed unnecessary with the implementation of clp.c so creation of   *
+ * a literal CLP is commented out and replaced by a clp.c implementation.     *
+ ******************************************************************************/
+VOID createPaletteSection(BPTR fh, ULONG num_colors, BOOL aga, STRPTR NAME)
+{ /*
+  if (aga) {
+    ULONG num_banks = (num_colors + 31) / 32;
+    ULONG c, r, b;
+
+    for (b = 0, c = 0; b < num_banks; b++) {
+      if (b == 0)
+        FPrintf(fh, "  MOVE_PH(BPLCON3, BPLCON3_V),                // CL_PALETTE   Palette Colors AGA (bank 0)\n");
+      else
+        FPrintf(fh, "  MOVE(BPLCON3, BPLCON3_V | (%lu << 13)),       //              bank %lu\n", b, b);
+
+      for (r = 0; r < 32 && c < num_colors; r++, c++) {
+        FPrintf(fh, "  MOVE(COLOR%02lu, 0x0),                         //\n", r);
+      }
+    }
+
+    for (b = 0, c = 0; b < num_banks; b++) {
+      if (b == 0)
+        FPrintf(fh, "  MOVE(BPLCON3, BPLCON3_V | BPLCON3_LOCT),    //              bank 0 LOCT\n");
+      else
+        FPrintf(fh, "  MOVE(BPLCON3, BPLCON3_V | BPLCON3_LOCT | (%lu << 13)), //     bank %lu LOCT\n", b, b);
+
+      for (r = 0, c = 0; r < 32 && c < num_colors; r++, c++) {
+        FPrintf(fh, "  MOVE(COLOR%02lu, 0x0),                         //\n", r);
+      }
+    }
+  }
+  else {
+    ULONG c;
+
+    FPrintf(fh, "  MOVE_PH(COLOR00, 0x0),                      // CL_PALETTE   Palette Colors OCS/ECS\n");
+    for (c = 1; c < num_colors; c++) {
+      FPrintf(fh, "  MOVE(COLOR%02lu, 0x0),                         //\n", c);
+    }
+  }
+ */
+
+ FPrintf(fh,"  #define CLP_DEPTH %s_SCREEN_DEPTH\n  #include \"clp.c\"\n", (LONG)NAME);
 }
 ///
 
@@ -697,6 +777,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
   ULONG tmpras;
   ULONG area;
   ULONG maxvectors;
+  ULONG pltOnCL;
 
   STRPTR name;
   STRPTR Name;
@@ -725,6 +806,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
   get(data->obj_table.chk_TmpRas, MUIA_Selected, &tmpras);
   get(data->obj_table.chk_Area, MUIA_Selected, &area);
   get(data->obj_table.int_maxvectors, MUIA_Integer_Value, &maxvectors);
+  get(data->obj_table.chk_pltOnCL, MUIA_Selected, &pltOnCL);
 
   if (str_name) {
     //Prepare name strings
@@ -776,7 +858,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
                                         (LONG)(hires ? code_string.define_3_hires : null),
                                         (LONG)(interlaced ? code_string.define_3_laced : null),
                                         (LONG)(AGA ? code_string.define_3_AGA_2 : null),
-                                        (LONG)(AGA ? code_string.define_3_AGA_3 : null), (LONG)maxvectors);
+                                        (LONG)maxvectors);
       if (AGA)
         FPrintf(fh, code_string.define_3_AGA_0, spr_fmode, bpl_fmode);
       FPrintf(fh, code_string.define_end);
@@ -784,8 +866,13 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
       FPrintf(fh, code_string.globals);
       //Write Copperlist
       FPrintf(fh, code_string.copperlist_0);
-      FPrintf(fh, interlaced ? code_string.copperlist_1_laced : code_string.copperlist_1);
-      FPrintf(fh, code_string.copperlist_2, AGA ? (LONG)code_string.copperlist_2_AGA : (LONG)"");
+      if (interlaced) FPrintf(fh, code_string.copperlist_1_laced, pltOnCL ? (LONG)code_string.copperlist_CLP_laced : (LONG)"");
+      else FPrintf(fh, code_string.copperlist_1, pltOnCL ? (LONG)code_string.copperlist_CLP : (LONG)"");
+      //Write Copperlist array
+      FPrintf(fh, code_string.copperlist_2);
+      if (pltOnCL) createPaletteSection(fh, 1 << scr_depth, AGA, NAME);
+      if (AGA) FPrintf(fh, code_string.copperlist_2_AGA);
+      FPrintf(fh, code_string.copperlist_2_disp);
       for (i = 2; i <= scr_depth; i++) {
         FPrintf(fh, code_string.copperlist_bitplanes, i, i);
       }
@@ -793,6 +880,15 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
       FPrintf(fh, code_string.copperlist_3);
       //Write color functions
       FPrintf(fh, code_string.colors);
+      //Write vblankEvents function
+      if (interlaced) {
+        if (pltOnCL) FPrintf(fh, code_string.vblank_laced, (LONG)"");
+        else FPrintf(fh, code_string.vblank_laced, (LONG)code_string.color_table);
+      }
+      else {
+        if (pltOnCL) FPrintf(fh, code_string.vblank, (LONG)"");
+        else FPrintf(fh, code_string.vblank, (LONG)code_string.color_table);
+      }
       //Write screen functions
       FPrintf(fh, code_string.screen, (LONG)NAME, (LONG)NAME, (LONG)NAME,
                                       (LONG)(interleaved ? (STRPTR)" | BMF_INTERLEAVED" : null),
@@ -812,7 +908,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
       else
         FPrintf(fh, code_string.copperlist_functions, (LONG)NAME, (LONG)Name);
       //Write display functions
-      FPrintf(fh, code_string.display, (LONG)palette);
+      FPrintf(fh, code_string.display, (LONG)palette, pltOnCL ? (interlaced ? (LONG)code_string.color_table_CLP_laced : (LONG)code_string.color_table_CLP) : (LONG)"");
       //Write switch function
       FPrintf(fh, interlaced ? code_string.switch_functions_laced : code_string.switch_functions, (LONG)Name, (LONG)Name);
       //Write show function
@@ -874,6 +970,7 @@ STATIC ULONG m_Reset(struct IClass* cl, Object* obj, Msg msg)
   DoMethod(data->obj_table.chk_TmpRas, MUIM_Set, MUIA_Selected, FALSE);
   DoMethod(data->obj_table.chk_Area, MUIM_Set, MUIA_Selected, FALSE);
   DoMethod(data->obj_table.int_maxvectors, MUIM_Set, MUIA_Integer_Value, 0);
+  DoMethod(data->obj_table.chk_pltOnCL, MUIM_Set, MUIA_Selected, TRUE);
 
   DoMethod(obj, MUIM_Set, MUIA_Window_Open, FALSE);
 
@@ -903,6 +1000,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* chk_TmpRas;
     Object* chk_Area;
     Object* int_maxvectors;
+    Object* chk_pltOnCL;
     Object* btn_create;
     Object* btn_cancel;
   }objects;
@@ -1039,6 +1137,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_Disabled, TRUE,
         TAG_END)),
       TAG_END),
+      MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_pltOnCL, TRUE, "Palette on copperlist", 'p', help_string.pltOnCL),
       MUIA_Group_Child, MUI_NewObject(MUIC_Group,
         MUIA_Group_Horiz, TRUE,
         MUIA_Group_Child, (objects.btn_create = MUI_NewButton("Create", 'r', help_string.create)),
@@ -1066,6 +1165,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
                                              objects.chk_TmpRas,
                                              objects.chk_Area,
                                              MUI_GetChild(objects.int_maxvectors, 1),
+                                             objects.chk_pltOnCL,
                                              objects.btn_create,
                                              objects.btn_cancel,
                                              NULL);
@@ -1127,6 +1227,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     DoMethod(objects.btn_create, MUIM_Set, MUIA_Disabled, TRUE);
 
     data->AGACheck = NULL;
+    data->CLPCheck = NULL;
     data->palette = NULL;
     data->palette_selector = NULL;
     data->subscribed_to_palette_selector = FALSE;
@@ -1147,6 +1248,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     data->obj_table.chk_TmpRas = objects.chk_TmpRas;
     data->obj_table.chk_Area = objects.chk_Area;
     data->obj_table.int_maxvectors = objects.int_maxvectors;
+    data->obj_table.chk_pltOnCL = objects.chk_pltOnCL;
     data->obj_table.btn_create = objects.btn_create;
     data->obj_table.btn_cancel = objects.btn_cancel;
 
@@ -1183,15 +1285,22 @@ static ULONG m_Set(struct IClass* cl, Object* obj, struct opSet* msg)
     switch (tag->ti_Tag)
     {
       case MUIA_Window_Open:
-        if (data->AGACheck)
-        {
+        if (data->AGACheck) {
           ULONG isAGA;
           get(data->AGACheck, MUIA_Selected, &isAGA);
           DoMethod(data->obj_table.chk_AGA, MUIM_Set, MUIA_Selected, isAGA);
         }
+        if (data->CLPCheck) {
+          ULONG isCLP;
+          get(data->CLPCheck, MUIA_Selected, &isCLP);
+          DoMethod(data->obj_table.chk_pltOnCL, MUIM_Set, MUIA_Selected, isCLP);
+        }
       break;
       case MUIA_DisplayCreator_AGACheck:
         data->AGACheck = (Object*)tag->ti_Data;
+      break;
+      case MUIA_DisplayCreator_CLPCheck:
+        data->CLPCheck = (Object*)tag->ti_Data;
       break;
       case MUIA_DisplayCreator_PaletteSelector:
         data->palette_selector = (Object*)tag->ti_Data;

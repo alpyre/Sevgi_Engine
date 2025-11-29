@@ -28,6 +28,7 @@
 #include "level.h"
 #include "gameobject.h"
 #include "ui.h"
+#include "settings.h"
 
 #include "display.h"
 #include "display_menu.h"
@@ -83,10 +84,10 @@ extern struct TextFont* textFonts[NUM_TEXTFONTS];      // from fonts.o
 extern struct GameFont* gameFonts[NUM_GAMEFONTS];      // from fonts.o
 extern struct PT_VolumeTable volume_table;             // from audio.o
 extern struct Level current_level;                     // from level.o
-extern struct BitMap* BOBsBackBuffer;                  // from gameobject.o
-extern struct GameObject* spriteList[NUM_SPRITES + 1]; // from gameobject.o
-extern struct GameObject* bobList[NUM_BOBS + 1];       // from gameobject.o
 extern struct UIObject* ui_active_object;              // from ui.o
+#if NUM_BOBS
+extern struct BitMap* BOBsBackBuffer;                  // from gameobject.o
+#endif // NUM_BOBS
 
 // private globals
 STATIC struct GameObject* gameobjects;
@@ -104,11 +105,19 @@ enum {
 ///
 ///copperlist
 STATIC UWORD* CopperList  = (UWORD*) 0;
+
+#ifdef USE_CLP
+STATIC UWORD* CL_PALETTE    = (UWORD*)0;
+#endif
 STATIC UWORD* CL_BPL1PTH  = (UWORD*) 0;
 STATIC UWORD* CL_SPR0PTH  = (UWORD*) 0;
 
 STATIC ULONG copperList_Instructions[] = {
                                               // Access Ptr:  Action:
+#ifdef USE_CLP
+  #define CLP_DEPTH MENU_SCREEN_DEPTH
+  #include "clp.c"
+#endif //USE_CLP
   MOVE(FMODE,   MENU_FMODE_V),                //              Set Sprite/Bitplane Fetch Modes
   MOVE(BPLCON0, BPLCON0_V),                   //              Set a lowres display
   MOVE(BPLCON1, 0),                           //              Set h_scroll register
@@ -201,12 +210,15 @@ VOID onHoverMenuButton(struct UIObject* self, WORD pointer_x, WORD pointer_y, BO
 
 ///vblankEvents()
 /******************************************************************************
- *
+ * Events to execute at every vertical blank.                                 *
+ * WARNING: This function gets called from vblank interrupt.                  *
  ******************************************************************************/
 STATIC VOID vblankEvents()
 {
-  MD_setSprite(&mouse_pointer);
+  #ifndef USE_CLP
   setColorTable(color_table);
+  #endif
+  MD_setSprite(&mouse_pointer);
 }
 ///
 ///openScreen()
@@ -325,7 +337,7 @@ ULONG startMenuDisplay()
     switchToMenuCopperList();
     return_value = menuDisplayLoop();
     switchToNullCopperList();
-    //PT_StopAudio();
+    PT_StopAudio();
   }
 
   closeDisplay();
@@ -406,8 +418,6 @@ STATIC ULONG menuDisplayLoop()
     }
 
     if (exiting == TRUE && color_table->state == CT_IDLE && volume_table.state == PTVT_IDLE) {
-      spriteList[0] = NULL;
-      bobList[0] = NULL;
       break;
     }
 
@@ -451,6 +461,10 @@ STATIC ULONG menuDisplayLoop()
     }
 
     //updateGameObjects();
+    #ifdef USE_CLP
+    waitVBeam(8); //Make sure all color instructions on the copperlist are read
+    setColorTable_CLP(color_table, CL_PALETTE, 1, color_table->colors); //No need to fade color 0
+    #endif
     updateBOBs();
     waitTOF();
     continue;
@@ -483,6 +497,7 @@ STATIC INLINE VOID MD_setSprite(struct GameObject* go)
  ******************************************************************************/
 VOID MD_blitBOB(struct GameObject* go)
 {
+  #if NUM_BOBS
   struct BOB* bob = (struct BOB*)go->u.medium;
   struct BOBImage* image = (struct BOBImage*)go->image;
   UWORD row = image->bytesPerRow; // WARNING: we've utilized this member as row here!
@@ -506,6 +521,7 @@ VOID MD_blitBOB(struct GameObject* go)
   // Paste bob into screen bitmap
   busyWaitBlit();
   BltMaskBitMapRastPort(image->bob_sheet, xSrc, row + ySrc, rastPort, xDest, yDest, xSize, ySize, (ABC|ABNC|ANBC), image->mask);
+  #endif
 }
 ///
 ///MD_unBlitBOB(gameobject)
@@ -515,9 +531,11 @@ VOID MD_blitBOB(struct GameObject* go)
  ******************************************************************************/
 VOID MD_unBlitBOB(struct GameObject* go)
 {
+  #if NUM_BOBS
   struct BOB* bob = (struct BOB*)go->u.medium;
 
   busyWaitBlit();
   BltBitMapRastPort(BOBsBackBuffer, (bob->background - BOBsBackBuffer->Planes[0]) * 8, 0, rastPort, bob->lastBlt.x1, bob->lastBlt.y1, bob->lastBlt.words, bob->lastBlt.rows, 0x0C0);
+  #endif
 }
 ///

@@ -657,14 +657,12 @@ BOOL isBlackListed(STRPTR str)
   return FALSE;
 }
 ///
-///createPaletteSection(file_handle, num_colors, aga, NAME)
+///createPaletteSection(file_handle, num_colors, aga)
 /******************************************************************************
  * Creates a literal CLP section.                                             *
- * NOTE: Deemed unnecessary with the implementation of clp.c so creation of   *
- * a literal CLP is commented out and replaced by a clp.c implementation.     *
  ******************************************************************************/
-VOID createPaletteSection(BPTR fh, ULONG num_colors, BOOL aga, STRPTR NAME)
-{ /*
+VOID createPaletteSection(BPTR fh, ULONG num_colors, BOOL aga)
+{
   if (aga) {
     ULONG num_banks = (num_colors + 31) / 32;
     ULONG c, r, b;
@@ -699,9 +697,6 @@ VOID createPaletteSection(BPTR fh, ULONG num_colors, BOOL aga, STRPTR NAME)
       FPrintf(fh, "  MOVE(COLOR%02lu, 0x0),                         //\n", c);
     }
   }
- */
-
- FPrintf(fh,"  #define CLP_DEPTH %s_SCREEN_DEPTH\n  #include \"clp.c\"\n", (LONG)NAME);
 }
 ///
 
@@ -747,6 +742,7 @@ STATIC ULONG m_SetPalette(struct IClass* cl, Object* obj, struct cl_Msg3* msg)
   if (data->subscribed_to_palette_selector) {
     DoMethod(data->obj_table.txt_palette, MUIM_Set, MUIA_Text_Contents, msg->palette_item->name);
     data->palette = msg->palette_item->palette;
+    DoMethod(data->obj_table.int_scrDepth, MUIM_Set, MUIA_Integer_Value, colors2depth((*data->palette + 1)));
     m_CheckValidity(cl, obj, (Msg)msg);
 
     data->subscribed_to_palette_selector = FALSE;
@@ -778,6 +774,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
   ULONG area;
   ULONG maxvectors;
   ULONG pltOnCL;
+  ULONG project_AGA;
 
   STRPTR name;
   STRPTR Name;
@@ -807,6 +804,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
   get(data->obj_table.chk_Area, MUIA_Selected, &area);
   get(data->obj_table.int_maxvectors, MUIA_Integer_Value, &maxvectors);
   get(data->obj_table.chk_pltOnCL, MUIA_Selected, &pltOnCL);
+  get(data->AGACheck, MUIA_Selected, &project_AGA);
 
   if (str_name) {
     //Prepare name strings
@@ -870,7 +868,12 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
       else FPrintf(fh, code_string.copperlist_1, pltOnCL ? (LONG)code_string.copperlist_CLP : (LONG)"");
       //Write Copperlist array
       FPrintf(fh, code_string.copperlist_2);
-      if (pltOnCL) createPaletteSection(fh, 1 << scr_depth, AGA, NAME);
+      if (pltOnCL) {
+        if (AGA != project_AGA)
+          createPaletteSection(fh, 1 << scr_depth, AGA);
+        else
+          FPrintf(fh,"  #define CLP_DEPTH %s_SCREEN_DEPTH\n  #include \"clp.c\"\n", (LONG)NAME);
+      }
       if (AGA) FPrintf(fh, code_string.copperlist_2_AGA);
       FPrintf(fh, code_string.copperlist_2_disp);
       for (i = 2; i <= scr_depth; i++) {
@@ -932,9 +935,18 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
     else failure = TRUE;
 
     if (failure) MUI_Request(App, obj, NULL, "Sevgi Editor", "OK", "An error occured!");
-    else MUI_Request(App, obj, NULL, "Sevgi Editor", "OK", "Source files:\n   \33b%s.c\33n and\n   \33b%s.h\33n are created in your project directory.\n"
-                                "Calling the function \33bshow%sDisplay()\33n will have it displayed.\n"
-                                "Do not forget to add \33b%s.o\33n in your project's makefile.", (ULONG)filename, (ULONG)filename, (ULONG)Name, (ULONG)filename);
+    else {
+      MUI_Request(App, obj, NULL, "Sevgi Editor", "OK", "Source files:\n   \33b%s.c\33n and\n   \33b%s.h\33n are created in your project directory.\n"
+                                  "Calling the function \33bshow%sDisplay()\33n will have it displayed.\n"
+                                  "Do not forget to add \33b%s.o\33n in your project's makefile.", (ULONG)filename, (ULONG)filename, (ULONG)Name, (ULONG)filename);
+
+      if (pltOnCL && AGA != project_AGA) {
+        MUI_Request(App, obj, NULL, "Sevgi Editor", "OK", "You have created a display that uses CLP with a different\n"
+                                                          "graphics architecture (ECS/AGA) than the project.\n"
+                                                          "You have to uncomment the proper variant of \33bsetColor#?_CLP()\33n\n"
+                                                          "functions on \33bcolor.c\33n and use \33bONLY\33n those variants on this display!");
+      }
+    }
 
 cancel:
     freeString(filename_h);

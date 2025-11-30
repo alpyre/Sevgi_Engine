@@ -518,7 +518,6 @@ VOID setColorTable_GRD(struct ColorTable* ct)
  *          in DYNAMIC_COPPERLIST mode CL_PALETTE is an offset!               *
  * start: the first color to be set from the palette (zero indexed).          *
  * end: the last color to be set PLUS ONE!!!                                  *
- *
  ******************************************************************************/
 #ifdef USE_CLP
 VOID setColorTable_CLP(struct ColorTable* ct, UWORD* address, ULONG start, ULONG end)
@@ -587,6 +586,89 @@ VOID setColorTable_CLP(struct ColorTable* ct, UWORD* address, ULONG start, ULONG
 #endif //CT_AGA
   }
 }
+
+/******************************************************************************
+ * The ECS specific variant of setColorTable_CLP(). You can uncomment and use *
+ * this variant if you need to create a custom OCS/ECS display on an AGA game.*                                                                           *
+ ******************************************************************************/
+/*
+VOID setColorTable_CLP_ECS(struct ColorTable* ct, UWORD* address, ULONG start, ULONG end)
+{
+  if (ct->state == CT_IDLE) return;
+  else {
+    struct ColorState* cs, *cs_end;
+    ULONG instruction;
+    ULONG inst_start;
+
+    cs = ct->states + start;
+    cs_end = ct->states + end;
+    inst_start = ((ULONG)address) + start * 4;
+
+    for (instruction = inst_start; cs < cs_end; cs++, instruction += 4) {
+      UWORD* color = (UWORD*)instruction;
+      #if CT_PRECISION == 8
+        *color = (((UWORD)cs->color.bytes.R << 4) & 0xF00) | (cs->color.bytes.G & 0xF0) | (cs->color.bytes.B >> 4);
+      #else
+        *color = ((UWORD)cs->color.bytes.RH << 8) | (cs->color.bytes.GH << 4) | cs->color.bytes.BH;
+      #endif
+    }
+  }
+}
+*/
+
+/******************************************************************************
+ * The AGA specific variant of setColorTable_CLP(). You can uncomment and use *
+ * this variant if you need to create a custom AGA display on an OCS/ECS game.*
+ ******************************************************************************/
+/*
+VOID setColorTable_CLP_AGA(struct ColorTable* ct, UWORD* address, ULONG start, ULONG end)
+{
+  if (ct->state == CT_IDLE) return;
+  else {
+    #define BANK_SIZE 132 // (1 bank inst + 32 color insts) x inst size
+    struct ColorState* cs, *cs_end;
+    ULONG instruction;
+    ULONG inst_start;
+    ULONG inst_end;
+    ULONG start_mod = start % 32;
+    ULONG bank, bank_start, banks_max;
+    ULONG num_banks = (ct->colors + 31) >> 5;
+    ULONG loct_start = ((ULONG)address) + ((num_banks + ct->colors) * 4);
+
+    cs = ct->states + start;
+    cs_end = ct->states + end;
+    bank_start = start >> 5;
+    inst_start = ((ULONG)address) + 4 + (bank_start * BANK_SIZE) + start_mod * 4;
+    inst_end = ((ULONG)address) + 4 + ((bank_start + 1) * BANK_SIZE);
+
+    for (bank = bank_start, banks_max = end >> 5; bank <= banks_max; bank++, inst_start = ((ULONG)address) + 4 + bank * BANK_SIZE, inst_end += BANK_SIZE) {
+      for (instruction = inst_start; cs < cs_end && instruction < inst_end; cs++, instruction += 4) {
+        UWORD* color = (UWORD*)instruction;
+        #if CT_PRECISION == 8
+          *color = (((UWORD)cs->color.bytes.R << 4) & 0xF00) | (cs->color.bytes.G & 0xF0) | (cs->color.bytes.B >> 4);
+        #else
+          *color = ((UWORD)cs->color.bytes.RH << 8) | (cs->color.bytes.GH << 4) | cs->color.bytes.BH;
+        #endif
+      }
+    }
+
+    cs = ct->states + start;
+    inst_start = loct_start + 4 + (bank_start * BANK_SIZE) + start_mod * 4;
+    inst_end = loct_start + 4 + ((bank_start + 1) * BANK_SIZE);
+
+    for (bank = bank_start; bank <= banks_max; bank++, inst_start = loct_start + 4 + bank * BANK_SIZE, inst_end += BANK_SIZE) {
+      for (instruction = inst_start; cs < cs_end && instruction < inst_end; cs++, instruction += 4) {
+        UWORD* color = (UWORD*)instruction;
+        #if CT_PRECISION == 8
+          *color = (((UWORD)cs->color.bytes.R & 0x0F) << 8) | ((cs->color.bytes.G & 0x0F) << 4) | (cs->color.bytes.B & 0x0F);
+        #else
+          *color = ((UWORD)cs->color.bytes.RL << 4 & 0xF00) | (cs->color.bytes.GL & 0xF0) | (cs->color.bytes.BL >> 4);
+        #endif
+      }
+    }
+  }
+}
+*/
 #endif //USE_CLP
 ///
 
@@ -662,6 +744,7 @@ VOID setColorToAll(UBYTE R, UBYTE G, UBYTE B)
  * size   : number of colors on the palette on copperlist                     *
  * This function isn't a part of the fade routine.                            *
  ******************************************************************************/
+#ifdef USE_CLP
 VOID setColorToAll_CLP(UWORD* address, ULONG size, UBYTE R, UBYTE G, UBYTE B)
 {
 #ifdef CT_AGA
@@ -689,7 +772,7 @@ VOID setColorToAll_CLP(UWORD* address, ULONG size, UBYTE R, UBYTE G, UBYTE B)
       *color = color_v_loct;
     }
   }
-#else
+#else //CT_AGA
   UWORD color_v = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
   ULONG instruction;
   ULONG instruction_max = instruction + size * 4;
@@ -698,8 +781,61 @@ VOID setColorToAll_CLP(UWORD* address, ULONG size, UBYTE R, UBYTE G, UBYTE B)
     UWORD* color = (UWORD*)instruction;
     *color = color_v;
   }
-#endif
+#endif //CT_AGA
 }
+
+/******************************************************************************
+ * The ECS specific variant of setColorToAll_CLP(). You can uncomment and use *
+ * this variant if you need to create a custom OCS/ECS display on an AGA game.*                                                                           *
+ ******************************************************************************/
+/*
+VOID setColorToAll_CLP_ECS(UWORD* address, ULONG size, UBYTE R, UBYTE G, UBYTE B)
+{
+  UWORD color_v = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
+  ULONG instruction;
+  ULONG instruction_max = instruction + size * 4;
+
+  for (instruction = (ULONG)address; instruction < instruction_max; instruction += 4) {
+    UWORD* color = (UWORD*)instruction;
+    *color = color_v;
+  }
+}
+*/
+
+/******************************************************************************
+ * The AGA specific variant of setColorToAll_CLP(). You can uncomment and use *
+ * this variant if you need to create a custom AGA display on an OCS/ECS game.*
+ ******************************************************************************/
+/*
+VOID setColorToAll_CLP_AGA(UWORD* address, ULONG size, UBYTE R, UBYTE G, UBYTE B)
+{
+  ULONG num_banks = (size + 31) >> 5;
+  UWORD color_v = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
+  UWORD color_v_loct = ((UWORD)R << 8 & 0xF00) | (G << 4 & 0xF0) | (B & 0xF);
+  ULONG instruction = (ULONG)address;
+  ULONG instruction_max;
+  ULONG b, c;
+
+  for (b = 0, c = 0; b < num_banks; b++) {
+    instruction += 4; //skip the bank set instruction (MOVE(BPLCON3...)
+    instruction_max = instruction + 128; // 32 * 4
+    for (; c < size && instruction < instruction_max; c++, instruction += 4) {
+      UWORD* color = (UWORD*)instruction;
+      *color = color_v;
+    }
+  }
+
+  for (b = 0, c = 0; b < num_banks; b++) {
+    instruction += 4; //skip the bank set instruction (MOVE(BPLCON3...)
+    instruction_max = instruction + 128; // 32 * 4
+    for (; c < size && instruction < instruction_max; c++, instruction += 4) {
+      UWORD* color = (UWORD*)instruction;
+      *color = color_v_loct;
+    }
+  }
+}
+*/
+#endif //USE_CLP
 ///
 ///setColor(index, R, G, B)
 /******************************************************************************
@@ -750,6 +886,35 @@ INLINE VOID setColor_CLP(ULONG index, UWORD* address, ULONG size, UBYTE R, UBYTE
   *color = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
 #endif //CT_AGA
 }
+
+/******************************************************************************
+ * The ECS specific variant of setColor_CLP(). You can uncomment and use this *
+ * variant if you need to create a custom OCS/ECS display on an AGA game.     *                                                                           *
+ ******************************************************************************/
+/*
+INLINE VOID setColor_CLP_ECS(ULONG index, UWORD* address, UBYTE R, UBYTE G, UBYTE B)
+{
+  UWORD* color = (UWORD*)((ULONG)address + index * 4);
+  *color = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
+}
+*/
+
+/******************************************************************************
+ * The AGA specific variant of setColor_CLP(). You can uncomment and use this *
+ * variant if you need to create a custom AGA display on an OCS/ECS game.     *
+ ******************************************************************************/
+/*
+INLINE VOID setColor_CLP_AGA(ULONG index, UWORD* address, ULONG size, UBYTE R, UBYTE G, UBYTE B)
+{
+  ULONG num_banks = (size + 31) >> 5;
+  ULONG bank = index / 32;
+  UWORD* color = (UWORD*)((ULONG)address + (index + bank + 1) * 4);
+  UWORD* color_loct = (UWORD*)((ULONG)color + ((num_banks + size) * 4));
+
+  *color = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
+  *color_loct = ((UWORD)R << 8 & 0xF00) | (G << 4 & 0xF0) | (B & 0xF);
+}
+*/
 #endif //USE_CLP
 ///
 ///setColors(palette)

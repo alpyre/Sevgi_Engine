@@ -17,6 +17,15 @@
 #define GOB_DEAD     0x01
 #define GOB_INACTIVE 0x02
 
+//BOB flags
+#define BOB_ASSIGNED 0x01
+#define BOB_RESIGNED 0x02
+#define BOB_DRAWN    0x04
+#define BOB_CLEARED  0x08
+#define BOB_DYING    0x10
+#define BOB_DEAD     0x20
+#define BOB_BLITTED  0x40
+
 //Anim directions
 #define NONE  0x0
 #define LEFT  0x4
@@ -29,15 +38,15 @@
 #ifdef BIG_IMAGE_SIZES
   typedef UWORD UIMGS;
   typedef WORD  IMGS;
-#else
+#else // BIG_IMAGE_SIZES
   #ifdef SMALL_IMAGE_SIZES
     typedef UBYTE UIMGS;
     typedef BYTE  IMGS;
-  #else
+  #else // SMALL_IMAGE_SIZES
     typedef UBYTE UIMGS;
     typedef WORD  IMGS;
-  #endif
-#endif
+  #endif // !SMALL_IMAGE_SIZES
+#endif // !BIG_IMAGE_SIZES
 
 #define IMAGE_COMMON \
   UIMGS width;\
@@ -49,11 +58,11 @@
   #define HITBOX_COMMON \
     BYTE x1, y1;\
     BYTE x2, y2;
-#else
+#else // SMALL_HITBOX_SIZES
   #define HITBOX_COMMON \
     WORD x1, y1;\
     WORD x2, y2;
-#endif
+#endif // !SMALL_HITBOX_SIZES
 
 struct HitBox {
   HITBOX_COMMON
@@ -103,7 +112,7 @@ struct Sprite {
 struct BOBImage {
   IMAGE_COMMON
   struct HitBox* hitbox;
-  struct BitMap* bob_sheet;
+  struct BOBSheet* bob_sheet;
   UBYTE* pointer;       //pointer to image start in bob sheet
   UBYTE* mask;          //pointer to image mask in bob sheet
   UWORD  bytesPerRow;   //calculated as ((width-1)/16 + 1) * 2 NOTE: Needs a better name
@@ -114,6 +123,9 @@ struct BOBSheet {
   UWORD num_hitboxes;
   struct HitBox* hitboxes;
   struct BitMap* bitmap;
+#ifdef USE_NONINTERLEAVED_BOBS
+  struct BitMap* mask; // Only valid for NONINTERLEAVED_BOBS
+#endif // USE_NONINTERLEAVED_BOBS
   struct BOBImage image[0];
 };
 
@@ -121,7 +133,7 @@ struct BOB {
   UBYTE* background;
 #ifndef DOUBLE_BUFFER
   struct GameObject* cl2drList[NUM_BOBS]; //these BOBs have to be cleared before this BOB to be drawn
-#endif
+#endif // !DOUBLE_BUFFER
   struct GameObject* drawList[NUM_BOBS];  //these BOBs have to be drawn before this BOB to be drawn
   struct GameObject* clearList[NUM_BOBS]; //these BOBs have to be cleared before this BOB to be cleared
   UBYTE drawList_index;
@@ -131,13 +143,13 @@ struct BOB {
     LONG x1;                  // gameobject->x1 during blitBOB() (but clipped)
     LONG y1;                  // gameobject->y1 during blitBOB() (but clipped)
 #ifndef DOUBLE_BUFFER
-    LONG x2;                  // gameobject->x2 during blitBOB() NOTE: Not used when single buffered
+    LONG x2;                  // gameobject->x2 during blitBOB() (but clipped)
     LONG y2;                  // gameobject->y2 during blitBOB() (but clipped)
-#endif
-    struct BitMap* bob_sheet; // Bob sheet of the image used in blitBOB()
-    UWORD words;              // Width of the blit in words
-    UWORD rows;               // Height of the blit in pixellines
-    UWORD x_s;                // Shift value to go into BLTCONx (already left shifted 12)
+#endif // !DOUBLE_BUFFER
+    struct BOBSheet* bob_sheet; // Bob sheet of the image used in blitBOB()
+    UWORD words;                // Width of the blit in words
+    UWORD rows;                 // Height of the blit in pixellines
+    UWORD x_s;                  // Shift value to go into BLTCONx (already left shifted 12)
     UWORD bltafwm;
     UWORD bltalwm;
     UWORD bltamod;
@@ -180,12 +192,12 @@ struct GameObject {
       APTR medium2; // doublebuffer
     }doublebuffered_medium;
     APTR mediums[2]; // Conditional access to above two mediums
-#else
+#else // DOUBLE_BUFFER
     struct {
       APTR medium1; // A pointer to a BOB or to a Sprite depending on type
     }singlebuffered_medium;
     APTR mediums[1]; // NOTE: g_active_buffer is a defined constant and always 0
-#endif
+#endif // !DOUBLE_BUFFER
     APTR medium;     // Access to medium1
   }u;
   BYTE  priority;  // Display priority (higher is in front of lower)
@@ -223,6 +235,9 @@ struct GameObjectData {
 VOID initGameObjects(VOID* blitBOBFunc, VOID* unBlitBOBFunc, ULONG max_bob_width, ULONG max_go_height);
 VOID updateGameObjects(VOID);
 VOID updateBOBs(VOID);
+#ifdef DOUBLE_BUFFER
+VOID clearBOBs(VOID);
+#endif // DOUBLE_BUFFER
 VOID moveGameObject(struct GameObject* go, LONG dx, LONG dy);
 VOID moveGameObjectClamped(struct GameObject* go, LONG dx, LONG dy, LONG clampX1, LONG clampY1, LONG clampX2, LONG clampY2);
 VOID setGameObjectPos(struct GameObject* go, LONG x, LONG y);
@@ -234,12 +249,12 @@ ULONG checkPointHitBoxCollision(struct GameObject* go, LONG x, LONG y);
 struct GameObjectBank* newGameObjectBank(ULONG size);
 VOID freeGameObjectBank(struct GameObjectBank* bank);
 struct GameObjectBank* loadGameObjectBank(STRPTR file);
-struct BitMap* allocBOBBackgroundBuffer(UWORD max_bob_width, UWORD max_bob_height, UWORD max_bob_depth);
+struct BitMap* allocBOBBackgroundBuffer(UWORD max_bob_width, UWORD max_bob_height, UWORD screen_depth);
 
 #if NUM_GAMEOBJECTS > 0
 struct GameObject* spawnGameObject(struct GameObject* go);
 VOID despawnGameObject(struct GameObject* go);
-#endif
+#endif // NUM_GAMEOBJECTS
 VOID destroyGameObject(struct GameObject* go);
 
 #endif /* GAMEOBJECT_H */
@@ -248,8 +263,8 @@ VOID destroyGameObject(struct GameObject* go);
 STRUCTURE OF A BOB SHEET FILE (in pseudo code)
 struct BOBSheetFile {
   UBYTE id[8];   // <-- "BOBSHEET"
-  UBYTE ilbmFile[?];
-  UBYTE type;
+  UBYTE ilbmFile[?];  // a NULL terminated string that holds the sheet ilbm path
+  UBYTE type;         // data size type bits
   UWORD num_images;
   // depending on type
   // BST_IRREGULAR
@@ -275,7 +290,7 @@ struct BOBSheetFile {
 STRUCTURE OF A SPRITE BANK FILE (in pseudo code)
 struct SpriteBankFile {
   UBYTE id[7];   // <-- "SPRBANK"
-  UBYTE type;
+  UBYTE type;    // data size type bits
   UWORD num_images;
   struct {
     UWORD offset;
@@ -314,7 +329,8 @@ struct HitBoxData {
   2: BIG_IMAGE_SIZES
   3: HAS_HITBOXES
   4: SMALL_HITBOX_SIZES
-  5 - 7: {unused}
+  5: FORCE_NONINTERLEAVED
+  6 - 7: {unused}
 */
 
 /*

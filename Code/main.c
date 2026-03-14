@@ -69,7 +69,7 @@ struct Config
   //command line options
   #if RDARGS_OPTIONS
   LONG Options[RDARGS_OPTIONS];
-  #endif
+  #endif // RDARGS_OPTIONS
 
   //<YOUR GLOBAL DATA HERE>
 
@@ -138,7 +138,7 @@ int main(int argc, char** argv)
     printf("This game requires AGA chipset!\n");
     return rc;
   }
-  #endif
+  #endif // CT_AGA
 
   //argc != 0 identifies call from shell
   if (argc) {
@@ -151,9 +151,9 @@ int main(int argc, char** argv)
           rc = Main(config);
         else
           PrintFault(IoErr(), PROGRAMNAME);
-      #else
+      #else // RDARGS_OPTIONS
         rc = Main(config);
-      #endif
+      #endif // !RDARGS_OPTIONS
 
       CleanUp(config);
     }
@@ -183,7 +183,7 @@ int wbmain(struct WBStartup *wbs)
 
       CleanUp(config);
     }
-  #endif
+  #endif // GENERATEWBMAIN
 
   return(rc);
 }
@@ -244,7 +244,7 @@ void CleanUp(struct Config* config)
     #if RDARGS_OPTIONS
       if (config->RDArgs)
         FreeArgs(config->RDArgs);
-    #endif
+    #endif // RDARGS_OPTIONS
 
     FreeMem(config, sizeof(struct Config));
   }

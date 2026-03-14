@@ -87,7 +87,7 @@ ULONG readCD32JoyPadButtons(ULONG port)
     //Read the second port (the joystick port) of the Amiga
     //*****************************************************
     //Store the normal (dumb) joystick button one state
-    dumb_button1_state = !(ciaa.ciapra & 0x0080);
+    dumb_button1_state = !(ciaa.ciapra & CIAF_GAMEPORT1);
 
     //Put port into CD32 JoyPad protocol mode
     ciaa.ciaddra |= CIAF_GAMEPORT1; //Put pin6 on the port to output mode...
@@ -117,7 +117,7 @@ ULONG readCD32JoyPadButtons(ULONG port)
     //Read the first port (the mouse port) of the Amiga
     //*************************************************
     //Store the normal (dumb) joystick button one state
-    dumb_button1_state = !(ciaa.ciapra & 0x0040);
+    dumb_button1_state = !(ciaa.ciapra & CIAF_GAMEPORT0);
 
     //Put port into CD32 JoyPad protocol mode
     ciaa.ciaddra |= CIAF_GAMEPORT0; //Put pin6 on the port to output mode...

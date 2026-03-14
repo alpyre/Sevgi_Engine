@@ -1,5 +1,5 @@
 Name: Platformer Template
-Version: 0.5
+Version: 0.6
 Author: Ibrahim Alper Sönmez
 Features:
 - Limitless 8 way scrolling tilemap on a dual playfield
@@ -17,6 +17,7 @@ Supports:
 - Multi copper gradients (Dynamic Copperlist)
 - Double buffering (Dynamic Copperlist)
 - Hardware sprite re-use and clipping (Smart Sprites)
+- All AGA fetch modes
 - In game music and sound effects
 Requires:
 - OCS/ECS Amiga

@@ -189,9 +189,9 @@ struct GameFont* openGameFont(STRPTR file)
                 gf->end     = properties.end;
                 #if BM_TYPE_GAMEFONT & BMF_INTERLEAVED
                 gf->tmp_buf_x = (strip->BytesPerRow * 8 / strip->Depth) - extra_width;
-                #else
+                #else // BMF_INTERLEAVED
                 gf->tmp_buf_x = (strip->BytesPerRow * 8) - extra_width;
-                #endif
+                #endif // !BMF_INTERLEAVED
               }
               else {
                 puts("Not enough memory for fixed width game font!");
@@ -243,9 +243,9 @@ struct GameFont* openGameFont(STRPTR file)
                 gf->end     = properties.end;
                 #if BM_TYPE_GAMEFONT & BMF_INTERLEAVED
                 gf->tmp_buf_x = (strip->BytesPerRow * 8 / strip->Depth) - extra_width;
-                #else
+                #else // BMF_INTERLEAVED
                 gf->tmp_buf_x = (strip->BytesPerRow * 8) - extra_width;
-                #endif
+                #endif // !BMF_INTERLEAVED
               }
               else puts("Game font ilbm could not be loaded!");
             }

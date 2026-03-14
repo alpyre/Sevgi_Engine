@@ -79,4 +79,7 @@
 //#define BIG_IMAGE_SIZES
 //#define SMALL_HITBOX_SIZES
 
+//Allow non-interleaved bob sheets
+//#define USE_NONINTERLEAVED_BOBS
+
 #endif /* SETTINGS_H */

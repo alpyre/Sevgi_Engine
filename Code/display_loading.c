@@ -102,7 +102,7 @@ static UWORD* CopperList  = (WORD*) 0;
 
 #ifdef USE_CLP
 static UWORD* CL_PALETTE  = (WORD*) 0;
-#endif //USE_CLP
+#endif // USE_CLP
 
 static UWORD* CL_BPL1PTH = (WORD*) 0;
 static UWORD* CL_SPR0PTH = (WORD*) 0;
@@ -112,7 +112,7 @@ static ULONG copperList_Instructions[] = {
   #ifdef USE_CLP
     #define CLP_DEPTH LOADING_SCREEN_DEPTH
     #include "clp.c"
-  #endif //USE_CLP
+  #endif // USE_CLP
   MOVE(FMODE,   0),                           //              Set Sprite/Bitplane Fetch Modes
   MOVE(BPLCON0, BPLCON0_V),                   //              Set a lowres display
   MOVE(BPLCON1, 0),                           //              Set h_scroll register
@@ -183,9 +183,9 @@ STATIC VOID vblankEvents()
   updateColorTable(color_table);
   #ifdef USE_CLP
   setColorTable_CLP(color_table, CL_PALETTE, 0, color_table->colors);
-  #else
+  #else // USE_CLP
   setColorTable(color_table);
-  #endif //USE_CLP
+  #endif // !USE_CLP
   updateLoadingGauge(UPDATE);
 }
 ///

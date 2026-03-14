@@ -54,6 +54,7 @@ struct cl_ObjTable
   Object* reverse_y;
   Object* columns_first;
   Object* compress;
+  Object* force_ni;
   Object* small;
   Object* big;
   Object* create;
@@ -103,6 +104,7 @@ struct Project {
   STRPTR palettes_header;
   STRPTR data_drawer;
   STRPTR assets_drawer;
+  ULONG screen_depth;
 }g_Project;
 
 static struct {
@@ -126,6 +128,7 @@ static struct {
   STRPTR reverse_y;
   STRPTR columns_first;
   STRPTR compress;
+  STRPTR force_ni;
   STRPTR small;
   STRPTR big;
   STRPTR create;
@@ -151,6 +154,8 @@ static struct {
   "Grab images from bottom to top instead.",
   "Grab images columns first.",
   "RLE compress the optimized BOBSheet ILBM.",
+  "Forces the bob sheet to be allocated as a non-interleaved bitmap.\nSheet will use less chip memory, but blits from it will be less optimized.\n"
+    "You should only use this if you are out of chip memory or you have found\nsome other benefit to have your sheet non-interleaved.",
   "Use BYTEs instead of WORDs to store image offset information.\nRequires compiling the engine with SMALL_IMAGE_SIZES.",
   "Use UWORDs instead of UBYTESs to store image size information.\nRequires compiling the engine with BIG_IMAGE_SIZES.",
   "Optimize and save the sheet ILBM and\nthe accompanying .sht file which contains image data.",
@@ -252,6 +257,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
   ULONG reverse_y;
   ULONG columns_first;
   ULONG compress;
+  ULONG force_ni;
   ULONG small;
   ULONG big;
   ULONG name_len;
@@ -279,6 +285,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
   GetAttr(MUIA_Selected, data->obj_table.reverse_y, &reverse_y);
   GetAttr(MUIA_Selected, data->obj_table.columns_first, &columns_first);
   GetAttr(MUIA_Selected, data->obj_table.compress, &compress);
+  GetAttr(MUIA_Selected, data->obj_table.force_ni, &force_ni);
   GetAttr(MUIA_Selected, data->obj_table.small, &small);
   GetAttr(MUIA_Selected, data->obj_table.big, &big);
 
@@ -317,12 +324,13 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
         }
       }
 
-      sprintf(command, "%s \"%s\" \"%s\" %lu %lu %lu %lu %lu %lu %lu %lu %ld %ld %s %s %s %s %s %s",
+      sprintf(command, "%s \"%s\" \"%s\" %lu %lu %lu %lu %lu %lu %lu %lu %ld %ld %s %s %s %s %s %s %s",
         g_Tools.bob_sheeter, source, ilbmpath, margin_x, margin_y, spacing_x, spacing_y, columns, rows, width, height, hotspot_x, hotspot_y,
         reverse_x ? "REVX" : "",
         reverse_y ? "REVY" : "",
         columns_first ? "COLFIRST" : "",
         compress ? "" : "NOCOMP",
+        force_ni ? "" : "FORCENI",
         small ? "SMALL" : "",
         big ? "BIG" : "");
 
@@ -413,6 +421,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* reverse_y;
     Object* columns_first;
     Object* compress;
+    Object* force_ni;
     Object* small;
     Object* big;
     Object* create;
@@ -582,6 +591,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
       TAG_END),
       MUIA_Group_Child, MUI_NewCheckMark(&objects.columns_first, FALSE, "Columns first", 0, help_string.columns_first),
       MUIA_Group_Child, MUI_NewCheckMark(&objects.compress, TRUE, "Compress", 0, help_string.compress),
+      MUIA_Group_Child, MUI_NewCheckMark(&objects.force_ni, FALSE, "Force non-interleaved", 0, help_string.force_ni),
       MUIA_Group_Child, MUI_NewCheckMark(&objects.small, FALSE, "Small sizes", 0, help_string.small),
       MUIA_Group_Child, MUI_NewCheckMark(&objects.big, FALSE, "Big sizes", 0, help_string.big),
       MUIA_Group_Child, MUI_NewObject(MUIC_Group,
@@ -613,6 +623,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     data->obj_table.reverse_y = objects.reverse_y;
     data->obj_table.columns_first = objects.columns_first;
     data->obj_table.compress = objects.compress;
+    data->obj_table.force_ni = objects.force_ni;
     data->obj_table.small = objects.small;
     data->obj_table.big = objects.big;
     data->obj_table.create = objects.create;
@@ -638,6 +649,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
                                              objects.reverse_y,
                                              objects.columns_first,
                                              objects.compress,
+                                             objects.force_ni,
                                              objects.small,
                                              objects.big,
                                              objects.create,

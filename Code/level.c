@@ -138,7 +138,7 @@ struct Level* loadLevel(ULONG num)
     }
 
     if (level->num.bob_sheets) {
-      BOBsBackBuffer = allocBOBBackgroundBuffer(max_bob_width, max_bob_height, max_bob_depth);
+      BOBsBackBuffer = allocBOBBackgroundBuffer(max_bob_width, max_bob_height, SCREEN_DEPTH);
       if (!BOBsBackBuffer) {
         printf("Not enough memory for BOBsBackBuffer\n");
         goto fail;
@@ -369,7 +369,7 @@ VOID unloadLevel()
     FreeBitMap(BOBsBackBuffer);
     BOBsBackBuffer = NULL;
   }
-  #endif
+  #endif // NUM_BOBS
 
   //free all tilemaps in this level
   if (level->tilemap) {

@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.186
+                             Version 0.187
 
                         Developer Documentation
 
@@ -864,7 +864,7 @@ level an empty one will be created and used.
 Image data for sprite and BOB mediums are structured differently in
 Sevgi_Engine.
 
-Images for BOBs are stored in chip memory as interleaved bitmap sheets, where
+Images for BOBs are stored in chip memory as interleaved* bitmap sheets, where
 each image on the sheet is horizontally aligned to a 16 pixel grid so they are
 quickly blittable to the game display using the width and height values stored
 on the BOB struct. Thankfully the tool called @{"BobSheet Creator" LINK Sevgi_Editor.guide/12_Editor_BOBSheetCreator} in Sevgi_Editor
@@ -994,6 +994,21 @@ All these values necessary will be set by the functions @{"loadSpriteBank()" lin
 when you define what files to be loaded per game level in assets.h (or in
 @{"Assets Editor" LINK Sevgi_Editor.guide/03_Editor_AssetsEditor} in Sevgi_Editor).
 
+(*) As of engine version 0.187, BOB sheets can be allocated as non-interleaved
+    bitmaps to allow BOB sheets to be a different depth than the level bitmap.
+    This also allows the blit masks for the sheets to be a single-plane bitmap,
+    saving even more Chip RAM. But using this is less optimal because blitting
+    from these sheets is more complicated. You can force a sheet to be loaded
+    this way by setting the FORCE_NONINTERLEAVED bit on its type. Refer to the
+    end of gameobject.h where the file structure of BOB sheets is explained.
+    @{"BobSheet Creator" LINK Sevgi_Editor.guide/12_Editor_BOBSheetCreator} tool in Sevgi Editor also provides a way to set this bit.
+    All sheets with a different depth will automatically be loaded this way
+    regardless of this bit. The extra code required for this feature is
+    activated by defining the symbol USE_NONINTERLEAVED_BOBS in settings.h. You
+    can also strip it out by undefining if you won't use it. Sevgi Editor can
+    determine whether this symbol needs to be defined by checking the BOB Sheets
+    listed in the Assets Editor while saving your project.
+
 @endnode
 
 @node "Concepts_14Hitboxes" "Sevgi_Engine.guide/Concepts/Hitboxes"
@@ -1108,6 +1123,15 @@ A medium is only assigned to a gameobject when it enters the visible part of the
 game map and it gets 'resigned' (freed to be assignable for another gameobject)
 when the gameobject gets out of display or the gameobject is inactivated
 (by setting the state member to GOB_INACTIVE).
+
+There is also the gameobject state GOB_DEAD, which allows the BOB mediums to be
+visible but not re-drawn every frame. Which is suitable for images like
+non-animated collectibles, dead enemy bodies, or details to be placed on the map
+rather than using tiles. BOBs of such gameobjects will only revive (start
+re-drawing themselves) when they are partially visible (at the edges of the
+screen) or another non-dead BOB gets behind them. You can also switch this state
+of being dead anywhere (either in your main loop, your anim or collision
+functions).
 
 You can refer to gameobject.h to for the definitions of struct Sprite and
 struct BOB to get an idea on how complex it can be to animate images on screen
@@ -2292,7 +2316,7 @@ cross toolchains).
 Sevgi_Engine code does not demand, favor or implement any debug methods or
 tools. This is entirely left to your preference.
 
-Yet, here are some tips for you to be able to debug your code.
+However, here are some tips for you to be able to debug your code.
 
 Since Sevgi_Engine is system friendy enough, you can output you debug
 information using printf(). Yet to debug at the stage after taking over the
@@ -2306,6 +2330,10 @@ function KPrintF() which can output formatted text to Amiga's serial port.
 To be able to see what's being printed on the serial port you can run your
 WinUAE with the -log -serlog arguments if you're using Windows. If you're on
 Linux just take a look at: fs-uae.net/docs/serial-port.
+
+You can also use 3rd party debuggers that take advantage of the emulation
+environment. Engine9000 @{u}https://github.com/alpine9000/engine9000-public@{uu} is a
+great, modern and free to use example.
 
 If you are compiling with SAS/C natively, please refer to it's documentation on
 debugging. It has a lot of utilities to help you debug your game code.

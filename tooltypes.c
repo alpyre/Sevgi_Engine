@@ -183,20 +183,20 @@ BOOL getTooltypes(STRPTR prog_path, struct ToolTypePref* ttprefs)
               switch (ttprefs[l].type) {
                 case TTP_KEYWORD:
                 case TTP_BOOL:
-                toLower(value_str);
-                if (!strncmp(value_str, "false", 5) || *value_str == '0')
-                ttprefs[l].data.is_true = FALSE;
-                else
-                ttprefs[l].data.is_true = TRUE;
-                freeString(value_str);
+                  toLower(value_str);
+                  if (!strncmp(value_str, "false", 5) || *value_str == '0')
+                    ttprefs[l].data.is_true = FALSE;
+                  else
+                    ttprefs[l].data.is_true = TRUE;
+                  freeString(value_str);
                 break;
                 case TTP_STRING:
-                ttprefs[l].data.string = value_str;
-                read[l] = TRUE;
+                  ttprefs[l].data.string = value_str;
+                  read[l] = TRUE;
                 break;
                 case TTP_VALUE:
-                aToi(value_str, &ttprefs[l].data.value);
-                freeString(value_str);
+                  aToi(value_str, &ttprefs[l].data.value);
+                  freeString(value_str);
                 break;
               }
 

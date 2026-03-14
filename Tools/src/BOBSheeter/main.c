@@ -6,12 +6,12 @@
 ///defines
 #define PROGRAMNAME     "BOBSheeter"
 #define VERSION         0
-#define REVISION        12
-#define VERSIONSTRING   "0.12"
+#define REVISION        13
+#define VERSIONSTRING   "0.13"
 
 //define command line syntax and number of options
-#define RDARGS_TEMPLATE "ILBMFILE/A, SHEETFILE/A, STRTX/N/A, STRTY/N/A, SEPX/N/A, SEPY/N/A, COLUMNS/N/A, ROWS/N/A, WIDTH/N/A, HEIGHT/N/A, HSX/N, HSY/N, X=REVX/S, Y=REVY/S, C=COLFIRST/S, D=NOCOMP/S, S=SMALL/S, B=BIG/S"
-#define RDARGS_OPTIONS  18
+#define RDARGS_TEMPLATE "ILBMFILE/A, SHEETFILE/A, STRTX/N/A, STRTY/N/A, SEPX/N/A, SEPY/N/A, COLUMNS/N/A, ROWS/N/A, WIDTH/N/A, HEIGHT/N/A, HSX/N, HSY/N, X=REVX/S, Y=REVY/S, C=COLFIRST/S, D=NOCOMP/S, F=FORCENI, S=SMALL/S, B=BIG/S"
+#define RDARGS_OPTIONS  19
 
 enum {
   ILBMFILE,
@@ -30,6 +30,7 @@ enum {
   REVY,
   COLFIRST,
   NOCOMP,
+  FORCENI,
   SMALL,
   BIG
 };
@@ -124,6 +125,7 @@ struct Parameters {
   BOOL  reverse_x;
   BOOL  reverse_y;
   BOOL  columns_first;
+  BOOL  force_ni;
   BOOL  small_sizes;
   BOOL  big_sizes;
 };
@@ -510,6 +512,7 @@ struct Parameters* checkParameters(struct Config *config)
   params.reverse_y = config->Options[REVY] ? TRUE : FALSE;
   params.columns_first = config->Options[COLFIRST] ? TRUE : FALSE;
   params.no_compression = config->Options[NOCOMP] ? TRUE : FALSE;
+  params.force_ni = config->Options[FORCENI] ? TRUE : FALSE;
   params.small_sizes = config->Options[SMALL] ? TRUE : FALSE;
 
   if (!params.columns) {
@@ -978,8 +981,10 @@ VOID saveSheetFile(UWORD num_images, struct Table* table, STRPTR saveFile, struc
   STRPTR sheetFile = changeExtension(saveFile, "sht");
   STRPTR sheetILBM = FilePart(saveFile);
   UBYTE type = params->big_sizes ? 5 : (params->small_sizes ? 3 : 1);
+  BPTR fh;
 
-  BPTR fh = Open(sheetFile, MODE_READWRITE);
+  if (params->force_ni) type |= 0x20;
+  fh = Open(sheetFile, MODE_READWRITE);
   if (fh) {
     Write(fh, "BOBSHEET", 8);
     Write(fh, sheetILBM, strlen(sheetILBM) + 1);

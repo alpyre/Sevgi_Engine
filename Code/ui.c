@@ -74,7 +74,7 @@ STATIC UWORD ui_disabled_pattern2[] = {0x5555, 0xAAAA};
 #ifdef UI_USE_STRING_GADGETS
 STATIC UBYTE ui_password_string[] = {UIOV_STRING_PASSWORD_CHAR, NULL};
 STATIC UBYTE ui_dotted_string[] = {UIOV_STRING_DOTTED_CHAR, NULL};
-#endif //UI_USE_STRING_GADGETS
+#endif // UI_USE_STRING_GADGETS
 ///
 
 ///inheritXOffset(parent)
@@ -164,17 +164,17 @@ struct Region* inheritClipRegion(struct UIObject* parent)
       rect.MaxY = y + parent_group->height - parent_group->margin.bottom;
     }
     else {
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 #ifdef UI_USE_SCROLLBARS
       rect.MaxX = x + parent_group->width - parent_group->margin.right - (parent_group->scroll.bar_vert ? UIOV_SCROLLBAR_WIDTH + parent_group->child_gap : 0);
       rect.MaxY = y + parent_group->height - parent_group->margin.bottom - (parent_group->scroll.bar_horiz ? UIOV_SCROLLBAR_HEIGHT + parent_group->child_gap : 0);
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
       rect.MaxX = x + parent_group->width - parent_group->margin.right;
       rect.MaxY = y + parent_group->height - parent_group->margin.bottom;
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
 #ifdef UI_USE_TABBED_GROUPS
     }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 
     AndRectRegion(region, &rect);
   }
@@ -189,17 +189,17 @@ struct Region* inheritClipRegion(struct UIObject* parent)
       rect.MaxY = y + parent_group->height - parent_group->margin.bottom;
     }
     else {
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 #ifdef UI_USE_SCROLLBARS
       rect.MaxX = x + parent_group->width - parent_group->margin.right - (parent_group->scroll.bar_vert ? UIOV_SCROLLBAR_WIDTH + parent_group->child_gap : 0);
       rect.MaxY = y + parent_group->height - parent_group->margin.bottom - (parent_group->scroll.bar_horiz ? UIOV_SCROLLBAR_HEIGHT + parent_group->child_gap : 0);
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
       rect.MaxX = x + parent_group->width - parent_group->margin.right;
       rect.MaxY = y + parent_group->height - parent_group->margin.bottom;
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
 #ifdef UI_USE_TABBED_GROUPS
     }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 
     OrRectRegion(region, &rect);
   }
@@ -333,7 +333,7 @@ VOID resetUILayout(struct UIO_Group* root)
     root->u_tab_selector->height = 0;
   }
   else {
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 #ifdef UI_USE_SCROLLBARS
     if (root->scroll.bar_horiz) {
       root->scroll.bar_horiz->x = 0;
@@ -347,10 +347,10 @@ VOID resetUILayout(struct UIO_Group* root)
       root->scroll.bar_vert->width = 0;
       root->scroll.bar_vert->height = 0;
     }
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 #ifdef UI_USE_TABBED_GROUPS
   }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 
   while ((obj = *child++)) {
     if (obj->type == UIOT_GROUP) {
@@ -369,7 +369,7 @@ VOID resetUILayout(struct UIO_Group* root)
     }
   }
 }
-#endif //UI_USE_RELAYOUTING
+#endif // UI_USE_RELAYOUTING
 ///
 ///setParents(root)
 /******************************************************************************
@@ -385,14 +385,14 @@ VOID setParents(struct UIO_Group* root)
     root->u_tab_selector->parent = (struct UIObject*)root;
   }
   else {
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 #ifdef UI_USE_SCROLLBARS
     if (root->scroll.bar_horiz) root->scroll.bar_horiz->parent = (struct UIObject*)root;
     if (root->scroll.bar_vert) root->scroll.bar_vert->parent = (struct UIObject*)root;
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 #ifdef UI_USE_TABBED_GROUPS
   }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 
   while ((obj = *child++)) {
     obj->parent = (struct UIObject*)root;
@@ -455,10 +455,10 @@ VOID applyInheritance(struct UIO_Group* root)
 #ifdef UI_USE_SCROLLBARS
           UWORD extra_width = group->margin.left + group->margin.right + (group->scroll.bar_vert ? (UIOV_SCROLLBAR_WIDTH + group->child_gap) : 0);
           UWORD extra_height = group->margin.top + group->margin.bottom + (group->scroll.bar_horiz ? (UIOV_SCROLLBAR_HEIGHT + group->child_gap) : 0);
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
           UWORD extra_width = group->margin.left + group->margin.right;
           UWORD extra_height = group->margin.top + group->margin.bottom;
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
           UWORD content_width = group->width - extra_width;
           UWORD content_height = group->height - extra_height;
           if (group->scroll.width < content_width) group->scroll.width = content_width;
@@ -470,7 +470,7 @@ VOID applyInheritance(struct UIO_Group* root)
     }
   }
   else {
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
     if (root->flags & UIOF_HORIZONTAL) {
       ULONG num_children = 0;
       ULONG num_rows = root->columns;
@@ -574,22 +574,22 @@ VOID applyInheritance(struct UIO_Group* root)
                 group->u_tab_selector->calcSize(group->u_tab_selector);
               }
               else {
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
                 //Expand child group's scroll sizes if required
 #ifdef UI_USE_SCROLLBARS
                 UWORD extra_width = group->margin.left + group->margin.right + (group->scroll.bar_vert ? (UIOV_SCROLLBAR_WIDTH + group->child_gap) : 0);
                 UWORD extra_height = group->margin.top + group->margin.bottom + (group->scroll.bar_horiz ? (UIOV_SCROLLBAR_HEIGHT + group->child_gap) : 0);
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
                 UWORD extra_width = group->margin.left + group->margin.right;
                 UWORD extra_height = group->margin.top + group->margin.bottom;
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
                 UWORD content_width = group->width - extra_width;
                 UWORD content_height = group->height - extra_height;
                 if (group->scroll.width < content_width) group->scroll.width = content_width;
                 if (group->scroll.height < content_height) group->scroll.height = content_height;
 #ifdef UI_USE_TABBED_GROUPS
               }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 
               applyInheritance((struct UIO_Group*) obj);
             }
@@ -710,22 +710,22 @@ VOID applyInheritance(struct UIO_Group* root)
                 group->u_tab_selector->calcSize(group->u_tab_selector);
               }
               else {
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
                 //Expand child group's scroll sizes if required
 #ifdef UI_USE_SCROLLBARS
                 UWORD extra_width = group->margin.left + group->margin.right + (group->scroll.bar_vert ? (UIOV_SCROLLBAR_WIDTH + group->child_gap) : 0);
                 UWORD extra_height = group->margin.top + group->margin.bottom + (group->scroll.bar_horiz ? (UIOV_SCROLLBAR_HEIGHT + group->child_gap) : 0);
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
                 UWORD extra_width = group->margin.left + group->margin.right;
                 UWORD extra_height = group->margin.top + group->margin.bottom;
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
                 UWORD content_width = group->width - extra_width;
                 UWORD content_height = group->height - extra_height;
                 if (group->scroll.width < content_width) group->scroll.width = content_width;
                 if (group->scroll.height < content_height) group->scroll.height = content_height;
 #ifdef UI_USE_TABBED_GROUPS
               }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 
               applyInheritance((struct UIO_Group*) obj);
             }
@@ -764,10 +764,10 @@ VOID applyInheritance(struct UIO_Group* root)
         root->scroll.bar_horiz->height = UIOV_SCROLLBAR_HEIGHT;
       }
     }
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 #ifdef UI_USE_TABBED_GROUPS
   }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 }
 ///
 ///updateUI(root, pointer_x, pointer_y, pressed)
@@ -864,7 +864,7 @@ struct UIObject* findPointedObject(struct UIO_Group* root, WORD pointer_x, WORD 
         }
       }
       else {
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 #ifdef UI_USE_SCROLLBARS
         if (root->scroll.bar_horiz) {
           WORD x = inheritX(root->scroll.bar_horiz) + root->scroll.x;
@@ -889,10 +889,10 @@ struct UIObject* findPointedObject(struct UIO_Group* root, WORD pointer_x, WORD 
 
         if (root->scroll.bar_horiz) y2 -= (root->child_gap + UIOV_SCROLLBAR_HEIGHT);
         if (root->scroll.bar_vert) x2 -= (root->child_gap + UIOV_SCROLLBAR_WIDTH);
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 #ifdef UI_USE_TABBED_GROUPS
       }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
     }
 
     x += root->margin.left;
@@ -921,7 +921,7 @@ struct UIObject* findPointedObject(struct UIO_Group* root, WORD pointer_x, WORD 
         }
       }
       else {
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
         while ((obj = *child++)) {
           if (obj->type == UIOT_GROUP) {
             obj = findPointedObject((struct UIO_Group*) obj, pointer_x, pointer_y, disabled);
@@ -946,7 +946,7 @@ struct UIObject* findPointedObject(struct UIO_Group* root, WORD pointer_x, WORD 
         }
 #ifdef UI_USE_TABBED_GROUPS
       }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
     }
   }
 
@@ -1193,7 +1193,7 @@ VOID sizeGroup(struct UIObject* self)
     }
   }
   else { // REGULAR LAYOUT GROUP
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
     WORD content_width = 0;
     WORD extra_width;
     WORD content_height = 0;
@@ -1207,9 +1207,9 @@ VOID sizeGroup(struct UIObject* self)
     }
 #ifdef UI_USE_SCROLLBARS
     extra_width = group->margin.left + group->margin.right + (group->scroll.bar_vert ? (UIOV_SCROLLBAR_WIDTH + group->child_gap) : 0);
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
     extra_width = group->margin.left + group->margin.right;
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
 
     if (group->flags & UIOF_FRAMED) {
       if (group->flags & UIOF_TITLED) group->margin.top += ui_rastport->Font->tf_YSize;
@@ -1218,9 +1218,9 @@ VOID sizeGroup(struct UIObject* self)
     }
 #ifdef UI_USE_SCROLLBARS
     extra_height = group->margin.top + group->margin.bottom + (group->scroll.bar_horiz ? (UIOV_SCROLLBAR_HEIGHT + group->child_gap) : 0);
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
     extra_height = group->margin.top + group->margin.bottom;
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
 
     //Get num_children
     while ((obj = *child++)) num_children++;
@@ -1360,7 +1360,7 @@ VOID sizeGroup(struct UIObject* self)
     }
 #ifdef UI_USE_TABBED_GROUPS
   }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 }
 ///
 ///scrollGroupVert(self, scroll_value)
@@ -1385,7 +1385,7 @@ VOID scrollGroupVert(struct UIO_Group* self, WORD scroll_value)
 
 #ifdef UI_SCROLL_USING_REDRAW
     if (self->draw) self->draw((struct UIObject*)self);
-#else // SCROLL USING BLITTER
+#else // UI_SCROLL_USING_REDRAW (SCROLL USING BLITTER)
     {
       struct UIObject** child = self->children;
       struct UIObject* obj;
@@ -1394,10 +1394,10 @@ VOID scrollGroupVert(struct UIO_Group* self, WORD scroll_value)
 #ifdef UI_USE_SCROLLBARS
       UWORD width = self->width - (self->margin.left + self->margin.right + (self->scroll.bar_vert ? (UIOV_SCROLLBAR_WIDTH + self->child_gap) : 0));
       UWORD height = self->height - (self->margin.top + self->margin.bottom + (self->scroll.bar_horiz ? (UIOV_SCROLLBAR_HEIGHT + self->child_gap) : 0));
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
       UWORD width = self->width - (self->margin.left + self->margin.right);
       UWORD height = self->height - (self->margin.top + self->margin.bottom);
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
       if (-scroll_value >= height) {
         if (self->draw) self->draw((struct UIObject*)self);
       }
@@ -1412,7 +1412,7 @@ VOID scrollGroupVert(struct UIO_Group* self, WORD scroll_value)
         if (self->scroll.bar_vert) {
           self->scroll.bar_vert->draw(self->scroll.bar_vert);
         }
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 
         //Copy scrollable area up
         ClipBlit(ui_rastport, x1, y1, ui_rastport, x1, y1 - scroll_value, width + 1, scroll_height + 1, (ABC|ABNC));
@@ -1448,9 +1448,9 @@ VOID scrollGroupVert(struct UIO_Group* self, WORD scroll_value)
   if (scroll_value > 0) {
 #ifdef UI_USE_SCROLLBARS
     WORD content_height = self->height - self->margin.top - self->margin.bottom - (self->scroll.bar_horiz ? (UIOV_SCROLLBAR_HEIGHT + self->child_gap) : 0);
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
     WORD content_height = self->height - self->margin.top - self->margin.bottom;
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
     WORD new_scroll_y = self->scroll.y + scroll_value;
     WORD scroll_y_max = self->scroll.height - content_height;
 
@@ -1464,7 +1464,7 @@ VOID scrollGroupVert(struct UIO_Group* self, WORD scroll_value)
 
 #ifdef UI_SCROLL_USING_REDRAW
     if (self->draw) self->draw((struct UIObject*)self);
-#else // SCROLL USING BLITTER
+#else // UI_SCROLL_USING_REDRAW (SCROLL USING BLITTER)
     {
       struct UIObject** child = self->children;
       struct UIObject* obj;
@@ -1473,10 +1473,10 @@ VOID scrollGroupVert(struct UIO_Group* self, WORD scroll_value)
 #ifdef UI_USE_SCROLLBARS
       UWORD width = self->width - (self->margin.left + self->margin.right + (self->scroll.bar_vert ? (UIOV_SCROLLBAR_WIDTH + self->child_gap) : 0));
       UWORD height = self->height - (self->margin.top + self->margin.bottom + (self->scroll.bar_horiz ? (UIOV_SCROLLBAR_HEIGHT + self->child_gap) : 0));
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
       UWORD width = self->width - (self->margin.left + self->margin.right);
       UWORD height = self->height - (self->margin.top + self->margin.bottom);
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
       if (scroll_value >= height) {
         if (self->draw) self->draw((struct UIObject*)self);
       }
@@ -1491,7 +1491,7 @@ VOID scrollGroupVert(struct UIO_Group* self, WORD scroll_value)
         if (self->scroll.bar_vert) {
           self->scroll.bar_vert->draw(self->scroll.bar_vert);
         }
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 
         ClipBlit(ui_rastport, x1, y1 + scroll_value, ui_rastport, x1, y1, width + 1, scroll_height + 1, (ABC|ABNC));
         rect.MinX = x1;
@@ -1518,7 +1518,7 @@ VOID scrollGroupVert(struct UIO_Group* self, WORD scroll_value)
 #endif // SCROLL USING BLITTER
   }
 }
-#endif //UI_USE_SCROLLING
+#endif // UI_USE_SCROLLING
 ///
 ///scrollGroupHoriz(self, scroll_value)
 /******************************************************************************
@@ -1542,7 +1542,7 @@ VOID scrollGroupHoriz(struct UIO_Group* self, WORD scroll_value)
 
     #ifdef UI_SCROLL_USING_REDRAW
     if (self->draw) self->draw((struct UIObject*)self);
-    #else // SCROLL USING BLITTER
+    #else // UI_SCROLL_USING_REDRAW (SCROLL USING BLITTER)
     {
       struct UIObject** child = self->children;
       struct UIObject* obj;
@@ -1551,10 +1551,10 @@ VOID scrollGroupHoriz(struct UIO_Group* self, WORD scroll_value)
 #ifdef UI_USE_SCROLLBARS
       UWORD width = self->width - (self->margin.left + self->margin.right + (self->scroll.bar_vert ? (UIOV_SCROLLBAR_WIDTH + self->child_gap) : 0));
       UWORD height = self->height - (self->margin.top + self->margin.bottom + (self->scroll.bar_horiz ? (UIOV_SCROLLBAR_HEIGHT + self->child_gap) : 0));
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
       UWORD width = self->width - (self->margin.left + self->margin.right);
       UWORD height = self->height - (self->margin.top + self->margin.bottom);
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
       if (-scroll_value >= width) {
         if (self->draw) self->draw((struct UIObject*)self);
       }
@@ -1569,7 +1569,7 @@ VOID scrollGroupHoriz(struct UIO_Group* self, WORD scroll_value)
         if (self->scroll.bar_horiz) {
           self->scroll.bar_horiz->draw(self->scroll.bar_horiz);
         }
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 
         //Copy blitable area left
         ClipBlit(ui_rastport, x1, y1, ui_rastport, x1 - scroll_value, y1, scroll_width + 1, height + 1, (ABC|ABNC));
@@ -1605,9 +1605,9 @@ VOID scrollGroupHoriz(struct UIO_Group* self, WORD scroll_value)
   if (scroll_value > 0) {
 #ifdef UI_USE_SCROLLBARS
     WORD content_width = self->width - self->margin.left - self->margin.right - (self->scroll.bar_vert ? (UIOV_SCROLLBAR_WIDTH + self->child_gap) : 0);
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
     WORD content_width = self->width - self->margin.left - self->margin.right;
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
     WORD new_scroll_x = self->scroll.x + scroll_value;
     WORD scroll_x_max = self->scroll.width - content_width;
 
@@ -1621,7 +1621,7 @@ VOID scrollGroupHoriz(struct UIO_Group* self, WORD scroll_value)
 
 #ifdef UI_SCROLL_USING_REDRAW
     if (self->draw) self->draw((struct UIObject*)self);
-#else // SCROLL USING BLITTER
+#else // UI_SCROLL_USING_REDRAW (SCROLL USING BLITTER)
     {
       struct UIObject** child = self->children;
       struct UIObject* obj;
@@ -1630,10 +1630,10 @@ VOID scrollGroupHoriz(struct UIO_Group* self, WORD scroll_value)
 #ifdef UI_USE_SCROLLBARS
       UWORD width = self->width - (self->margin.left + self->margin.right + (self->scroll.bar_vert ? (UIOV_SCROLLBAR_WIDTH + self->child_gap) : 0));
       UWORD height = self->height - (self->margin.top + self->margin.bottom + (self->scroll.bar_horiz ? (UIOV_SCROLLBAR_HEIGHT + self->child_gap) : 0));
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
       UWORD width = self->width - (self->margin.left + self->margin.right);
       UWORD height = self->height - (self->margin.top + self->margin.bottom);
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
       if (scroll_value >= width) {
         if (self->draw) self->draw((struct UIObject*)self);
       }
@@ -1648,7 +1648,7 @@ VOID scrollGroupHoriz(struct UIO_Group* self, WORD scroll_value)
         if (self->scroll.bar_horiz) {
           self->scroll.bar_horiz->draw(self->scroll.bar_horiz);
         }
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 
         ClipBlit(ui_rastport, x1 + scroll_value, y1, ui_rastport, x1, y1, scroll_width + 1, height + 1, (ABC|ABNC));
         rect.MinX = x1 + width - scroll_value;
@@ -1675,7 +1675,7 @@ VOID scrollGroupHoriz(struct UIO_Group* self, WORD scroll_value)
     #endif
   }
 }
-#endif //UI_USE_SCROLLING
+#endif // UI_USE_SCROLLING
 ///
 ///makeObjectVisible(object)
 /******************************************************************************
@@ -1694,7 +1694,7 @@ VOID makeObjectVisible(struct UIObject* object)
   WORD y2 = y1 + object->height;
 #ifdef UI_USE_TABBED_GROUPS
   BOOL tab_change = FALSE;
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 
   while (parent) {
 #ifdef UI_USE_TABBED_GROUPS
@@ -1720,17 +1720,17 @@ VOID makeObjectVisible(struct UIObject* object)
       y2 = y1 + object->height;
     }
     else {
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
       //visible rectangle of the parent group
       WORD pg_x1 = parent->scroll.x;
       WORD pg_y1 = parent->scroll.y;
 #ifdef UI_USE_SCROLLBARS
       WORD pg_x2 = pg_x1 + parent->width - parent->margin.left - parent->margin.right - (parent->scroll.bar_vert ? UIOV_SCROLLBAR_WIDTH + parent->child_gap : 0);
       WORD pg_y2 = pg_y1 + parent->height - parent->margin.top - parent->margin.bottom - (parent->scroll.bar_horiz ? UIOV_SCROLLBAR_HEIGHT + parent->child_gap : 0);
-#else //UI_USE_SCROLLBARS
+#else // UI_USE_SCROLLBARS
       WORD pg_x2 = pg_x1 + parent->width - parent->margin.left - parent->margin.right;
       WORD pg_y2 = pg_y1 + parent->height - parent->margin.top - parent->margin.bottom;
-#endif //UI_USE_SCROLLBARS
+#endif // !UI_USE_SCROLLBARS
 
       //make right edge of the object visible
       if (x2 > pg_x2) {
@@ -1759,7 +1759,7 @@ VOID makeObjectVisible(struct UIObject* object)
       y2 = y1 + object->height;
 #ifdef UI_USE_TABBED_GROUPS
     }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 
     child = (struct UIObject*)parent;
     parent = (struct UIO_Group*)parent->parent;
@@ -1777,7 +1777,7 @@ VOID makeObjectVisible(struct UIObject* object)
       ui_hovered_object = NULL;
     }
   }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
   //redraw the object (or its parents if needed)
   if (object_to_redraw->draw) object_to_redraw->draw(object_to_redraw);
 }
@@ -1897,7 +1897,7 @@ VOID sizeTabSelector(struct UIObject* self)
     if (parent_group->flags & UIOF_FRAMED) self->height += UIOV_TAB_FRAME_HEIGHT;
   }
 }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 ///
 ///sizeRectangle(self)
 /******************************************************************************
@@ -1914,7 +1914,7 @@ VOID sizeRectangle(struct UIObject* self)
     self->flags |= UIOF_INHERIT_HEIGHT;
   }
 }
-#endif //UI_USE_RECTANGLE
+#endif // UI_USE_RECTANGLE
 ///
 ///sizeSeparator(self)
 /******************************************************************************
@@ -1944,7 +1944,7 @@ VOID sizeSeparator(struct UIObject* self)
     }
   }
 }
-#endif //UI_USE_SEPARATORS
+#endif // UI_USE_SEPARATORS
 ///
 ///sizeLabel(self)
 /******************************************************************************
@@ -1964,7 +1964,7 @@ VOID sizeLabel(struct UIObject* self)
     self->height = ui_rastport->Font->tf_YSize;
   }
 }
-#endif //UI_USE_LABELS
+#endif // UI_USE_LABELS
 ///
 ///sizeButton(self)
 /******************************************************************************
@@ -2007,7 +2007,7 @@ VOID sizeCheckbox(struct UIObject* self)
     else self->width = self->height;
   }
 }
-#endif //UI_USE_CHECKBOXES
+#endif // UI_USE_CHECKBOXES
 ///
 ///sizeCyclebox(self)
 /******************************************************************************
@@ -2041,7 +2041,7 @@ VOID sizeCyclebox(struct UIObject* self)
     self->width = (UIOV_BUTTON_FRAME_WIDTH + UIOV_BUTTON_MARGIN_SIDE) * 2 + cycle_image_width + UIOV_CYCLEBOX_SEPARATOR_WIDTH + label_width;
   }
 }
-#endif //UI_USE_CYCLEBOXES
+#endif // UI_USE_CYCLEBOXES
 ///
 ///sizeString(self)
 /******************************************************************************
@@ -2068,7 +2068,7 @@ VOID sizeString(struct UIObject* self)
     self->height = ui_rastport->Font->tf_YSize + UIOV_STRING_FRAME_HEIGHT * 2 + UIOV_STRING_MARGIN_TOP + UIOV_STRING_MARGIN_BOTTOM;
   }
 }
-#endif //UI_USE_STRING_GADGETS
+#endif // UI_USE_STRING_GADGETS
 ///
 ///sizeSlider(self)
 /******************************************************************************
@@ -2192,7 +2192,7 @@ VOID sizeSlider(struct UIObject* self)
     }
   }
 }
-#endif //UI_USE_SLIDERS
+#endif // UI_USE_SLIDERS
 ///
 
 /*************************
@@ -2298,7 +2298,7 @@ STATIC VOID drawTabFrame(WORD x1, WORD y1, WORD x2, WORD y2)
   SetAPen(ui_rastport, UIPEN_SHADOW);
   Draw(ui_rastport, x2, y2);
 }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 ///
 ///drawDisabledPattern(x1, y1, x2, y2)
 /******************************************************************************
@@ -2448,7 +2448,7 @@ STATIC VOID drawTick(WORD x1, WORD y1, WORD size)
     Draw(ui_rastport, x1 + vertices[2].x, y1 + vertices[2].y);
   }
 }
-#endif //UI_USE_CHECKBOXES
+#endif // UI_USE_CHECKBOXES
 ///
 ///drawCycle(x1, y1, size, width)
 /******************************************************************************
@@ -2502,7 +2502,7 @@ STATIC VOID drawCycle(WORD x1, WORD y1, WORD size)
     ClipBlit(&rp_cycle_big, 0, 0, ui_rastport, x1 + CENTER(20, size), y1 + CENTER(18, size), 20, 18, minterm);
   }
 }
-#endif //UI_USE_CYCLEBOXES
+#endif // UI_USE_CYCLEBOXES
 ///
 
 ///drawGroup(self)
@@ -2536,7 +2536,7 @@ VOID drawGroup(struct UIObject* self)
     obj->draw(obj);
   }
   else
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
   {
     //Content area of the group
     WORD c_x1 = group->scroll.x;
@@ -2558,7 +2558,7 @@ VOID drawGroup(struct UIObject* self)
       group->scroll.bar_vert->draw(group->scroll.bar_vert);
       c_x2 -= UIOV_SCROLLBAR_HEIGHT + group->child_gap;
     }
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 
     //Draw the children of the group
     while ((obj = *child++)) {
@@ -2575,7 +2575,7 @@ VOID drawGroup(struct UIObject* self)
     if (self->flags & UIOF_TABBED)
       drawDisabledPattern(x, y, x + group->width, y + group->height);
     else
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
       drawDisabledPattern(x + group->margin.left, y + group->margin.top, x + group->width - group->margin.right, y + group->height - group->margin.bottom);
   }
 }
@@ -2697,7 +2697,7 @@ VOID drawTabSelector(struct UIObject* self)
     }
   }
 }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 ///
 ///drawScrollbar(self)
 /******************************************************************************
@@ -2787,7 +2787,7 @@ VOID drawScrollbar(struct UIObject* self)
     }
   }
 }
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 ///
 
 ///drawSeparator(self)
@@ -2843,7 +2843,7 @@ VOID drawSeparator(struct UIObject* self)
     }
   }
 }
-#endif //UI_USE_SEPARATORS
+#endif // UI_USE_SEPARATORS
 ///
 ///drawLabel(self)
 /******************************************************************************
@@ -2892,7 +2892,7 @@ VOID drawLabel(struct UIObject* self)
     Text(ui_rastport, self->label, chars);
   }
 }
-#endif //UI_USE_LABELS
+#endif // UI_USE_LABELS
 ///
 ///drawButton(self)
 /******************************************************************************
@@ -2978,7 +2978,7 @@ VOID drawCheckbox(struct UIObject* self)
                         y + self->height - UIOV_BUTTON_FRAME_HEIGHT);
   }
 }
-#endif //UI_USE_CHECKBOXES
+#endif // UI_USE_CHECKBOXES
 ///
 ///drawCyclebox(self)
 /******************************************************************************
@@ -3034,7 +3034,7 @@ VOID drawCyclebox(struct UIObject* self)
                         y + self->height - UIOV_BUTTON_FRAME_HEIGHT);
   }
 }
-#endif //UI_USE_CYCLEBOXES
+#endif // UI_USE_CYCLEBOXES
 ///
 ///drawString(self)
 /******************************************************************************
@@ -3205,7 +3205,7 @@ ds_draw_inactive_object_text:
                         y_obj + self->height - UIOV_STRING_FRAME_HEIGHT);
   }
 }
-#endif //UI_USE_STRING_GADGETS
+#endif // UI_USE_STRING_GADGETS
 ///
 ///drawSlider(self)
 /******************************************************************************
@@ -3407,7 +3407,7 @@ VOID drawSlider(struct UIObject* self)
     drawDisabledPattern(x1, y1, x2, y2);
   }
 }
-#endif //UI_USE_SLIDERS
+#endif // UI_USE_SLIDERS
 ///
 
 /*************************
@@ -3453,7 +3453,7 @@ VOID actionTabSelector(struct UIObject* self, WORD pointer_x, WORD pointer_y, BO
     group->draw((struct UIObject*)group);
   }
 }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 ///
 ///actionScrollbar(self, pointer_x, pointer_y, pressed)
 /******************************************************************************
@@ -3650,7 +3650,7 @@ scroll_vertical:
     }
   }
 }
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 ///
 ///actionButton(self, pointer_x, pointer_y, pressed)
 /******************************************************************************
@@ -3737,7 +3737,7 @@ VOID actionCheckbox(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL 
     }
   }
 }
-#endif //UI_USE_CHECKBOXES
+#endif // UI_USE_CHECKBOXES
 ///
 ///actionCyclebox(self, pointer_x, pointer_y, pressed)
 /******************************************************************************
@@ -3796,7 +3796,7 @@ VOID actionCyclebox(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL 
     ui_active_object = NULL;
   }
 }
-#endif //UI_USE_CYCLEBOXES
+#endif // UI_USE_CYCLEBOXES
 ///
 ///actionString(self, pointer_x, pointer_y, pressed)
 #ifdef UI_USE_INTEGER_GADGETS
@@ -3845,7 +3845,7 @@ LONG aToi(STRPTR string, ULONG length)
 
   return value;
 }
-#endif //UI_USE_INTEGER_GADGETS
+#endif // UI_USE_INTEGER_GADGETS
 
 #ifdef UI_USE_STRING_GADGETS
 /******************************************************************************
@@ -3895,7 +3895,7 @@ VOID actionString(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL pr
   static BOOL first_entry = TRUE;
   static UBYTE last_ch = UIOV_STRING_JOYSTICK_START_CH;
   static ULONG input_delay = 0;
-  #endif //UI_USE_JOYSTICK_CONTROL
+  #endif // UI_USE_JOYSTICK_CONTROL
   #if UIOV_STRING_CURSOR_BLINK_DELAY > 0
   static ULONG blink_counter = 0;
 
@@ -3956,7 +3956,7 @@ VOID actionString(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL pr
         first_entry = TRUE;
         last_ch = UIOV_STRING_JOYSTICK_START_CH;
         input_delay = initDelayFrames(UI_TRESHOLD_DELAY);
-        #endif //UI_USE_JOYSTICK_CONTROL
+        #endif // UI_USE_JOYSTICK_CONTROL
 
         if (self->draw) self->draw(self);
         turnInputBufferOn();
@@ -4099,7 +4099,7 @@ VOID actionString(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL pr
       input_repeat = FALSE;
       if (!first_entry) input_delay = 0;
     }
-    #endif //UI_USE_JOYSTICK_CONTROL
+    #endif // UI_USE_JOYSTICK_CONTROL
 
     //Get input from system
     while ((ch = popInputBuffer())) {
@@ -4227,12 +4227,12 @@ deactivate_string_object:
     setIntegerValue(integer, aToi(string->content, string->content_length), UI_REDRAW);
   }
   else
-  #endif //UI_USE_INTEGER_GADGETS
+  #endif // UI_USE_INTEGER_GADGETS
     if (self->draw) self->draw(self);
 
   if (string->onAcknowledge) string->onAcknowledge(self);
 }
-#endif //UI_USE_STRING_GADGETS
+#endif // UI_USE_STRING_GADGETS
 ///
 ///actionSlider(self, pointer_x, pointer_y, pressed)
 /******************************************************************************
@@ -4336,7 +4336,7 @@ VOID actionSlider(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL pr
 
     return;
   }
-#endif //UI_USE_JOYSTICK_CONTROL
+#endif // UI_USE_JOYSTICK_CONTROL
 
   /*****************
    * KEYBOARD MODE *
@@ -4483,7 +4483,7 @@ slider_keyboard_mode_quit:
     }
   }
 }
-#endif //UI_USE_SLIDERS
+#endif // UI_USE_SLIDERS
 ///
 
 /*************************
@@ -4499,7 +4499,7 @@ VOID hoverTabSelector(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOO
   // IMPLEMENT YOUR ON HOVER ACTIVITIES HERE
 
 }
-#endif //UI_USE_TABBED_GROUPS
+#endif // UI_USE_TABBED_GROUPS
 ///
 ///hoverGroup(self, pointer_x, pointer_y, hovered)
 /******************************************************************************
@@ -4536,7 +4536,7 @@ VOID hoverScrollbar(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL 
     }
   }
 }
-#endif //UI_USE_SCROLLBARS
+#endif // UI_USE_SCROLLBARS
 ///
 ///hoverLabel(self, pointer_x, pointer_y, hovered)
 /******************************************************************************
@@ -4548,7 +4548,7 @@ VOID hoverLabel(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL hove
   // IMPLEMENT YOUR ON HOVER ACTIVITIES HERE
 
 }
-#endif //UI_USE_LABELS
+#endif // UI_USE_LABELS
 ///
 ///hoverButton(self, pointer_x, pointer_y, hovered)
 /******************************************************************************
@@ -4600,7 +4600,7 @@ VOID hoverCheckbox(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL h
     }
   }
 }
-#endif //UI_USE_CHECKBOXES
+#endif // UI_USE_CHECKBOXES
 ///
 ///hoverCyclebox(self, pointer_x, pointer_y, hovered)
 /******************************************************************************
@@ -4627,7 +4627,7 @@ VOID hoverCyclebox(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL h
     }
   }
 }
-#endif //UI_USE_CYCLEBOXES
+#endif // UI_USE_CYCLEBOXES
 ///
 ///hoverString(self, pointer_x, pointer_y, hovered)
 /******************************************************************************
@@ -4654,7 +4654,7 @@ VOID hoverString(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL hov
     }
   }
 }
-#endif //UI_USE_STRING_GADGETS
+#endif // UI_USE_STRING_GADGETS
 ///
 ///hoverSlider(self, pointer_x, pointer_y, hovered)
 /******************************************************************************
@@ -4681,7 +4681,7 @@ VOID hoverSlider(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL hov
     }
   }
 }
-#endif //UI_USE_SLIDERS
+#endif // UI_USE_SLIDERS
 ///
 
 /*************************
@@ -4702,7 +4702,7 @@ VOID setStringContents(struct UIO_String* object, STRPTR string, BOOL redraw)
   strncpy(object->content, string, copy_length);
   if (redraw && object->draw) object->draw((struct UIObject*)object);
 }
-#endif //UI_USE_STRING_GADGETS
+#endif // UI_USE_STRING_GADGETS
 ///
 ///setIntegerValue(object, value, redraw)
 /******************************************************************************
@@ -4721,7 +4721,7 @@ VOID setIntegerValue(struct UIO_Integer* object, LONG value, BOOL redraw)
     if (redraw && object->string.draw) object->string.draw((struct UIObject*)object);
   }
 }
-#endif //UI_USE_INTEGER_GADGETS
+#endif // UI_USE_INTEGER_GADGETS
 ///
 ///incrementIntegerValue(object)
 /******************************************************************************
@@ -4734,7 +4734,7 @@ VOID incrementIntegerValue(struct UIO_Integer* integer, BOOL redraw)
 {
   setIntegerValue(integer, integer->value + integer->increment, redraw);
 }
-#endif //UI_USE_INTEGER_GADGETS
+#endif // UI_USE_INTEGER_GADGETS
 ///
 ///decrementIntegerValue(object)
 /******************************************************************************
@@ -4747,7 +4747,7 @@ VOID decrementIntegerValue(struct UIO_Integer* integer, BOOL redraw)
 {
   setIntegerValue(integer, integer->value - integer->increment, redraw);
 }
-#endif //UI_USE_INTEGER_GADGETS
+#endif // UI_USE_INTEGER_GADGETS
 ///
 ///setSliderValue(slider, value)
 /******************************************************************************
@@ -4765,7 +4765,7 @@ VOID setSliderValue(struct UIO_Slider* slider, LONG value, BOOL redraw)
     if (redraw && slider->draw) slider->draw((struct UIObject*)slider);
   }
 }
-#endif //UI_USE_SLIDERS
+#endif // UI_USE_SLIDERS
 ///
 
 /*************************
@@ -4779,7 +4779,7 @@ VOID onClickIncrementInteger(struct UIObject* self)
   struct UIO_Integer* integer = (struct UIO_Integer*)parent->children[0];
   incrementIntegerValue(integer, UI_REDRAW);
 }
-#endif //UI_USE_INTEGER_GADGETS
+#endif // UI_USE_INTEGER_GADGETS
 ///
 ///onClickDecrementInteger(self)
 #ifdef UI_USE_INTEGER_GADGETS
@@ -4789,5 +4789,5 @@ VOID onClickDecrementInteger(struct UIObject* self)
   struct UIO_Integer* integer = (struct UIO_Integer*)parent->children[0];
   decrementIntegerValue(integer, UI_REDRAW);
 }
-#endif //UI_USE_INTEGER_GADGETS
+#endif // UI_USE_INTEGER_GADGETS
 ///

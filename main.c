@@ -7,8 +7,8 @@
 ///defines
 #define PROGRAMNAME     "Sevgi Editor"
 #define VERSION         0
-#define REVISION        154
-#define VERSIONSTRING   "0.154"
+#define REVISION        155
+#define VERSIONSTRING   "0.155"
 #define AUTHOR          "Ibrahim Alper S�nmez"
 #define COPYRIGHT       "@ 2024 " AUTHOR
 #define CONTACT         "amithlondestek@gmail.com"
@@ -208,7 +208,8 @@ struct Project {
   STRPTR palettes_header;
   STRPTR data_drawer;
   STRPTR assets_drawer;
-}g_Project = {NULL, NULL, NULL, NULL, NULL, NULL};
+  ULONG screen_depth;
+}g_Project = {NULL, NULL, NULL, NULL, NULL, NULL, 0};
 ///
 ///MUI globals
 #ifdef __GNUC__
@@ -423,7 +424,7 @@ int wbmain(struct WBStartup *wbs)
 }
 ///
 ///prepareMenu()
-struct NewMenu* prepareMenu()
+STATIC struct NewMenu* prepareMenu()
 {
   #define MENU_SIZE 16
   struct NewMenu* menu = (struct NewMenu*) AllocPooled(g_MemoryPool, sizeof(struct NewMenu) * MENU_SIZE);
@@ -683,6 +684,7 @@ Object *buildGUI()
     DoMethod(window.assetsEditor, MUIM_Set, MUIA_AssetsEditor_PaletteSelector, window.paletteSelector);
     DoMethod(window.displayCreator, MUIM_Set, MUIA_DisplayCreator_PaletteSelector, window.paletteSelector);
     DoMethod(window.assetsEditor, MUIM_Set, MUIA_AssetsEditor_BitmapSelector, window.bitmapSelector);
+    DoMethod(window.settingsEditor, MUIM_Set, MUIA_GameSettings_AssetsEditor, window.assetsEditor);
 
     get(window.settingsEditor, MUIA_GameSettings_AGACheck, &chk_aga);
     DoMethod(window.displayCreator, MUIM_Set, MUIA_DisplayCreator_AGACheck, chk_aga);
@@ -866,6 +868,15 @@ int Main(struct Config *config)
                                                                 break;
                                                                 case MUIV_App_RetID_Run:
                                                                   runProject();
+                                                                break;
+                                                                case MUIM_PaletteEditor_Reset:
+                                                                case MUIM_PaletteEditor_LoadAs:
+                                                                case MUIM_PaletteEditor_SaveAs:
+                                                                case MUIM_PaletteEditor_Import_ILBM:
+                                                                case MUIM_PaletteEditor_Export_ILBM:
+                                                                case MUIM_PaletteEditor_Append_ILBM:
+                                                                case MUIM_PaletteEditor_Merge_ILBM:
+                                                                  DoMethod(window.paletteEditor, id);
                                                                 break;
                                                               }
                                                               if(running && signals) signals = Wait(signals | SIGBREAKF_CTRL_C);

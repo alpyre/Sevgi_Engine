@@ -23,12 +23,15 @@
 
 #define MAP_POS_X 0
 #define MAP_POS_Y 1
+
+#define FORCE_NONINTERLEAVED 0x20
 ///
 ///Includes
 #include <string.h>
 #include <libraries/mui.h>
 #include <libraries/asl.h>
 #include <graphics/text.h>
+#include <datatypes/pictureclass.h>
 
 #include <proto/exec.h>
 #include <proto/dos.h>
@@ -197,6 +200,7 @@ extern struct Project {
   STRPTR palettes_header;
   STRPTR data_drawer;
   STRPTR assets_drawer;
+  ULONG screen_depth;
 }g_Project;
 
 #define NUM_ASSETS 9
@@ -1103,6 +1107,112 @@ BOOL readLevelDataFromFile(BPTR fh, struct LevelDataItem** ld_item)
   return retval;
 }
 ///
+///checkNonInterleavedSheet(filename, depth)
+/******************************************************************************
+ * Checks if the given BOB Sheet file requires the use of non-interleaved bob *
+ * bob sheet implementations. Depth is the the depth of the level screen's    *
+ * tilemap bitmap (which will be passed here by the game_settings.o).         *
+ * NOTE: Will look up the file if it is in the project's data drawer.         *
+ ******************************************************************************/
+BOOL checkNonInterleavedSheet(STRPTR filename, ULONG depth)
+{
+  BOOL result = FALSE;
+  STRPTR sheet_file = makePath(g_Project.data_drawer, filename, NULL);
+
+  if (sheet_file) {
+    BPTR fh = Open(sheet_file, MODE_OLDFILE);
+
+    if (fh) {
+      UBYTE id[8];
+      UBYTE ilbm_filename[32];
+
+      Read(fh, id, 8);
+      if (strncmp(id, "BOBSHEET", 8) == 0) {
+        ULONG i = 0;
+        Read(fh, &ilbm_filename[i], 1);
+        while (ilbm_filename[i]) Read(fh, &ilbm_filename[++i], 1);
+        if (i) {
+          STRPTR ilbm_file = makePath(g_Project.data_drawer, ilbm_filename, NULL);
+          if (ilbm_file) {
+            UBYTE type;
+
+            Read(fh, &type, 1);
+            if (type & FORCE_NONINTERLEAVED) {
+              result = TRUE;
+            }
+            else {
+              BPTR fh2 = Open(ilbm_file, MODE_OLDFILE);
+
+              if (fh2) {
+                struct BitMapHeader bmhd;
+
+                if (locateStrInFile(fh2, "FORM")) {
+                  if (locateStrInFile(fh2, "ILBM")) {
+                    if (locateStrInFile(fh2, "BMHD")) {
+                      Seek(fh2, 4, OFFSET_CURRENT);
+                      if (sizeof(struct BitMapHeader) == Read(fh2, &bmhd, sizeof(struct BitMapHeader))) {
+                        if (bmhd.bmh_Depth != depth) {
+                          result = TRUE;
+                        }
+                      }
+                    }
+                  }
+                }
+
+                Close(fh2);
+              }
+            }
+
+            freeString(ilbm_file);
+          }
+        }
+      }
+
+      Close(fh);
+    }
+
+    freeString(sheet_file);
+  }
+
+  return result;
+}
+///
+///checkNonInterleaved(data)
+/******************************************************************************
+ * Checks if there is any BOB sheets on any level which require the use of    *
+ * non-interleaved bob sheet implementations (depth being different than the  *
+ * project's screen depth).                                                   *
+ * NOTE: This of course excepts the main menu level, which is the first one!  *
+ * NOTE: g_Project.screen_depth is only valid during settingsEditor saves the *
+ * settings. So the attribute MUIA_AssetsEditor_NonInterleaved should only be *
+ * get by the settingsEditor object.                                          *
+ ******************************************************************************/
+ULONG checkNonInterleaved(struct cl_Data *data)
+{
+  ULONG levels;
+  ULONG i;
+  struct MinList* list;
+  struct StringItem* str_item;
+  struct Level* level;
+  ULONG result = FALSE;
+
+  get(data->obj_table.lv_levels, MUIA_List_Entries, &levels);
+
+  for (i = 1; i < levels; i++) {
+    DoMethod(data->obj_table.lv_levels, MUIM_List_GetEntry, i, &level);
+    list = &level->bob_sheets;
+
+    for (str_item = (struct StringItem*)list->mlh_Head; str_item->node.mln_Succ; str_item = (struct StringItem*)str_item->node.mln_Succ) {
+      if (checkNonInterleavedSheet(str_item->string, g_Project.screen_depth)) {
+        result = TRUE;
+        break;
+      }
+    }
+  }
+
+  return result;
+}
+///
 
 ///m_LoadAssets(filename)
 /******************************************************************************
@@ -1798,6 +1908,9 @@ STATIC ULONG m_Get(struct IClass* cl, Object* obj, struct opGet* msg)
     return TRUE;
     case MUIA_AssetsEditor_Edited:
       *msg->opg_Storage = data->edited;
+    return TRUE;
+    case MUIA_AssetsEditor_NonInterleaved:
+      *msg->opg_Storage = checkNonInterleaved(data);
     return TRUE;
   }
 

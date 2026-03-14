@@ -65,38 +65,37 @@
 
 #ifdef DUALPLAYFIELD
   //Uncomment below to have a non-interleaved bitmap for level_bitmap_pf2
-  #define INTERLEAVED_PF2_BITMAP
+  //#define INTERLEAVED_PF2_BITMAP
 
-  //WARNING: Below values only work for BPL_FMODE == 1
   #define SCREEN_PLANES (SCREEN_DEPTH + BITMAP_DEPTH_PF2)
   #define BPLCON0_V ((SCREEN_PLANES == 8 ? BPLCON0_BPU3 : (SCREEN_PLANES * BPLCON0_BPU0)) | BPLCON0_COLOR | USE_BPLCON3 | BPLCON0_DBLPF)
-  #define BITMAP_WIDTH_PF2 (SCREEN_WIDTH * 2 + SCROLL_PIXELS)
-  #define BITMAP_BYTES_PER_ROW_PF2 (ROUND_TO_64(BITMAP_WIDTH_PF2) / 8)
+  #define BITMAP_WIDTH_PF2 (SCREEN_WIDTH * 2 + SCR_WIDTH_EXTRA)
+  #define BITMAP_BYTES_PER_ROW_PF2 (BITMAP_WIDTH_PF2 / 8)
 
   #ifdef INTERLEAVED_PF2_BITMAP
-    #define BPLXMOD_V_PF2 (BITMAP_BYTES_PER_ROW_PF2 * BITMAP_DEPTH_PF2 - (SCREEN_WIDTH / 8) - SCROLL_BYTES)
+    #define BPLXMOD_V_PF2 ((BITMAP_WIDTH_PF2 * BITMAP_DEPTH_PF2 - SCREEN_WIDTH - SCROLL_PIXELS) / 8)
     #define BMF_INTERLEAVED_PF2 BMF_INTERLEAVED
-  #else //INTERLEAVED_PF2_BITMAP
-    #define BPLXMOD_V_PF2 (BITMAP_BYTES_PER_ROW_PF2 - (SCREEN_WIDTH / 8) - SCROLL_BYTES)
+  #else // INTERLEAVED_PF2_BITMAP
+    #define BPLXMOD_V_PF2 ((BITMAP_WIDTH_PF2 - SCREEN_WIDTH - SCROLL_PIXELS) / 8)
     #define BMF_INTERLEAVED_PF2 0
-  #endif
+  #endif // !INTERLEAVED_PF2_BITMAP
 
-#else //DUALPLAYFIELD
+#else // DUALPLAYFIELD
   #define SCREEN_PLANES SCREEN_DEPTH
   #define BPLCON0_V ((SCREEN_PLANES == 8 ? BPLCON0_BPU3 : (SCREEN_PLANES * BPLCON0_BPU0)) | BPLCON0_COLOR | USE_BPLCON3)
   #define BPLXMOD_V_PF2 BPLXMOD_V
-#endif
+#endif // !DUALPLAYFIELD
 
 #if TOP_PANEL_HEIGHT > 0
   #define TOP_PANEL_DEPTH SCREEN_PLANES
-  #define BPLXMOD_TP ((SCREEN_WIDTH * (TOP_PANEL_DEPTH - 1)) / 8)
+  #define BPLXMOD_TP (((SCREEN_WIDTH + SCR_WIDTH_EXTRA) * TOP_PANEL_DEPTH - SCREEN_WIDTH - SCROLL_PIXELS) / 8)
   #define BPLCON0_V_TP ((TOP_PANEL_DEPTH == 8 ? BPLCON0_BPU3 : (TOP_PANEL_DEPTH * BPLCON0_BPU0)) | BPLCON0_COLOR | USE_BPLCON3)
   #define TOP_PANEL_END (DISPLAY_START + TOP_PANEL_HEIGHT - 1)
-#endif
+#endif // TOP_PANEL_HEIGHT
 
 #if BOTTOM_PANEL_HEIGHT > 0
   #define BOTTOM_PANEL_DEPTH SCREEN_PLANES
-  #define BPLXMOD_BP ((SCREEN_WIDTH * (BOTTOM_PANEL_DEPTH - 1)) / 8)
+  #define BPLXMOD_BP (((SCREEN_WIDTH + SCR_WIDTH_EXTRA) * BOTTOM_PANEL_DEPTH - SCREEN_WIDTH - SCROLL_PIXELS) / 8)
   #define BPLCON0_V_BP ((BOTTOM_PANEL_DEPTH == 8 ? BPLCON0_BPU3 : (BOTTOM_PANEL_DEPTH * BPLCON0_BPU0)) | BPLCON0_COLOR | USE_BPLCON3)
   #define BOTTOM_PANEL_START (SCREEN_END + 1)
   #if BOTTOM_PANEL_START < 256
@@ -109,7 +108,7 @@
     #define BTM_PNL_STRT_W_X 0
     #define BTM_PNL_STRT_W_Y (BOTTOM_PANEL_START - 256)
   #endif
-#endif
+#endif // BOTTOM_PANEL_HEIGHT
 ///
 ///prototypes (private)
 //NOTE: take care of these forward declarations below!
@@ -136,7 +135,7 @@ STATIC VOID levelDisplayLoop(VOID);
 #ifdef DOUBLE_BUFFER
 STATIC VOID waitNextFrame(VOID);
 STATIC VOID swapBuffers(VOID);
-#endif
+#endif // DOUBLE_BUFFER
 STATIC UWORD *createCopperList(VOID);
 STATIC VOID disposeCopperList(VOID);
 STATIC VOID updateCopperList(VOID);
@@ -148,8 +147,8 @@ STATIC BOOL prepGradients(ULONG level_num);
 STATIC VOID freeGradients(VOID);
 #ifdef SMART_SPRITES
 STATIC VOID sortSpriteCopOps(VOID);
-#endif /*SMART_SPRITES*/
-#endif /*DYNAMIC_COPPERLIST*/
+#endif // SMART_SPRITES
+#endif // DYNAMIC_COPPERLIST
 
 STATIC VOID setSprites(VOID);
 STATIC INLINE VOID LD_setSprite(struct GameObject* go);
@@ -165,7 +164,9 @@ extern struct Level current_level;
 extern UWORD NULL_SPRITE_ADDRESS_H;
 extern UWORD NULL_SPRITE_ADDRESS_L;
 
+#if NUM_SPRITES
 extern struct GameObject* spriteList[NUM_SPRITES + 1];
+#endif // NUM_SPRITES
 #if NUM_BOBS
 extern struct GameObject* bobList[NUM_BOBS + 1];
 extern struct BitMap* BOBsBackBuffer;
@@ -179,9 +180,9 @@ extern LONG* mapPosY2; // ...the screen.
 // exported globals
 #ifdef DOUBLE_BUFFER
   volatile ULONG g_active_buffer = 0;
-#else
+#else // DOUBLE_BUFFER
   #define g_active_buffer 0
-#endif
+#endif // !DOUBLE_BUFFER
 
 // private globals
 STATIC LONG mapPosX_s; // The map pos values to be used in the scroll routines. They'll
@@ -205,7 +206,7 @@ STATIC UBYTE *bitmapTop1    = NULL; // These are the actual pointers for both of
 STATIC UBYTE *bitmapBottom1 = NULL; // the buffers
 STATIC UBYTE *bitmapTop2    = NULL; // Above two will hold the active ones to
 STATIC UBYTE *bitmapBottom2 = NULL; // be used in rendering
-#endif
+#endif // DOUBLE_BUFFER
 STATIC WORD fillUpRowPos = 0; // Y position of the vertical scroll fill-up row (in pixels).
 STATIC WORD mapTileX;
 STATIC WORD mapTileY;
@@ -215,7 +216,7 @@ STATIC WORD stepY = 0;    // step for vertical scrolling.   (*mapPosY % TILESIZE
 STATIC WORD *saveWordPtr;     // address of the last planeline backup.
 #ifdef DOUBLE_BUFFER
 STATIC WORD *saveWordPtr2;    // doublebuffered
-#endif
+#endif // DOUBLE_BUFFER
 STATIC WORD  saveWord;        // the planeline backup storage.
 STATIC ULONG lastHDir = NONE; // last horizontal scroll direction
 
@@ -229,17 +230,17 @@ STATIC UBYTE posPerStepY[NUMSTEPS_Y] = {0,2,4,6,8,10,12,14,16,17,18,19,20,21,22,
 
 #if TOP_PANEL_HEIGHT > 0
 STATIC struct RastPort* top_panel_rastport = NULL;
-#endif
+#endif // TOP_PANEL_HEIGHT
 #if BOTTOM_PANEL_HEIGHT > 0
 STATIC struct RastPort* bottom_panel_rastport = NULL;
-#endif
+#endif // BOTTOM_PANEL_HEIGHT
 STATIC struct BitMap* level_bitmap  = NULL;   // Main game screen opened by openDisplay()
 #ifdef DOUBLE_BUFFER
 STATIC struct BitMap* level_bitmap2 = NULL;   // doublebuffered
-#endif
+#endif // DOUBLE_BUFFER
 #ifdef DUALPLAYFIELD
 STATIC struct BitMap* level_bitmap_pf2 = NULL; // Parallaxing background image
-#endif
+#endif // DUALPLAYFIELD
 STATIC struct ColorTable* color_table = NULL;
 STATIC struct TileMap* map = NULL;           // The loaded tile map for this display
 STATIC struct TileSet* tileset = NULL;       // The loaded tile set for this map
@@ -248,10 +249,10 @@ STATIC PLANEPTR *planes  = NULL;  //quick access pointer for level_bitmap->Plane
 #ifdef DOUBLE_BUFFER
 STATIC PLANEPTR *planes1 = NULL;  //actual doublebuffered plane pointers
 STATIC PLANEPTR *planes2 = NULL;  //the one above holds the active one
-#endif
+#endif // DOUBLE_BUFFER
 #ifdef DUALPLAYFIELD
 STATIC PLANEPTR *planes_pf2 = NULL; //access pointer for playfield 2's bitmap
-#endif
+#endif // DUALPLAYFIELD
 #if NUM_BOBS
 STATIC ULONG bobs_back_buffer_mod;
 #endif // NUM_BOBS
@@ -265,7 +266,7 @@ STATIC ULONG bobs_back_buffer_mod;
   #ifndef DOUBLE_BUFFER
     STATIC UWORD* CL_COP2LCH_1;
     STATIC UWORD* CL_COP2LCH_2;
-  #endif
+  #endif // !DOUBLE_BUFFER
   STATIC ULONG* vsplit_list = NULL;
   struct CopOp vsplit_CopOps[3];
   #ifdef SMART_SPRITES
@@ -275,30 +276,30 @@ STATIC ULONG bobs_back_buffer_mod;
     STATIC ULONG* sprite_list = NULL;  //NOTE: Rename this too confusing!
     STATIC ULONG* sprite_list_i = NULL;
     STATIC UBYTE sprite_CopOp_Index = 0;
-  #else
+  #else // SMART_SPRITES
     STATIC struct CopOp sprite_CopOps[1];
     STATIC struct CopOp* sprite_CopOps_list[1];
-  #endif
-#endif
+  #endif // !SMART_SPRITES
+#endif // DYNAMIC_COPPERLIST
 ///
 ///copperlist
 STATIC UWORD* CopperList    = (UWORD*)0;
 
 #ifdef USE_CLP
 STATIC UWORD* CL_PALETTE    = (UWORD*)0;
-#endif
+#endif // USE_CLP
 
 #ifndef SMART_SPRITES
 STATIC UWORD* CL_SPR0PTH    = (UWORD*)0;
-#else
+#else // !SMART_SPRITES
 #if TOP_PANEL_HEIGHT > 0
 STATIC UWORD* TP_SPR0PTH    = (UWORD*)0;
-#endif
-#endif
+#endif // TOP_PANEL_HEIGHT
+#endif // SMART_SPRITES
 
 #if TOP_PANEL_HEIGHT > 0
 STATIC UWORD* TP_BPL1PTH    = (UWORD*)0;
-#endif
+#endif // TOP_PANEL_HEIGHT
 
 STATIC UWORD* CL_BPLCON1    = (UWORD*)0;
 STATIC UWORD* CL_BPL1PTH    = (UWORD*)0;
@@ -307,12 +308,12 @@ STATIC UWORD* CL_BPL1PTL    = (UWORD*)0;
 #ifdef DYNAMIC_COPPERLIST
 #ifndef DOUBLE_BUFFER
 STATIC UWORD* CL_COP2LCH    = (UWORD*)0;
-#endif
+#endif // !DOUBLE_BUFFER
 #ifdef SMART_SPRITES
 STATIC UWORD* CL_SPR0POS    = (UWORD*)0;
 STATIC UWORD* CL_SPR0PTH    = (UWORD*)0;
-#endif
-#endif
+#endif // SMART_SPRITES
+#endif // DYNAMIC_COPPERLIST
 
 STATIC UWORD* CL_VIDSPLT    = (UWORD*)0;
 STATIC UWORD* CL_VIDSPLT2   = (UWORD*)0;
@@ -324,7 +325,7 @@ STATIC UWORD* CL_ENDWAIT    = (UWORD*)0;
 #if BOTTOM_PANEL_HEIGHT > 0
 STATIC UWORD* BP_COP2LCH    = (UWORD*)0;
 STATIC UWORD* BP_BPL1PTH    = (UWORD*)0;
-#endif
+#endif // BOTTOM_PANEL_HEIGHT
 
 STATIC UWORD* CL_END        = (UWORD*)0;
 
@@ -355,12 +356,12 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(SPR6PTL, 0),                           //               "     "      "
   MOVE(SPR7PTH, 0),                           //               "     "      "
   MOVE(SPR7PTL, 0),                           //               "     "      "
-#else
+#else // !SMART_SPRITES
 #if TOP_PANEL_HEIGHT > 0
   MOVE_PH(SPR0PTH, 0),                        // TP_SPR0PTH   Set OS's mouse sprite off
   MOVE(SPR0PTL, 0),                           //               "    "    "     "     "
-#endif //TOP_PANEL_HEIGHT
-#endif //NOT SMART_SPRITES
+#endif // TOP_PANEL_HEIGHT
+#endif // !SMART_SPRITES
   //TOP PANEL INSTRUCTIONS
 #if TOP_PANEL_HEIGHT > 0
   MOVE(DDFSTRT, DEFAULT_DDFSTRT_LORES),       //              Set Data Fetch Start
@@ -390,7 +391,7 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(BPL8PTL, 0),                           //               "      "       "
   WAIT(0, TOP_PANEL_END),                     //              Last row of top panel switches to level display
   MOVE(DMACON, 0x100),                        //              Disable Bitplane DMA
-#endif
+#endif // TOP_PANEL_HEIGHT
   //END OF TOP PANEL INSTRUCTIONS
   MOVE(DDFSTRT, DDFSTART_V),                  //              Set Data Fetch Start to fetch early
   MOVE(DDFSTOP, DDFSTOP_V),                   //              Set Data Fetch Stop
@@ -421,11 +422,11 @@ STATIC ULONG copperList_Instructions[] = {
 #ifndef DOUBLE_BUFFER
   MOVE_PH(COP2LCH, 0),                        // CL_COP2LCH   Address to switch to the other double
   MOVE(COP2LCL, 0),                           //              buffered copper list at VBL
-#endif
+#endif // !DOUBLE_BUFFER
 #ifdef SMART_SPRITES
 #if TOP_PANEL_HEIGHT == 0
   WAIT(0, DISPLAY_START - 1),                 //              Wait until sprite DMA fetches pointers (min 26)
-#endif
+#endif // TOP_PANEL_HEIGHT
   MOVE_PH(SPR0POS, 0),                        // CL_SPR0POS   Set sprite controls
   MOVE(SPR0CTL, 0),                           //               "     "      "
   MOVE(SPR1POS, 0),                           //               "     "      "
@@ -463,7 +464,7 @@ STATIC ULONG copperList_Instructions[] = {
 #if TOP_PANEL_HEIGHT > 0
   WAIT(0, SCREEN_START),                      //              Enable Bitplane DMA back
   MOVE(DMACON, 0x8100),                       //              Enable Bitplane DMA back
-#endif
+#endif // TOP_PANEL_HEIGHT
   // END OF HEADER INSTRUCTIONS IN DYNAMIC_COPPERLIST MODE
   WAIT_PH(0, 0),                              // CL_VIDSPLT   Wait for the scan line...
   WAIT(0, 0),                                 //              ...before video split.
@@ -476,7 +477,7 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(BPL5PTH, 0),                           //               "   "   "     "   "
   MOVE(BPL7PTH, 0),                           //               "   "   "     "   "
   MOVE(BPL1MOD, BPLXMOD_V),                   //              Reset video split mod
-#else
+#else // DUALPLAYFIELD
   MOVE(BPL1MOD, VSPLTMOD_V),                  //              Set video split mods
   MOVE(BPL2MOD, VSPLTMOD_V),                  //               "    "     "    "
   WAIT_PH(0, 0),                              // CL_VIDSPLT2  Wait for the video split
@@ -491,7 +492,7 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(BPL8PTH, 0),                           //               "   "   "     "   "
   MOVE(BPL1MOD, BPLXMOD_V),                   //              Reset video split mod
   MOVE(BPL2MOD, BPLXMOD_V),                   //                "     "     "    "
-#endif
+#endif // !DUALPLAYFIELD
   WAIT_PH(0, 0),                              // CL_ENDWAIT   Wait for the end of screen
   WAIT(0, SCREEN_END_WAIT),                   //                "   "   "   "  "    "
   // A BOTTOM PANEL CAN BE IMPLEMENTED HERE IN NON-DYNAMIC_COPPERLIST MODE
@@ -526,7 +527,7 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(BPL8PTL, 0),                           //               "      "       "
   WAIT(BTM_PNL_STRT_W_X, BTM_PNL_STRT_W_Y),   //              Enable Bitplane DMA back
   MOVE(DMACON, 0x8100),                       //              Enable Bitplane DMA back
-#endif
+#endif // BOTTOM_PANEL_HEIGHT
   END_PH                                      // CL_END       Terminate copperlist
 };
 
@@ -571,7 +572,7 @@ STATIC ULONG end_Instructions[] = {
   MOVE(DMACON, 0x8100),                       //              Enable Bitplane DMA back
   END
 };
-#endif
+#endif // BOTTOM_PANEL_HEIGHT
 ///
 
 ///openScreen()
@@ -580,7 +581,7 @@ STATIC struct BitMap* openScreen()
   struct BitMap* bm  = NULL;
   #ifdef DOUBLE_BUFFER
   struct BitMap* bm2 = NULL;
-  #endif
+  #endif // DOUBLE_BUFFER
 
   #ifdef DUALPLAYFIELD
   level_bitmap_pf2 = allocBitMap(BITMAP_WIDTH_PF2,
@@ -590,7 +591,7 @@ STATIC struct BitMap* openScreen()
                                  0);
 
   if (level_bitmap_pf2) {
-  #endif
+  #endif // DUALPLAYFIELD
 
     bm = allocBitMap(BITMAP_WIDTH,
                      BITMAP_HEIGHT + 1, // +1 pixelline for horizontal scroll buffer
@@ -618,15 +619,15 @@ STATIC struct BitMap* openScreen()
           bitmapBottom2 = bitmapTop2 + (BITMAP_HEIGHT * SCREEN_DEPTH) * BITMAP_BYTES_PER_ROW;
           bitmapTop = bitmapTop1;
           bitmapBottom = bitmapBottom1;
-  #else
+  #else // DOUBLE_BUFFER
         if ((TypeOfMem(bm->Planes[0]) & MEMF_CHIP) && (GetBitMapAttr(bm, BMA_FLAGS) & BMF_INTERLEAVED)) {
           level_bitmap = bm;
           bitmapTop = bm->Planes[0] + DISPLAY_BUFFER_OFFSET_BYTES;
           bitmapBottom = bitmapTop + (BITMAP_HEIGHT * SCREEN_DEPTH) * BITMAP_BYTES_PER_ROW;
-  #endif
+  #endif // !DOUBLE_BUFFER
 
           #if TOP_PANEL_HEIGHT > 0
-          if ((top_panel_rastport = allocRastPort(SCREEN_WIDTH, TOP_PANEL_HEIGHT, TOP_PANEL_DEPTH,
+          if ((top_panel_rastport = allocRastPort(SCREEN_WIDTH + SCR_WIDTH_EXTRA, TOP_PANEL_HEIGHT, TOP_PANEL_DEPTH,
                                                   BMF_STANDARD | BMF_INTERLEAVED | BMF_DISPLAYABLE | BMF_CLEAR,
                                                   bm, RPF_BITMAP, 0))) {
             //All allocations OK
@@ -635,20 +636,20 @@ STATIC struct BitMap* openScreen()
           else {
             #ifdef DOUBLE_BUFFER
             FreeBitMap(bm2); bm2 = NULL;
-            #endif
+            #endif // DOUBLE_BUFFER
             FreeBitMap(bm); bm = NULL;
             #ifdef DUALPLAYFIELD
             FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
-            #endif
+            #endif // DUALPLAYFIELD
             puts("Couldn't allocate top_panel_rastport!");
           }
-          #endif
+          #endif // TOP_PANEL_HEIGHT
 
           #if BOTTOM_PANEL_HEIGHT > 0
             #if TOP_PANEL_HEIGHT > 0
             if (top_panel_rastport) {
-            #endif
-              if ((bottom_panel_rastport = allocRastPort(SCREEN_WIDTH, BOTTOM_PANEL_HEIGHT, BOTTOM_PANEL_DEPTH,
+            #endif // TOP_PANEL_HEIGHT
+              if ((bottom_panel_rastport = allocRastPort(SCREEN_WIDTH + SCR_WIDTH_EXTRA, BOTTOM_PANEL_HEIGHT, BOTTOM_PANEL_DEPTH,
                                                          BMF_STANDARD | BMF_INTERLEAVED | BMF_DISPLAYABLE | BMF_CLEAR,
                                                          bm, RPF_BITMAP, 0))) {
                 //All allocations OK
@@ -673,35 +674,35 @@ STATIC struct BitMap* openScreen()
                   }
                 }
 
-                #endif
+                #endif // DYNAMIC_COPPERLIST
               }
               else {
                 #if TOP_PANEL_HEIGHT > 0
                 freeRastPort(top_panel_rastport, RPF_BITMAP); top_panel_rastport = NULL;
-                #endif
+                #endif // TOP_PANEL_HEIGHT
                 #ifdef DOUBLE_BUFFER
                 FreeBitMap(bm2); bm2 = NULL;
-                #endif
+                #endif // DOUBLE_BUFFER
                 FreeBitMap(bm); bm = NULL;
                 #ifdef DUALPLAYFIELD
                 FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
-                #endif
+                #endif // DUALPLAYFIELD
                 puts("Couldn't allocate bottom_panel_rastport!");
               }
             #if TOP_PANEL_HEIGHT > 0
             }
-            #endif
-          #endif
+            #endif // TOP_PANEL_HEIGHT
+          #endif // BOTTOM_PANEL_HEIGHT
         }
         else {
           puts("Couldn't allocate an interleaved screen bitmap!");
           #ifdef DOUBLE_BUFFER
           FreeBitMap(bm2); bm2 = NULL;
-          #endif
+          #endif // DOUBLE_BUFFER
           FreeBitMap(bm); bm = NULL;
           #ifdef DUALPLAYFIELD
           FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
-          #endif
+          #endif // DUALPLAYFIELD
         }
   #ifdef DOUBLE_BUFFER
       }
@@ -710,20 +711,20 @@ STATIC struct BitMap* openScreen()
         FreeBitMap(bm); bm = NULL;
         #ifdef DUALPLAYFIELD
         FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
-        #endif
+        #endif // DUALPLAYFIELD
       }
-  #endif
+  #endif // DOUBLE_BUFFER
     }
     else {
       puts("Not enough memory for screen bitmap!");
       #ifdef DUALPLAYFIELD
       FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
-      #endif
+      #endif // DUALPLAYFIELD
     }
 #ifdef DUALPLAYFIELD
   }
   else puts("Not enough memory for background bitmap!");
-#endif
+#endif // DUALPLAYFIELD
 
   return bm;
 }
@@ -734,31 +735,31 @@ STATIC VOID closeScreen()
   if (level_bitmap) {
     WaitBlit();
 
-    #if BOTTOM_PANEL_HEIGHT > 0
-    #ifdef DYNAMIC_COPPERLIST
-      freeRainbow(rainbow); rainbow = NULL;
-    #endif
+#if BOTTOM_PANEL_HEIGHT > 0
+  #ifdef DYNAMIC_COPPERLIST
+    freeRainbow(rainbow); rainbow = NULL;
+  #endif // DYNAMIC_COPPERLIST
     freeRastPort(bottom_panel_rastport, RPF_BITMAP);
-    #endif
+#endif // BOTTOM_PANEL_HEIGHT
 
-    #if TOP_PANEL_HEIGHT > 0
+#if TOP_PANEL_HEIGHT > 0
     freeRastPort(top_panel_rastport, RPF_BITMAP);
-    #endif
+#endif // TOP_PANEL_HEIGHT
 
-    #ifdef DOUBLE_BUFFER
+#ifdef DOUBLE_BUFFER
     FreeBitMap(level_bitmap2); level_bitmap2 = NULL;
-    #endif
+#endif // DOUBLE_BUFFER
     FreeBitMap(level_bitmap); level_bitmap = NULL;
-    #ifdef DUALPLAYFIELD
+#ifdef DUALPLAYFIELD
     FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
-    #endif
+#endif // DUALPLAYFIELD
   }
 }
 ///
 ///prepGradients(level_num)
 #ifdef DYNAMIC_COPPERLIST
 #include "level_display_gradients.c"
-#endif
+#endif // DYNAMIC_COPPERLIST
 ///
 ///openDisplay(level_num)
 STATIC BOOL openDisplay(ULONG level_num)
@@ -769,14 +770,14 @@ STATIC BOOL openDisplay(ULONG level_num)
   #if BOTTOM_PANEL_HEIGHT > 0
       // if no rainbow is created for the display open one because bottom panel requires one
       if (!rainbow) rainbow = createRainbow(NULL, end_Instructions);
-  #endif
-#endif
+  #endif // BOTTOM_PANEL_HEIGHT
+#endif // DYNAMIC_COPPERLIST
       if (createCopperList()) {
         return TRUE;
       }
 #ifdef DYNAMIC_COPPERLIST
     }
-#endif
+#endif // DYNAMIC_COPPERLIST
   }
 
   closeDisplay();
@@ -789,7 +790,7 @@ STATIC VOID closeDisplay()
   disposeCopperList();
 #ifdef DYNAMIC_COPPERLIST
   freeGradients();
-#endif
+#endif // DYNAMIC_COPPERLIST
   closeScreen();
   color_table = NULL; // actual color_tables are freed by unloadLevel()
 }
@@ -959,12 +960,12 @@ STATIC VOID blitTile(ULONG x, ULONG y, ULONG mapX, ULONG mapY)
     custom.bltapt  = tile;
     custom.bltdpt  = bitmapTop2 + offs;
     custom.bltsize = ((TILESIZE * TILEDEPTH) << 6) + (TILESIZE / 16);
-  #else
+  #else // DOUBLE_BUFFER
     busyWaitBlit();
     custom.bltapt  = tile;
     custom.bltdpt  = bitmapTop + offs;
     custom.bltsize = ((TILESIZE * TILEDEPTH) << 6) + (TILESIZE / 16);
-  #endif
+  #endif // !DOUBLE_BUFFER
   }
   else {
     // blit DOES collide with video split
@@ -996,7 +997,7 @@ STATIC VOID blitTile(ULONG x, ULONG y, ULONG mapX, ULONG mapY)
     busyWaitBlit();
     custom.bltdpt  = bitmapTop2 + x;
     custom.bltsize = size2;
-  #else
+  #else // DOUBLE_BUFFER
   busyWaitBlit();
     custom.bltapt = tile;
     custom.bltdpt = bitmapTop + offs;
@@ -1004,7 +1005,7 @@ STATIC VOID blitTile(ULONG x, ULONG y, ULONG mapX, ULONG mapY)
     busyWaitBlit();
     custom.bltdpt  = bitmapTop + x;
     custom.bltsize = size2;
-  #endif
+  #endif // !DOUBLE_BUFFER
   }
 }
 ///
@@ -1016,7 +1017,7 @@ STATIC VOID blitHScrollLine(ULONG pos)
   #ifdef DOUBLE_BUFFER
     APTR bltapt2;
     APTR bltdpt2;
-  #endif
+  #endif // DOUBLE_BUFFER
 
   if (pos == UP) {
     #ifdef DOUBLE_BUFFER
@@ -1024,10 +1025,10 @@ STATIC VOID blitHScrollLine(ULONG pos)
       bltdpt1 = bitmapTop1;
       bltapt2 = bitmapBottom2;
       bltdpt2 = bitmapTop2;
-    #else
+    #else // DOUBLE_BUFFER
       bltapt1 = bitmapBottom;
       bltdpt1 = bitmapTop;
-    #endif
+    #endif // !DOUBLE_BUFFER
   }
   else {
     #ifdef DOUBLE_BUFFER
@@ -1035,10 +1036,10 @@ STATIC VOID blitHScrollLine(ULONG pos)
       bltdpt1 = bitmapBottom1;
       bltapt2 = bitmapTop2;
       bltdpt2 = bitmapBottom2;
-    #else
+    #else // DOUBLE_BUFFER
       bltapt1 = bitmapTop;
       bltdpt1 = bitmapBottom;
-    #endif
+    #endif // !DOUBLE_BUFFER
   }
 
   busyWaitBlit();
@@ -1052,7 +1053,7 @@ STATIC VOID blitHScrollLine(ULONG pos)
     custom.bltapt  = bltapt2;
     custom.bltdpt  = bltdpt2;
     custom.bltsize = ((1 * SCREEN_DEPTH) << 6) + (BITMAP_BYTES_PER_ROW / 2);
-  #endif
+  #endif // DOUBLE_BUFFER
 
   busyWaitBlit();
   custom.bltdmod = BITMAP_BYTES_PER_ROW - (TILESIZE / 8);
@@ -1134,7 +1135,7 @@ STATIC VOID scrollUpPixels(UWORD pixels)
 					*saveWordPtr = saveWord;
           #ifdef DOUBLE_BUFFER
             *saveWordPtr2 = saveWord;
-          #endif
+          #endif // DOUBLE_BUFFER
 				}
 
         mapy = posPerStepX[stepX];
@@ -1147,9 +1148,9 @@ STATIC VOID scrollUpPixels(UWORD pixels)
         #ifdef DOUBLE_BUFFER
           saveWordPtr  = (WORD*)(bitmapTop1 + (y * BITMAP_BYTES_PER_ROW) + (x / 8));
           saveWordPtr2 = (WORD*)(bitmapTop2 + (y * BITMAP_BYTES_PER_ROW) + (x / 8));
-        #else
+        #else // DOUBLE_BUFFER
           saveWordPtr = (WORD*)(bitmapTop + (y * BITMAP_BYTES_PER_ROW) + (x / 8));
-        #endif
+        #endif // !DOUBLE_BUFFER
         saveWord = *saveWordPtr;
 
 				mapx -= BITMAP_TILES_PER_ROW;
@@ -1283,7 +1284,7 @@ STATIC VOID scrollDownPixels(UWORD pixels)
           *saveWordPtr  = saveWord;
           #ifdef DOUBLE_BUFFER
             *saveWordPtr2 = saveWord;
-          #endif
+          #endif // DOUBLE_BUFFER
 				}
 
         mapy = posPerStepX[stepX] - 1;
@@ -1300,9 +1301,9 @@ STATIC VOID scrollDownPixels(UWORD pixels)
         #ifdef DOUBLE_BUFFER
           saveWordPtr  = (WORD*)(bitmapTop1 + (y2 * BITMAP_BYTES_PER_ROW) + (x / 8));
           saveWordPtr2 = (WORD*)(bitmapTop2 + (y2 * BITMAP_BYTES_PER_ROW) + (x / 8));
-        #else
+        #else // DOUBLE_BUFFER
           saveWordPtr = (WORD*)(bitmapTop + (y2 * BITMAP_BYTES_PER_ROW) + (x / 8));
-        #endif
+        #endif // !DOUBLE_BUFFER
 				saveWord = *saveWordPtr;
 
 				mapx += BITMAP_TILES_PER_ROW;
@@ -1427,7 +1428,7 @@ STATIC VOID scrollLeftPixels(UWORD pixels)
       *saveWordPtr = saveWord;
       #ifdef DOUBLE_BUFFER
         *saveWordPtr2 = saveWord;
-      #endif
+      #endif // DOUBLE_BUFFER
 		}
 
     if ((num_blits = tilesPerStepX[stepX])) {
@@ -1438,9 +1439,9 @@ STATIC VOID scrollLeftPixels(UWORD pixels)
       #ifdef DOUBLE_BUFFER
         saveWordPtr  = (WORD*)(bitmapTop1 + (y * BITMAP_BYTES_PER_ROW) + (x / 8));
         saveWordPtr2 = (WORD*)(bitmapTop2 + (y * BITMAP_BYTES_PER_ROW) + (x / 8));
-      #else
+      #else // DOUBLE_BUFFER
         saveWordPtr = (WORD*)(bitmapTop + (y * BITMAP_BYTES_PER_ROW) + (x / 8));
-      #endif
+      #endif // !DOUBLE_BUFFER
       saveWord = *saveWordPtr;
 
       mapy += mapTileY;
@@ -1514,7 +1515,7 @@ STATIC VOID scrollRightPixels(UWORD pixels)
       *saveWordPtr = saveWord;
       #ifdef DOUBLE_BUFFER
         *saveWordPtr2 = saveWord;
-      #endif
+      #endif // DOUBLE_BUFFER
 		}
 
     if ((num_blits = tilesPerStepX[stepX])) {
@@ -1527,9 +1528,9 @@ STATIC VOID scrollRightPixels(UWORD pixels)
         #ifdef DOUBLE_BUFFER
           saveWordPtr  = (WORD*)(bitmapTop1 + (y2 * BITMAP_BYTES_PER_ROW) + ((x + BITMAP_WIDTH) / 8));
           saveWordPtr2 = (WORD*)(bitmapTop2 + (y2 * BITMAP_BYTES_PER_ROW) + ((x + BITMAP_WIDTH) / 8));
-        #else
+        #else // DOUBLE_BUFFER
           saveWordPtr = (WORD*)(bitmapTop + (y2 * BITMAP_BYTES_PER_ROW) + ((x + BITMAP_WIDTH) / 8));
-        #endif
+        #endif // !DOUBLE_BUFFER
         saveWord = *saveWordPtr;
       }
 
@@ -1545,9 +1546,9 @@ STATIC VOID scrollRightPixels(UWORD pixels)
           #ifdef DOUBLE_BUFFER
             saveWordPtr  = (WORD*)(bitmapTop1 + (y2 * BITMAP_BYTES_PER_ROW) + ((x + BITMAP_WIDTH) / 8));
             saveWordPtr2 = (WORD*)(bitmapTop2 + (y2 * BITMAP_BYTES_PER_ROW) + ((x + BITMAP_WIDTH) / 8));
-          #else
+          #else // DOUBLE_BUFFER
             saveWordPtr = (WORD*)(bitmapTop + (y2 * BITMAP_BYTES_PER_ROW) + ((x + BITMAP_WIDTH) / 8));
-          #endif
+          #endif // !DOUBLE_BUFFER
           saveWord = *saveWordPtr;
         }
 
@@ -1644,6 +1645,7 @@ VOID LD_blitBOB(struct GameObject* go)
 #if NUM_BOBS
   struct BOBImage* image = (struct BOBImage*)go->image;
   struct BOB* bob = (struct BOB*)go->u.mediums[g_active_buffer];
+  struct BitMap* sheet_bitmap = image->bob_sheet->bitmap;
   UBYTE* mask = (UBYTE*)image->mask;
 
   // Screen Coordinates
@@ -1666,6 +1668,8 @@ VOID LD_blitBOB(struct GameObject* go)
   UWORD by;     //   "         "
   UWORD amod;   // moduli for bob image (to go in to bltamod and bltbmod)
   UWORD dmod;   // moduli for the bitmap(to go in to bltcmod and bltdmod)
+  ULONG image_skip_prec; // to precalculate the skipped bytes for image an mask clipping
+  UBYTE* bltapt;
   UBYTE* bltbpt;
 
   words  = image->bytesPerRow + 2;
@@ -1695,135 +1699,302 @@ VOID LD_blitBOB(struct GameObject* go)
       wordsB = wordsC + 2;
     }
     words = wordsC;
+  #ifndef DOUBLE_BUFFER
+    x2 = SCREEN_WIDTH;
+  #endif // !DOUBLE_BUFFER
   }
   if (y2 > SCREEN_HEIGHT) {
     rows -= y2 - SCREEN_HEIGHT; // clip pixellines from the bottom of the bob image
     y2 = SCREEN_HEIGHT;
   }
 
-  amod  = image->bob_sheet->BytesPerRow / image->bob_sheet->Depth - words; //OPTIMIZE: division should be precalculated into BOBImage struct
-  dmod  = BITMAP_BYTES_PER_ROW - words;
-
   //Find bitmap coords
   bx = vidPosX + TILESIZE + x;
   by = vidPosY + TILESIZE + y;
 
-  //preserve underlying background to bob's background buffer
-  busyWaitBlit();
+  /*************************************************************
+   * Preserve underlying background to bob's background buffer *
+   ************************************************************/
   {
-    UBYTE* bltdpt = (UBYTE*)bob->background - 2 + y_sr * bobs_back_buffer_mod * image->bob_sheet->Depth + x_sw;
-    UBYTE* bltapt = (UBYTE*)mask - 2 + y_sr * image->bob_sheet->BytesPerRow + x_sw;
+    UBYTE* bltdpt = (UBYTE*)bob->background - 2 + y_sr * bobs_back_buffer_mod * SCREEN_DEPTH + x_sw;
 
-    custom.bltcon0 = 0x0FCA; // use A = Mask, B = Source, C, D = Destination (cookie-cut)
-    custom.bltcon1 = x_sB << 12;
-    custom.bltafwm = 0x0;
+    busyWaitBlit();
+    custom.bltcon0 = (x_sB << 12) | 0x09F0; // use A = Source, D = Destination (vanilla copy)
+    custom.bltafwm = 0xFFFF;
     custom.bltalwm = 0xFFFF;
-    custom.bltamod = image->bob_sheet->BytesPerRow / image->bob_sheet->Depth - wordsB; // OPTIMIZE: precalculate
-    custom.bltbmod = BITMAP_BYTES_PER_ROW - wordsB;
-    custom.bltcmod = bobs_back_buffer_mod - wordsB;
+    custom.bltamod = BITMAP_BYTES_PER_ROW - wordsB;
     custom.bltdmod = bobs_back_buffer_mod - wordsB;
-    custom.bltapt  = bltapt;
-    custom.bltcpt  = bltdpt;
     custom.bltdpt  = bltdpt;
 
     wordsB >>= 1;
     if ((by + rows) <= BITMAP_HEIGHT) {
-      custom.bltbpt  = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + (((bx - 1) >> 3) & 0xFFFE);
-      custom.bltsize = ((rows * image->bob_sheet->Depth) << 6) | wordsB;
+      custom.bltapt  = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + (((bx - 1) >> 3) & 0xFFFE);
+      custom.bltsize = ((rows * SCREEN_DEPTH) << 6) | wordsB;
     }
     else if (by >= BITMAP_HEIGHT) {
-      custom.bltbpt  = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + (((bx - 1) >> 3) & 0xFFFE);
-      custom.bltsize = ((rows * image->bob_sheet->Depth) << 6) | wordsB;
+      custom.bltapt  = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + (((bx - 1) >> 3) & 0xFFFE);
+      custom.bltsize = ((rows * SCREEN_DEPTH) << 6) | wordsB;
     }
     else { // blit it in two parts because of the videosplit!
       UWORD firstPartRows = BITMAP_HEIGHT - by;
-      UWORD skipRows = firstPartRows * bobs_back_buffer_mod * image->bob_sheet->Depth; // OPTIMIZE: precalculate
+      UWORD skipRows = firstPartRows * bobs_back_buffer_mod * SCREEN_DEPTH;
 
-      custom.bltbpt  = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + (((bx - 1) >> 3) & 0xFFFE);
-      custom.bltsize = ((firstPartRows * image->bob_sheet->Depth) << 6) | wordsB;
+      custom.bltapt  = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + (((bx - 1) >> 3) & 0xFFFE);
+      custom.bltsize = ((firstPartRows * SCREEN_DEPTH) << 6) | wordsB;
 
       busyWaitBlit();
 
-      custom.bltapt  = bltapt + firstPartRows * image->bob_sheet->BytesPerRow;
-      custom.bltcpt  = bltdpt + skipRows;
+      custom.bltapt  = bitmapTop + (((bx - 1) >> 3) & 0xFFFE);
       custom.bltdpt  = bltdpt + skipRows;
-      custom.bltbpt  = bitmapTop + (((bx - 1) >> 3) & 0xFFFE);
-      custom.bltsize = (((rows - firstPartRows) * image->bob_sheet->Depth) << 6) | wordsB;
+      custom.bltsize = (((rows - firstPartRows) * SCREEN_DEPTH) << 6) | wordsB;
     }
   }
+
+  image_skip_prec = y_sr * sheet_bitmap->BytesPerRow + x_sw;
+  bltapt = (UBYTE*)mask + image_skip_prec;
+  bltbpt = (UBYTE*)image->pointer + image_skip_prec;
 
   x_s <<= 12;
   bob->lastBlt.x1 = x + *mapPosX;
   bob->lastBlt.y1 = y + *mapPosY;
-#ifndef DOUBLE_BUFFER
-  bob->lastBlt.x2 = go->x2;
+  #ifndef DOUBLE_BUFFER
+  bob->lastBlt.x2 = x2 + *mapPosX;
   bob->lastBlt.y2 = y2 + *mapPosY;
-#endif
+  #endif // !DOUBLE_BUFFER
   bob->lastBlt.bob_sheet = image->bob_sheet;
   bob->lastBlt.x_s = x_s;
   bob->lastBlt.bltafwm = fwm;
   bob->lastBlt.bltalwm = lwm;
-  bob->lastBlt.bltamod = amod;
-  bob->lastBlt.bltbmod = bobs_back_buffer_mod - words;
-  bob->lastBlt.bltdmod = dmod;
-  bob->lastBlt.bltapt  = (UBYTE*)mask + y_sr * image->bob_sheet->BytesPerRow + x_sw;
-  bob->lastBlt.bltbpt  = (UBYTE*)bob->background + y_sr * bobs_back_buffer_mod * image->bob_sheet->Depth + x_sw;
+  bob->lastBlt.bltapt  = bltapt;
+  bob->lastBlt.bltbpt  = (UBYTE*)bob->background + y_sr * BOBsBackBuffer->BytesPerRow + x_sw;
+  if (!(bob->flags & (BOB_DEAD | BOB_DYING))) bob->flags |= BOB_BLITTED;
 
-  words >>= 1;
-  bob->lastBlt.words = words;
-  bob->lastBlt.rows = rows;
+#ifdef USE_NONINTERLEAVED_BOBS
+  if (image->bob_sheet->mask) {
+ /******************************************************************************
+  * Non-Interleaved BOB sheet with (possibly) different depth than the display *
+  ******************************************************************************/
+    ULONG p;
+    ULONG p_max = sheet_bitmap->Depth;
+    ULONG source_offset;
 
-  bltbpt = (UBYTE*)image->pointer + y_sr * image->bob_sheet->BytesPerRow + x_sw;
+    amod = sheet_bitmap->BytesPerRow - words;
+    dmod = (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) - words;
+    source_offset = (ULONG)bltbpt - (ULONG)sheet_bitmap->Planes[0];
 
-#ifndef DOUBLE_BUFFER
-  waitVBeam(y2 + SCREEN_START);
-#endif
-  busyWaitBlit();
+    bob->lastBlt.bltamod = amod;
+    bob->lastBlt.bltbmod = BOBsBackBuffer->BytesPerRow - words;
+    bob->lastBlt.bltdmod = dmod;
 
-  custom.bltcon0 = 0x0FCA | x_s; // use A = Mask, B = Source, C, D = Destination (cookie-cut)
-  custom.bltcon1 = x_s;
-  custom.bltafwm = fwm;
-  custom.bltalwm = lwm;
-  custom.bltamod = amod;
-  custom.bltbmod = amod;
-  custom.bltcmod = dmod;
-  custom.bltdmod = dmod;
-  custom.bltapt  = bob->lastBlt.bltapt;
-  custom.bltbpt  = bltbpt;
+    words >>= 1;
+    bob->lastBlt.words = words;
+    bob->lastBlt.rows = rows;
 
-  // We are now ready to actually blit the image to the bitmap
-  if ((by + rows) <= BITMAP_HEIGHT) {
-    UBYTE* bltdpt = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
-
-    custom.bltcpt  = bltdpt;
-    custom.bltdpt  = bltdpt;
-    custom.bltsize = ((rows * image->bob_sheet->Depth) << 6) | words;
-  }
-  else if (by >= BITMAP_HEIGHT) {
-    UBYTE* bltdpt = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
-
-    custom.bltcpt  = bltdpt;
-    custom.bltdpt  = bltdpt;
-    custom.bltsize = ((rows * image->bob_sheet->Depth) << 6) | words;
-  }
-  else { // blit it in two parts because of the videosplit!
-    UWORD firstPartRows = BITMAP_HEIGHT - by;
-    UWORD skipRows = firstPartRows * image->bob_sheet->BytesPerRow;
-    UBYTE* bltdpt = bitmapTop + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
-
-    custom.bltcpt  = bltdpt;
-    custom.bltdpt  = bltdpt;
-    custom.bltsize = ((firstPartRows * image->bob_sheet->Depth) << 6) | words;
-
-    bltdpt = bitmapTop + ((bx >> 3) & 0xFFFE);
+  #ifndef DOUBLE_BUFFER
+    waitVBeam(y2 + SCREEN_START);
+  #endif // !DOUBLE_BUFFER
     busyWaitBlit();
 
-    custom.bltapt  = bob->lastBlt.bltapt + skipRows;
-    custom.bltbpt  = bltbpt + skipRows;
-    custom.bltcpt  = bltdpt;
-    custom.bltdpt  = bltdpt;
-    custom.bltsize = (((rows - firstPartRows) * image->bob_sheet->Depth) << 6) | words;
+    custom.bltcon0 = 0x0FCA | x_s; // use A = Mask, B = Source, C, D = Destination (cookie-cut)
+    custom.bltcon1 = x_s;
+    custom.bltafwm = fwm;
+    custom.bltalwm = lwm;
+    custom.bltamod = amod;
+    custom.bltbmod = amod;
+    custom.bltcmod = dmod;
+    custom.bltdmod = dmod;
+
+    if ((by + rows) <= BITMAP_HEIGHT) {
+      UBYTE* bltdpt = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
+      UWORD bltsize = (rows << 6) | words;
+
+      for (p = 0; p < p_max;) {
+        busyWaitBlit();
+        custom.bltapt  = bltapt;
+        custom.bltbpt  = bltbpt;
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = bltsize;
+
+        bltbpt = sheet_bitmap->Planes[++p] + source_offset;
+        bltdpt += BITMAP_BYTES_PER_ROW;
+      }
+
+      // blit clear the remaining planes
+      busyWaitBlit();
+      custom.bltcon0 = 0x0B0A | x_s; // D = ~A & C
+      for (; p < SCREEN_DEPTH; p++) {
+        busyWaitBlit();
+        custom.bltapt  = bltapt;
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = bltsize;
+
+        bltdpt += BITMAP_BYTES_PER_ROW;
+      }
+    }
+    else if (by >= BITMAP_HEIGHT) {
+      UBYTE* bltdpt = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+      UWORD bltsize = (rows << 6) | words;
+
+      for (p = 0; p < p_max;) {
+        busyWaitBlit();
+        custom.bltapt  = bltapt;
+        custom.bltbpt  = bltbpt;
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = bltsize;
+
+        bltbpt = sheet_bitmap->Planes[++p] + source_offset;
+        bltdpt += BITMAP_BYTES_PER_ROW;
+      }
+
+      // blit clear the remaining planes
+      busyWaitBlit();
+      custom.bltcon0 = 0x0B0A | x_s; // D = ~A & C
+      for (; p < SCREEN_DEPTH; p++) {
+        busyWaitBlit();
+        custom.bltapt  = bltapt;
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = bltsize;
+
+        bltdpt += BITMAP_BYTES_PER_ROW;
+      }
+    }
+    else { // blit it in two parts because of the videosplit!
+      UWORD firstPartRows = BITMAP_HEIGHT - by;
+      UWORD skipRows = firstPartRows * sheet_bitmap->BytesPerRow;
+      UBYTE* bltdpt = bitmapTop + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+      UWORD bltsize = (firstPartRows << 6) | words;
+
+      for (p = 0; p < p_max;) {
+        busyWaitBlit();
+        custom.bltapt  = bltapt;
+        custom.bltbpt  = bltbpt;
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = bltsize;
+
+        bltbpt = sheet_bitmap->Planes[++p] + source_offset;
+        bltdpt += BITMAP_BYTES_PER_ROW;
+      }
+
+      // blit clear the remaining planes
+      busyWaitBlit();
+      custom.bltcon0 = 0x0B0A | x_s; // D = ~A & C
+      for (; p < SCREEN_DEPTH; p++) {
+        busyWaitBlit();
+        custom.bltapt  = bltapt;
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = bltsize;
+
+        bltdpt += BITMAP_BYTES_PER_ROW;
+      }
+
+      // blit the second part
+      bltapt = bltapt + skipRows;
+      bltbpt = bltbpt + skipRows;
+      bltdpt = bitmapTop + ((bx >> 3) & 0xFFFE);
+      bltsize = ((rows - firstPartRows) << 6) | words;
+      busyWaitBlit();
+      custom.bltcon0 = 0x0FCA | x_s;
+
+      for (p = 0; p < p_max;) {
+        busyWaitBlit();
+        custom.bltapt  = bltapt;
+        custom.bltbpt  = bltbpt;
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = bltsize;
+
+        bltbpt = sheet_bitmap->Planes[++p] + source_offset + skipRows;
+        bltdpt += BITMAP_BYTES_PER_ROW;
+      }
+
+      // blit clear the remaining planes
+      busyWaitBlit();
+      custom.bltcon0 = 0x0B0A | x_s; // D = ~A & C
+      for (; p < SCREEN_DEPTH; p++) {
+        busyWaitBlit();
+        custom.bltapt  = bltapt;
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = bltsize;
+
+        bltdpt += BITMAP_BYTES_PER_ROW;
+      }
+    }
   }
+  else {
+#endif // USE_NONINTERLEAVED_BOBS
+ /******************************************************************************
+  * Interleaved BOB sheet with identical depth with the level display!         *
+  ******************************************************************************/
+    amod = sheet_bitmap->BytesPerRow / sheet_bitmap->Depth - words; //OPTIMIZE: division should be precalculated into BOBImage struct
+    dmod = BITMAP_BYTES_PER_ROW - words;
+
+    bob->lastBlt.bltamod = amod;
+    bob->lastBlt.bltbmod = bobs_back_buffer_mod - words;
+    bob->lastBlt.bltdmod = dmod;
+
+    words >>= 1;
+    bob->lastBlt.words = words;
+    bob->lastBlt.rows = rows;
+
+  #ifndef DOUBLE_BUFFER
+    waitVBeam(y2 + SCREEN_START);
+  #endif // !DOUBLE_BUFFER
+    busyWaitBlit();
+
+    custom.bltcon0 = 0x0FCA | x_s; // use A = Mask, B = Source, C, D = Destination (cookie-cut)
+    custom.bltcon1 = x_s;
+    custom.bltafwm = fwm;
+    custom.bltalwm = lwm;
+    custom.bltamod = amod;
+    custom.bltbmod = amod;
+    custom.bltcmod = dmod;
+    custom.bltdmod = dmod;
+    custom.bltapt  = bltapt;
+    custom.bltbpt  = bltbpt;
+
+    // We are now ready to actually blit the image to the bitmap
+    if ((by + rows) <= BITMAP_HEIGHT) {
+      UBYTE* bltdpt = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
+
+      custom.bltcpt  = bltdpt;
+      custom.bltdpt  = bltdpt;
+      custom.bltsize = ((rows * sheet_bitmap->Depth) << 6) | words;
+    }
+    else if (by >= BITMAP_HEIGHT) {
+      UBYTE* bltdpt = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+
+      custom.bltcpt  = bltdpt;
+      custom.bltdpt  = bltdpt;
+      custom.bltsize = ((rows * sheet_bitmap->Depth) << 6) | words;
+    }
+    else { // blit it in two parts because of the videosplit!
+      UWORD firstPartRows = BITMAP_HEIGHT - by;
+      UWORD skipRows = firstPartRows * sheet_bitmap->BytesPerRow;
+      UBYTE* bltdpt = bitmapTop + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+
+      custom.bltcpt  = bltdpt;
+      custom.bltdpt  = bltdpt;
+      custom.bltsize = ((firstPartRows * sheet_bitmap->Depth) << 6) | words;
+
+      bltdpt = bitmapTop + ((bx >> 3) & 0xFFFE);
+      busyWaitBlit();
+
+      custom.bltapt  = bltapt + skipRows;
+      custom.bltbpt  = bltbpt + skipRows;
+      custom.bltcpt  = bltdpt;
+      custom.bltdpt  = bltdpt;
+      custom.bltsize = (((rows - firstPartRows) * sheet_bitmap->Depth) << 6) | words;
+    }
+#ifdef USE_NONINTERLEAVED_BOBS
+  }
+#endif // USE_NONINTERLEAVED_BOBS
 #endif // NUM_BOBS
 }
 ///
@@ -1833,55 +2004,140 @@ VOID LD_unBlitBOB(struct GameObject* go)
 #if NUM_BOBS
   struct BOB* bob = (struct BOB*)go->u.mediums[g_active_buffer];
 
-  UWORD bx = vidPosX + TILESIZE + bob->lastBlt.x1 - *mapPosX;
-  UWORD by = vidPosY + TILESIZE + bob->lastBlt.y1 - *mapPosY;
+  if (bob->flags & BOB_BLITTED) {
+    UWORD bx = vidPosX + TILESIZE + bob->lastBlt.x1 - *mapPosX;
+    UWORD by = vidPosY + TILESIZE + bob->lastBlt.y1 - *mapPosY;
 
-#ifndef DOUBLE_BUFFER
-  waitVBeam(bob->lastBlt.y2 - *mapPosY + SCREEN_START);
-#endif
-  busyWaitBlit();
+  #ifndef DOUBLE_BUFFER
+    waitVBeam(bob->lastBlt.y2 - *mapPosY + SCREEN_START);
+  #endif // !DOUBLE_BUFFER
 
-  custom.bltcon0 = 0x0FCA | bob->lastBlt.x_s; // use A = Mask, B = Source, C, D = Destination (cookie-cut)
-  custom.bltcon1 = bob->lastBlt.x_s;
-  custom.bltafwm = bob->lastBlt.bltafwm;
-  custom.bltalwm = bob->lastBlt.bltalwm;
-  custom.bltamod = bob->lastBlt.bltamod;
-  custom.bltbmod = bob->lastBlt.bltbmod;
-  custom.bltcmod = bob->lastBlt.bltdmod;
-  custom.bltdmod = bob->lastBlt.bltdmod;
-  custom.bltapt  = bob->lastBlt.bltapt;
-  custom.bltbpt  = bob->lastBlt.bltbpt;
-
-  if ((by + bob->lastBlt.rows) <= BITMAP_HEIGHT) {
-    UBYTE* bltdpt = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
-
-    custom.bltcpt  = bltdpt;
-    custom.bltdpt  = bltdpt;
-    custom.bltsize = ((bob->lastBlt.rows * bob->lastBlt.bob_sheet->Depth) << 6) | bob->lastBlt.words;
-  }
-  else if (by >= BITMAP_HEIGHT) {
-    UBYTE* bltdpt = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
-
-    custom.bltcpt  = bltdpt;
-    custom.bltdpt  = bltdpt;
-    custom.bltsize = ((bob->lastBlt.rows * bob->lastBlt.bob_sheet->Depth) << 6) | bob->lastBlt.words;
-  }
-  else { // blit it in two parts because of the videosplit!
-    UWORD firstPartRows = BITMAP_HEIGHT - by;
-    UWORD skipRows = firstPartRows * bob->lastBlt.bob_sheet->BytesPerRow;
-    UBYTE* bltdpt = bitmapTop + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
-
-    custom.bltcpt  = bltdpt;
-    custom.bltdpt  = bltdpt;
-    custom.bltsize = ((firstPartRows * bob->lastBlt.bob_sheet->Depth) << 6) | bob->lastBlt.words;
-
-    bltdpt = bitmapTop + ((bx >> 3) & 0xFFFE);
     busyWaitBlit();
-    custom.bltapt  = bob->lastBlt.bltapt + skipRows;
-    custom.bltdpt  = bob->lastBlt.bltbpt + firstPartRows * bobs_back_buffer_mod * bob->lastBlt.bob_sheet->Depth;
-    custom.bltcpt  = bltdpt;
-    custom.bltdpt  = bltdpt;
-    custom.bltsize = (((bob->lastBlt.rows - firstPartRows) * bob->lastBlt.bob_sheet->Depth) << 6) | bob->lastBlt.words;
+    custom.bltcon0 = 0x0FCA | bob->lastBlt.x_s; // use A = Mask, B = Source, C, D = Destination (cookie-cut)
+    custom.bltcon1 = bob->lastBlt.x_s;
+    custom.bltafwm = bob->lastBlt.bltafwm;
+    custom.bltalwm = bob->lastBlt.bltalwm;
+    custom.bltamod = bob->lastBlt.bltamod;
+    custom.bltbmod = bob->lastBlt.bltbmod;
+    custom.bltcmod = bob->lastBlt.bltdmod;
+    custom.bltdmod = bob->lastBlt.bltdmod;
+
+  #ifdef USE_NONINTERLEAVED_BOBS
+    if (bob->lastBlt.bob_sheet->mask) {
+   /****************************************************************************
+    * Non-interleaved BOBs have a single plane mask therefore multiple blits :(*
+    ****************************************************************************/
+      ULONG p;
+      UBYTE* bltapt = bob->lastBlt.bltapt;
+      UBYTE* bltbpt = bob->lastBlt.bltbpt;
+      UWORD bltsize = (bob->lastBlt.rows << 6) | bob->lastBlt.words;
+
+      if ((by + bob->lastBlt.rows) <= BITMAP_HEIGHT) {
+        UBYTE* bltdpt = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
+
+        for (p = 0; p < SCREEN_DEPTH; p++) {
+          busyWaitBlit();
+          custom.bltapt  = bltapt;
+          custom.bltbpt  = bltbpt;
+          custom.bltcpt  = bltdpt;
+          custom.bltdpt  = bltdpt;
+          custom.bltsize = bltsize;
+          bltbpt += bobs_back_buffer_mod;
+          bltdpt += BITMAP_BYTES_PER_ROW;
+        }
+      }
+      else if (by >= BITMAP_HEIGHT) {
+        UBYTE* bltdpt = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+
+        for (p = 0; p < SCREEN_DEPTH; p++) {
+          busyWaitBlit();
+          custom.bltapt  = bltapt;
+          custom.bltbpt  = bltbpt;
+          custom.bltcpt  = bltdpt;
+          custom.bltdpt  = bltdpt;
+          custom.bltsize = bltsize;
+          bltbpt += bobs_back_buffer_mod;
+          bltdpt += BITMAP_BYTES_PER_ROW;
+        }
+      }
+      else { // blit it in two parts because of the videosplit!
+        UWORD firstPartRows = BITMAP_HEIGHT - by;
+        UWORD skipRows = firstPartRows * bob->lastBlt.bob_sheet->bitmap->BytesPerRow;
+        UBYTE* bltdpt = bitmapTop + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+        UWORD bltsize = (firstPartRows << 6) | bob->lastBlt.words;
+
+        for (p = 0; p < SCREEN_DEPTH; p++) {
+          busyWaitBlit();
+          custom.bltapt  = bltapt;
+          custom.bltbpt  = bltbpt;
+          custom.bltcpt  = bltdpt;
+          custom.bltdpt  = bltdpt;
+          custom.bltsize = bltsize;
+          bltbpt += bobs_back_buffer_mod;
+          bltdpt += BITMAP_BYTES_PER_ROW;
+        }
+
+        bltapt += skipRows;
+        bltbpt = bob->lastBlt.bltbpt + firstPartRows * bobs_back_buffer_mod * SCREEN_DEPTH;
+        bltdpt = bitmapTop + ((bx >> 3) & 0xFFFE);
+        bltsize = ((bob->lastBlt.rows - firstPartRows) << 6) | bob->lastBlt.words;
+
+        for (p = 0; p < SCREEN_DEPTH; p++) {
+          busyWaitBlit();
+          custom.bltapt  = bltapt;
+          custom.bltbpt  = bltbpt;
+          custom.bltcpt  = bltdpt;
+          custom.bltdpt  = bltdpt;
+          custom.bltsize = bltsize;
+          bltbpt += bobs_back_buffer_mod;
+          bltdpt += BITMAP_BYTES_PER_ROW;
+        }
+      }
+    }
+    else {
+  #endif // USE_NONINTERLEAVED_BOBS
+   /****************************************************************************
+    * Blit was from an interleaved bob sheet (highly optimized unblitting) :)  *
+    ****************************************************************************/
+      custom.bltapt  = bob->lastBlt.bltapt;
+      custom.bltbpt  = bob->lastBlt.bltbpt;
+
+      if ((by + bob->lastBlt.rows) <= BITMAP_HEIGHT) {
+        UBYTE* bltdpt = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
+
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = ((bob->lastBlt.rows * SCREEN_DEPTH) << 6) | bob->lastBlt.words;
+      }
+      else if (by >= BITMAP_HEIGHT) {
+        UBYTE* bltdpt = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = ((bob->lastBlt.rows * SCREEN_DEPTH) << 6) | bob->lastBlt.words;
+      }
+      else { // blit it in two parts because of the videosplit!
+        UWORD firstPartRows = BITMAP_HEIGHT - by;
+        UWORD skipRows = firstPartRows * bob->lastBlt.bob_sheet->bitmap->BytesPerRow;
+        UBYTE* bltdpt = bitmapTop + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = ((firstPartRows * SCREEN_DEPTH) << 6) | bob->lastBlt.words;
+
+        bltdpt = bitmapTop + ((bx >> 3) & 0xFFFE);
+        busyWaitBlit();
+        custom.bltapt  = bob->lastBlt.bltapt + skipRows;
+        custom.bltbpt  = bob->lastBlt.bltbpt + firstPartRows * bobs_back_buffer_mod * SCREEN_DEPTH;
+        custom.bltcpt  = bltdpt;
+        custom.bltdpt  = bltdpt;
+        custom.bltsize = (((bob->lastBlt.rows - firstPartRows) * SCREEN_DEPTH) << 6) | bob->lastBlt.words;
+      }
+  #ifdef USE_NONINTERLEAVED_BOBS
+    }
+  #endif // USE_NONINTERLEAVED_BOBS
+  
+    bob->flags &= ~BOB_BLITTED;
   }
 #endif // NUM_BOBS
 }
@@ -1897,7 +2153,7 @@ STATIC VOID vblankEvents(VOID)
   updateCopperList();
 #ifndef USE_CLP
   setColorTable_REG(color_table, 1, color_table->colors);
-#endif // USE_CLP
+#endif // !USE_CLP
 }
 ///
 
@@ -1925,7 +2181,7 @@ STATIC UWORD* createCopperList()
   };
   #define VSPLIT_COPOP0_SIZE 2
   #define VSPLIT_COPOP1_SIZE 6
-#else
+#else // DUALPLAYFIELD
   ULONG videoSplit_Instructions[] = {
     WAIT(0, 0),
     MOVE(BPL1MOD, VSPLTMOD_V),
@@ -1944,7 +2200,7 @@ STATIC UWORD* createCopperList()
   };
   #define VSPLIT_COPOP0_SIZE 3
   #define VSPLIT_COPOP1_SIZE 11
-#endif
+#endif // !DUALPLAYFIELD
 
   if (rainbow || (rainbow = empty_rainbow = createEmptyRainbow())) {
 
@@ -1955,9 +2211,9 @@ STATIC UWORD* createCopperList()
       ULONG num_cl_vsplit_instructions = sizeof(videoSplit_Instructions) / sizeof(CLINST);
 #ifdef SMART_SPRITES
       ULONG num_cl_smartsprite_instructions = (NUM_SPRITES * 5);
-#else
+#else // SMART_SPRITES
       ULONG num_cl_smartsprite_instructions = 0;
-#endif
+#endif // !SMART_SPRITES
       num_cl_header_instructions = ((ULONG)CL_VIDSPLT - (ULONG)CopperList) / sizeof(CLINST);
       num_cl_footer_instructions = (((ULONG)CL_END - (ULONG)CL_VIDSPLT) / sizeof(CLINST)) + 1;
       num_copperlist_instructions = num_cl_header_instructions + rainbow->num_insts + num_cl_vsplit_instructions + num_cl_smartsprite_instructions;
@@ -1988,7 +2244,7 @@ STATIC UWORD* createCopperList()
             *wp = (UWORD)(plane & 0xFFFF);  wp += 2;
           }
         }
-#endif
+#endif // TOP_PANEL_HEIGHT
 
         //Copy header to the double buffer
         CopyMem(CopperList, CopperList2, num_cl_header_instructions * sizeof(CLINST));
@@ -2006,7 +2262,7 @@ STATIC UWORD* createCopperList()
         *(CL_COP2LCH_1 + 2) = (UWORD)((ULONG)CopperList2 & 0xFFFF);
         *CL_COP2LCH_2 = (UWORD)((ULONG)CopperList1 >> 16);
         *(CL_COP2LCH_2 + 2) = (UWORD)((ULONG)CopperList1 & 0xFFFF);
-#endif //DOUBLE_BUFFER
+#endif // !DOUBLE_BUFFER
 
         //In doublebuffered copperlist the access pointers to the header are offsets
 #ifdef USE_CLP
@@ -2023,10 +2279,10 @@ STATIC UWORD* createCopperList()
         //disable OS's mouse pointer
         *TP_SPR0PTH = NULL_SPRITE_ADDRESS_H;
         *(TP_SPR0PTH + 2) = NULL_SPRITE_ADDRESS_L;
-  #endif
-#else
+  #endif // TOP_PANEL_HEIGHT
+#else // SMART_SPRITES
         CL_SPR0PTH = (UWORD*)((ULONG)CL_SPR0PTH - (ULONG)CopperList);
-#endif
+#endif // !SMART_SPRITES
 
         CL_VIDSPLT = (UWORD*)vsplit_list;
         CL_VIDSPLT2 = (UWORD*)(vsplit_list + VSPLIT_COPOP0_SIZE);
@@ -2043,20 +2299,20 @@ STATIC UWORD* createCopperList()
 
 #ifdef SMART_SPRITES
         sprite_list = vsplit_list + num_cl_vsplit_instructions;
-#endif
+#endif // SMART_SPRITES
 
         // plane pointers
 #ifdef DOUBLE_BUFFER
         planes1 = level_bitmap->Planes; //doublebuffered
         planes2 = level_bitmap2->Planes; //doublebuffered
         planes = planes1;
-#else
+#else // DOUBLE_BUFFER
         planes = level_bitmap->Planes;
-#endif
+#endif // !DOUBLE_BUFFER
 
 #ifdef DUALPLAYFIELD
         planes_pf2 = level_bitmap_pf2->Planes;
-#endif
+#endif // DUALPLAYFIELD
 
         CopperList = CopperList1;
         updateDynamicCopperList();
@@ -2089,7 +2345,7 @@ STATIC UWORD* createCopperList()
         *wp = (UWORD)(plane & 0xFFFF);  wp += 2;
       }
     }
-    #endif
+    #endif // TOP_PANEL_HEIGHT
 
     //Set bottom panel bitplanes
     #if BOTTOM_PANEL_HEIGHT > 0
@@ -2110,7 +2366,7 @@ STATIC UWORD* createCopperList()
       *wp = (ULONG)CopperList >> 16; wp += 2;
       *wp = (ULONG)CopperList & 0xFFFF;
     }
-    #endif
+    #endif // BOTTOM_PANEL_HEIGHT
 
     //Set sprites to null sprite
     for (sp = CL_SPR0PTH; sp < CL_SPR0PTH + 32; sp += 2) {
@@ -2122,12 +2378,12 @@ STATIC UWORD* createCopperList()
     planes = level_bitmap->Planes;
     #ifdef DUALPLAYFIELD
     planes_pf2 = level_bitmap_pf2->Planes;
-    #endif
+    #endif // DUALPLAYFIELD
   }
 
   return CopperList;
 }
-#endif
+#endif // !DYNAMIC_COPPERLIST
 ///
 ///switchToLevelCopperList()
 STATIC VOID switchToLevelCopperList()
@@ -2151,10 +2407,10 @@ VOID startLevelDisplay(ULONG level_num)
       // prep the background bitmap
       if (current_level.num.bitmaps) {
         ULONG bitmap_height = current_level.bitmap[0]->Rows;
-        BltBitMap(current_level.bitmap[0], 0, 0, level_bitmap_pf2, 16, 0, SCREEN_WIDTH, bitmap_height, 0x0C0, 0xFF, NULL);
-        BltBitMap(current_level.bitmap[0], 0, 0, level_bitmap_pf2, SCREEN_WIDTH + 16, 0, SCREEN_WIDTH, bitmap_height, 0x0C0, 0xFF, NULL);
+        BltBitMap(current_level.bitmap[0], 0, 0, level_bitmap_pf2, 0, 0, SCREEN_WIDTH, bitmap_height, 0x0C0, 0xFF, NULL);
+        BltBitMap(current_level.bitmap[0], 0, 0, level_bitmap_pf2, SCREEN_WIDTH, 0, SCREEN_WIDTH, bitmap_height, 0x0C0, 0xFF, NULL);
       }
-#endif
+#endif // DUALPLAYFIELD
 
       if (current_level.music_module) {
         PT_InitModule(current_level.music_module[current_level.current.music_module], 0);
@@ -2208,7 +2464,7 @@ STATIC VOID waitNextFrame(VOID)
   nff = new_frame_flag;
   while (nff == new_frame_flag);
 }
-#endif
+#endif // DOUBLE_BUFFER
 ///
 ///swapBuffers()
 #ifdef DOUBLE_BUFFER
@@ -2248,7 +2504,7 @@ STATIC INLINE VOID initCopperListBlit()
   custom.bltamod = 0;
   custom.bltdmod = 0;
 }
-#endif
+#endif // DYNAMIC_COPPERLIST
 ///
 ///blitCopperInstruction(dst, src, size)
 /******************************************************************************
@@ -2270,7 +2526,7 @@ INLINE VOID blitCopperInstruction(ULONG* dst, ULONG* src, WORD size)
     dst += 1024;
   } while(size > 0);
 }
-#endif
+#endif // DYNAMIC_COPPERLIST
 ///
 ///updateDynamicCopperList()
 /******************************************************************************
@@ -2296,13 +2552,13 @@ STATIC VOID updateDynamicCopperList()
   // Swap CopperLists
   if (CopperList == CopperList1)
     CopperList = CopperList2;
-  else
+  else // DOUBLE_BUFFER
     CopperList = CopperList1;
-#endif
+#endif // DOUBLE_BUFFER
 
 #ifdef USE_CLP
   setColorTable_CLP(color_table, (UWORD*)((ULONG)CopperList + (ULONG)CL_PALETTE), 1, color_table->colors);
-#endif
+#endif // USE_CLP
 
   // Calculate the scroll value for playfield 1 (tilemap)
   xpos = vidPosX + SCROLL_MASK;                       // xpos = vidPosX + 15
@@ -2320,11 +2576,16 @@ STATIC VOID updateDynamicCopperList()
   #endif
 
   // Calculate the scroll value for playfield 2 (background)
-  //WARNING: Does not support higher BPL_FMODEs
   xpos = ((*mapPosX >> 1) % SCREEN_WIDTH) + SCROLL_MASK;
   i = SCROLL_MASK - (xpos & SCROLL_MASK);
   scroll |= (i & 0xF) << 4;
-#else //DUALPLAYFIELD
+  #if BPL_FMODE > 1
+  if (i & 0x10) scroll |= 0x4000;
+  #endif
+  #if BPL_FMODE == 4
+  if (i & 0x20) scroll |= 0x8000;
+  #endif
+#else // DUALPLAYFIELD
   i = SCROLL_MASK - (xpos & SCROLL_MASK);             // i = 15 - (xpos % 16)
   scroll = (i & 0xF) * 0x11;                          // scroll = (i & 0xF) | ((i & 0xF) << 4)
   #if BPL_FMODE > 1
@@ -2333,7 +2594,7 @@ STATIC VOID updateDynamicCopperList()
   #if BPL_FMODE == 4
   if (i & 0x20) scroll |= 0x8800;
   #endif
-#endif //DUALPLAYFIELD
+#endif // !DUALPLAYFIELD
 
   // set scroll bits in BPLCON1
   *(WORD*)((ULONG)CopperList + (ULONG)CL_BPLCON1) = scroll;
@@ -2363,7 +2624,7 @@ STATIC VOID updateDynamicCopperList()
     *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
     *wp = (WORD)(plane >> 16);
   }
-  #else //UNROLL_LOOPS
+  #else // UNROLL_LOOPS
   wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH);
   for (i = 0; i < SCREEN_DEPTH; i++) {
     plane = ((ULONG)planes[i]) + planeAdd + planeAddX;
@@ -2371,8 +2632,8 @@ STATIC VOID updateDynamicCopperList()
     *wp = (WORD)(plane >> 16);     wp += 2;
     *wp = (WORD)(plane & 0xFFFF);  wp += 6;
   }
-  #endif
-#else //DUALPLAYFIELD
+  #endif // !UNROLL_LOOPS
+#else // DUALPLAYFIELD
   #ifdef UNROLL_LOOPS
   wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTL + (8 * (SCREEN_DEPTH - 1)));
   plane = ((ULONG)planes[SCREEN_DEPTH - 1]) + planeAdd + planeAddX;
@@ -2409,7 +2670,7 @@ STATIC VOID updateDynamicCopperList()
     *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
     *wp = (WORD)(plane >> 16);
   }
-  #else //UNROLL_LOOPS
+  #else // UNROLL_LOOPS
   wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH);
   for (i = 0; i < SCREEN_DEPTH; i++) {
     plane = ((ULONG)planes[i]) + planeAdd + planeAddX;
@@ -2417,8 +2678,8 @@ STATIC VOID updateDynamicCopperList()
     *wp = (WORD)(plane >> 16);     wp += 2;
     *wp = (WORD)(plane & 0xFFFF);  wp += 2;
   }
-  #endif
-#endif
+  #endif // !UNROLL_LOOPS
+#endif // !DUALPLAYFIELD
 
   // set video split wait
   yoffset = (BITMAP_HEIGHT + SCREEN_START) - yoffset;
@@ -2452,7 +2713,7 @@ STATIC VOID updateDynamicCopperList()
     case 1:
     *wp = (WORD)(plane >> 16);
   }
-  #else //UNROLL_LOOPS
+  #else // UNROLL_LOOPS
   plane = (ULONG)*planes + planeAddX;
   wp = CL_BPL1PTH_2;
   for (i = 0; i < SCREEN_DEPTH; i++)
@@ -2461,8 +2722,8 @@ STATIC VOID updateDynamicCopperList()
 
     plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
   }
-  #endif
-#else //DUALPLAYFIELD
+  #endif // !UNROLL_LOOPS
+#else // DUALPLAYFIELD
   #ifdef UNROLL_LOOPS
   plane = (ULONG)*planes + (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH * (SCREEN_DEPTH - 1)) + planeAddX;
   wp = CL_BPL1PTH_2 + (2 * (SCREEN_DEPTH - 1));
@@ -2491,7 +2752,7 @@ STATIC VOID updateDynamicCopperList()
     case 1:
     *wp = (WORD)(plane >> 16);
   }
-  #else //UNROLL_LOOPS
+  #else // UNROLL_LOOPS
   plane = (ULONG)*planes + planeAddX;
   wp = CL_BPL1PTH_2;
   for (i = 0; i < SCREEN_DEPTH; i++)
@@ -2500,8 +2761,8 @@ STATIC VOID updateDynamicCopperList()
 
     plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
   }
-  #endif
-#endif
+  #endif // !UNROLL_LOOPS
+#endif // !DUALPLAYFIELD
 
 #ifdef DUALPLAYFIELD
   // set plane pointers at display start for playfield 2 (scroll of the background)
@@ -2513,12 +2774,12 @@ STATIC VOID updateDynamicCopperList()
   if (yoffset > (BITMAP_HEIGHT_PF2 - SCREEN_HEIGHT)) yoffset = yoffset % (BITMAP_HEIGHT_PF2 - SCREEN_HEIGHT);
     #ifdef INTERLEAVED_PF2_BITMAP
       planeAdd = yoffset * (BITMAP_BYTES_PER_ROW_PF2 * BITMAP_DEPTH_PF2);
-    #else //INTERLEAVED_PF2_BITMAP
+    #else // INTERLEAVED_PF2_BITMAP
       planeAdd = yoffset * BITMAP_BYTES_PER_ROW_PF2;
-    #endif
+    #endif // !INTERLEAVED_PF2_BITMAP
   #endif
 
-  planeAddX = (xpos / SCROLL_PIXELS) * SCROLL_BYTES;
+  planeAddX = (xpos / SCROLL_PIXELS) * SCROLL_BYTES - SCROLL_BYTES;
 
   #if defined UNROLL_LOOPS && defined INTERLEAVED_PF2_BITMAP
   wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTL + 8 + (16 * (BITMAP_DEPTH_PF2 - 1)));
@@ -2540,7 +2801,7 @@ STATIC VOID updateDynamicCopperList()
     *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
     *wp = (WORD)(plane >> 16);
   }
-  #else //UNROLL_LOOPS
+  #else // UNROLL_LOOPS
   wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH + 8); // Start from BPL2PTH...
   for (i = 0; i < BITMAP_DEPTH_PF2; i++)            // OPTIMIZE Unroll this loop
   {
@@ -2549,12 +2810,12 @@ STATIC VOID updateDynamicCopperList()
     *wp = (WORD)(plane >> 16);     wp += 2;
     *wp = (WORD)(plane & 0xFFFF);  wp += 6; // ...and traverse even planes
   }
-  #endif
-#endif
+  #endif // !UNROLL_LOOPS
+#endif // DUALPLAYFIELD
 
   #ifdef SMART_SPRITES
   setSprites();
-  #endif
+  #endif // SMART_SPRITES
 
   //Create new copperlist by sorting CopOps
   #ifdef SMART_SPRITES
@@ -2738,9 +2999,9 @@ STATIC VOID updateDynamicCopperList()
       v++;
     }
   }
-  #endif // SMART_SPRITES
+  #endif // !SMART_SPRITES
 }
-#endif
+#endif // DYNAMIC_COPPERLIST
 ///
 ///updateCopperList()
 /******************************************************************************
@@ -2753,9 +3014,9 @@ STATIC VOID updateCopperList()
 {
   #ifndef SMART_SPRITES
   setSprites();
-  #endif
+  #endif // !SMART_SPRITES
 }
-#else
+#else // DYNAMIC_COPPERLIST
 STATIC VOID updateCopperList()
 {
   ULONG plane;
@@ -2783,11 +3044,16 @@ STATIC VOID updateCopperList()
   #endif
 
   // Calculate the scroll value for playfield 2 (background)
-  //WARNING: Does not support higher BPL_FMODEs
   xpos = ((*mapPosX >> 1) % SCREEN_WIDTH) + SCROLL_MASK;
   i = SCROLL_MASK - (xpos & SCROLL_MASK);
   scroll |= (i & 0xF) << 4;
-#else //DUALPLAYFIELD
+  #if BPL_FMODE > 1
+  if (i & 0x10) scroll |= 0x4000;
+  #endif
+  #if BPL_FMODE == 4
+  if (i & 0x20) scroll |= 0x8000;
+  #endif
+#else // DUALPLAYFIELD
   i = SCROLL_MASK - (xpos & SCROLL_MASK);             // i = 15 - (xpos % 16)
   scroll = (i & 0xF) * 0x11;                          // scroll = (i & 0xF) | ((i & 0xF) << 4)
   #if BPL_FMODE > 1
@@ -2796,7 +3062,7 @@ STATIC VOID updateCopperList()
   #if BPL_FMODE == 4
   if (i & 0x20) scroll |= 0x8800;
   #endif
-#endif //DUALPLAYFIELD
+#endif // !DUALPLAYFIELD
 
   // set scroll bits in BPLCON1
   *CL_BPLCON1 = scroll;
@@ -2814,7 +3080,7 @@ STATIC VOID updateCopperList()
     *wp = (WORD)(plane >> 16);     wp += 2;
     *wp = (WORD)(plane & 0xFFFF);  wp += 6;
   }
-#else
+#else // DUALPLAYFIELD
   wp = CL_BPL1PTH;
   for (i = 0; i < SCREEN_DEPTH; i++)
   {
@@ -2823,7 +3089,7 @@ STATIC VOID updateCopperList()
     *wp = (WORD)(plane >> 16);     wp += 2;
     *wp = (WORD)(plane & 0xFFFF);  wp += 2;
   }
-#endif
+#endif // !DUALPLAYFIELD
 
   // set video split wait
   yoffset = BITMAP_HEIGHT + SCREEN_START - yoffset;
@@ -2835,11 +3101,11 @@ STATIC VOID updateCopperList()
     *(ULONG*)(CL_VIDSPLT+4) = MOVE(BPL1MOD, VSPLTMOD_V);
     *(ULONG*)(CL_VIDSPLT+6) = WAIT(0, 0);
     *(ULONG*)(CL_VIDSPLT+8) = WAIT(0, 0);
-    #else
+    #else // DUALPLAYFIELD
     *(ULONG*)(CL_VIDSPLT+4) = MOVE(BPL1MOD, VSPLTMOD_V);
     *(ULONG*)(CL_VIDSPLT+6) = MOVE(BPL2MOD, VSPLTMOD_V);
     *(ULONG*)(CL_VIDSPLT+8) = WAIT(0, 0);
-    #endif
+    #endif // !DUALPLAYFIELD
 
     if (yoffset <= 255) {
       * CL_VIDSPLT     = 0x0001;
@@ -2904,19 +3170,19 @@ STATIC VOID updateCopperList()
 
       * CL_ENDWAIT     = 0x0001;
     }
-  #endif
-#else // SCREEN_END
+  #endif // !BOTTOM_PANEL_HEIGHT
+#else // SCREEN_END >= 256
   #if BOTTOM_PANEL_HEIGHT > 0
     if (yoffset < SCREEN_END) {
     #ifdef DUALPLAYFIELD
       *(ULONG*)(CL_VIDSPLT+4) = MOVE(BPL1MOD, VSPLTMOD_V);
       *(ULONG*)(CL_VIDSPLT+6) = WAIT(0, 0);
       *(ULONG*)(CL_VIDSPLT+8) = WAIT(0, 0);
-    #else
+    #else // DUALPLAYFIELD
       *(ULONG*)(CL_VIDSPLT+4) = MOVE(BPL1MOD, VSPLTMOD_V);
       *(ULONG*)(CL_VIDSPLT+6) = MOVE(BPL2MOD, VSPLTMOD_V);
       *(ULONG*)(CL_VIDSPLT+8) = WAIT(0, 0);
-    #endif
+    #endif // !DUALPLAYFIELD
 
       * CL_VIDSPLT     = 0x0001;
       *(CL_VIDSPLT+2)  = ((yoffset - 1) << 8) | 0x0001;
@@ -2943,8 +3209,8 @@ STATIC VOID updateCopperList()
 
       * CL_ENDWAIT     = 0x0001;
     }
-  #endif
-#endif
+  #endif // !BOTTOM_PANEL_HEIGHT
+#endif // !SCREEN_END >= 256
 
   // set plane pointers after video split
   plane = (ULONG)*planes + planeAddX;
@@ -2966,12 +3232,12 @@ STATIC VOID updateCopperList()
   if (yoffset > (BITMAP_HEIGHT_PF2 - SCREEN_HEIGHT)) yoffset = yoffset % (BITMAP_HEIGHT_PF2 - SCREEN_HEIGHT);
     #ifdef INTERLEAVED_PF2_BITMAP
       planeAdd = yoffset * (BITMAP_BYTES_PER_ROW_PF2 * BITMAP_DEPTH_PF2);
-    #else //INTERLEAVED_PF2_BITMAP
+    #else // INTERLEAVED_PF2_BITMAP
       planeAdd = yoffset * BITMAP_BYTES_PER_ROW_PF2;
-    #endif
+    #endif // !INTERLEAVED_PF2_BITMAP
   #endif
 
-  planeAddX = (xpos / SCROLL_PIXELS) * SCROLL_BYTES;
+  planeAddX = (xpos / SCROLL_PIXELS) * SCROLL_BYTES - SCROLL_BYTES;
 
   wp = CL_BPL1PTH + 4;  // Start from BPL2PTH...
   for (i = 0; i < BITMAP_DEPTH_PF2; i++)            // OPTIMIZE Unroll this loop
@@ -2981,11 +3247,11 @@ STATIC VOID updateCopperList()
     *wp = (WORD)(plane >> 16);     wp += 2;
     *wp = (WORD)(plane & 0xFFFF);  wp += 6; // ...and traverse even planes
   }
-#endif
+#endif // DUALPLAYFIELD
 
   setSprites();
 }
-#endif
+#endif // !DYNAMIC_COPPERLIST
 ///
 ///disposeCopperList()
 STATIC VOID disposeCopperList()
@@ -2999,12 +3265,12 @@ STATIC VOID disposeCopperList()
       rainbow = NULL; empty_rainbow = NULL;
     }
   }
-  #else
+  #else // DYNAMIC_COPPERLIST
   if (CopperList) {
     freeCopperList(CopperList)
     CopperList = NULL;
   }
-  #endif
+  #endif // !DYNAMIC_COPPERLIST
 }
 ///
 
@@ -3014,7 +3280,7 @@ STATIC VOID disposeCopperList()
  * NOTE: The case this is required is predictable. We can skip this if        *
  * unnecessary.                                                               *
  ******************************************************************************/
-#ifdef SMART_SPRITES
+#if NUM_SPRITES && defined SMART_SPRITES
 STATIC VOID sortSpriteCopOps()
 {
   struct CopOp** i = sprite_CopOps_list;
@@ -3030,7 +3296,7 @@ STATIC VOID sortSpriteCopOps()
     *(l + 1) = v;
   }
 }
-#endif
+#endif // NUM_SPRITES && defined SMART_SPRITES
 ///
 ///setSprites()
 /******************************************************************************
@@ -3040,16 +3306,17 @@ STATIC VOID sortSpriteCopOps()
  * during VBL in updateCopperList() function, which is called during an       *
  * interrupt. So be warned!!!                                                 *
  ******************************************************************************/
+#if NUM_SPRITES
 STATIC VOID setSprites()
 {
   struct GameObject** go_ptr = spriteList;
   struct GameObject* go = *go_ptr;
 
   #ifdef SMART_SPRITES
-    WORD* sp;
-    WORD* sp_end;
+    UWORD* sp;
+    UWORD* sp_end;
     ULONG i;
-    WORD* paddr = (WORD*)((ULONG)CopperList + (ULONG)CL_SPR0POS);
+    UWORD* paddr = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0POS);
     //reset hardSpriteUsage[]
     *(ULONG*)hardSpriteUsage = 0;
     *((ULONG*)hardSpriteUsage + 1) = 0;
@@ -3059,23 +3326,23 @@ STATIC VOID setSprites()
     sprite_CopOps[sprite_CopOp_Index].wait = 0xFFFF;
     sprite_list_i = sprite_list;
 
-    for (sp = (WORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH), sp_end = sp + 32; sp < sp_end; sp += 2) {
+    for (sp = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH), sp_end = sp + 32; sp < sp_end; sp += 2) {
       *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
       *sp = NULL_SPRITE_ADDRESS_L;
     }
-  #else
-    WORD* sp;
-    WORD* sp_end;
+  #else // SMART_SPRITES
+    UWORD* sp;
+    UWORD* sp_end;
     //reset all sprites to dummy sprite
     #ifdef DYNAMIC_COPPERLIST
-    for (sp = (WORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH), sp_end = sp + 32; sp < sp_end; sp += 2) {
-    #else
+    for (sp = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH), sp_end = sp + 32; sp < sp_end; sp += 2) {
+    #else // DYNAMIC_COPPERLIST
     for (sp = CL_SPR0PTH, sp_end = sp + 32; sp < sp_end; sp += 2) {
-    #endif
+    #endif // !DYNAMIC_COPPERLIST
       *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
       *sp = NULL_SPRITE_ADDRESS_L;
     }
-  #endif
+  #endif // !SMART_SPRITES
 
   while (go) {
     LD_setSprite(go);
@@ -3099,8 +3366,9 @@ STATIC VOID setSprites()
       }
       else paddr += 4;
     }
-  #endif
+  #endif // SMART_SPRITES
 }
+#endif // NUM_SPRITES
 ///
 
 ///LD_setSprite(gameobject)
@@ -3111,6 +3379,7 @@ STATIC VOID setSprites()
  * features of the level display.                                             *
  * NOTE: Too much repeated code. Please refactor!                             *
  ******************************************************************************/
+#if NUM_SPRITES
 #ifdef SMART_SPRITES
 STATIC INLINE VOID LD_setSprite(struct GameObject* go)
 {
@@ -3129,8 +3398,8 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
     UWORD height = image->height;
 
     UBYTE* saddr;
-    WORD*  paddr = (WORD*)((ULONG)CopperList + (ULONG)CL_SPR0POS) + hsn * 4;
-    WORD*  haddr = paddr + 32;
+    UWORD*  paddr = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0POS) + hsn * 4;
+    UWORD*  haddr = paddr + 32;
 
     ULONG x, y, s;
     ULONG ctl_l0, ctl_l1;
@@ -3182,10 +3451,10 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
             //Do not create new CopOp, append to the previous one
             sprite_CopOps[sprite_CopOp_Index - 1].size += 4;
 
-            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(WORD*)&ctl_l1);               sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((WORD*)&ctl_l1 + 1));         sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (WORD)((ULONG)saddr >> 16));    sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (WORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(UWORD*)&ctl_l1);               sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((UWORD*)&ctl_l1 + 1));         sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (UWORD)((ULONG)saddr >> 16));    sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (UWORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
           }
           else {
             //Create new CopOp
@@ -3194,10 +3463,10 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
             sprite_CopOps[sprite_CopOp_Index].pointer = sprite_list_i;
 
             *sprite_list_i = WAIT(0, wait > 255 ? wait - 256 : wait);                sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(WORD*)&ctl_l1);               sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((WORD*)&ctl_l1 + 1));         sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (WORD)((ULONG)saddr >> 16));    sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (WORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(UWORD*)&ctl_l1);               sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((UWORD*)&ctl_l1 + 1));         sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (UWORD)((ULONG)saddr >> 16));    sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (UWORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
 
             sprite_CopOps_list[sprite_CopOp_Index] = &sprite_CopOps[sprite_CopOp_Index];
             sprite_CopOp_Index++;
@@ -3208,8 +3477,8 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
         }
         else {
           //set this sprite on the copperlist header
-          *paddr = *(WORD*)&ctl_l1;       paddr += 2;
-          *paddr = *((WORD*)&ctl_l1 + 1); paddr += 2;
+          *paddr = *(UWORD*)&ctl_l1;       paddr += 2;
+          *paddr = *((UWORD*)&ctl_l1 + 1); paddr += 2;
           *haddr = (WORD)((ULONG)saddr >> 16);    haddr += 2;
           *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
         }
@@ -3227,10 +3496,10 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
             //Do not create new CopOp, append to the previous one
             sprite_CopOps[sprite_CopOp_Index - 1].size += 4;
 
-            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(WORD*)&ctl_l1);               sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((WORD*)&ctl_l1 + 1));         sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (WORD)((ULONG)saddr >> 16));    sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (WORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(UWORD*)&ctl_l1);               sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((UWORD*)&ctl_l1 + 1));         sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (UWORD)((ULONG)saddr >> 16));    sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (UWORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
           }
           else {
             //Create new CopOp
@@ -3239,10 +3508,10 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
             sprite_CopOps[sprite_CopOp_Index].pointer = sprite_list_i;
 
             *sprite_list_i = WAIT(0, wait > 255 ? wait - 256 : wait);                sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(WORD*)&ctl_l1);               sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((WORD*)&ctl_l1 + 1));         sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (WORD)((ULONG)saddr >> 16));    sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (WORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(UWORD*)&ctl_l1);               sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((UWORD*)&ctl_l1 + 1));         sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (UWORD)((ULONG)saddr >> 16));    sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (UWORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
 
             sprite_CopOps_list[sprite_CopOp_Index] = &sprite_CopOps[sprite_CopOp_Index];
             sprite_CopOp_Index++;
@@ -3253,10 +3522,10 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
         }
         else {
           //set this sprite on the copperlist header
-          *paddr = *(WORD*)&ctl_l1; paddr += 2;
-          *paddr = *((WORD*)&ctl_l1 + 1); paddr += 2;
-          *haddr = (WORD)((ULONG)saddr >> 16);  haddr += 2;
-          *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+          *paddr = *(UWORD*)&ctl_l1; paddr += 2;
+          *paddr = *((UWORD*)&ctl_l1 + 1); paddr += 2;
+          *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
+          *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
         }
 
         //get to the next glued sprite (if there is any)
@@ -3280,10 +3549,10 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
             //Do not create new CopOp, append to the previous one
             sprite_CopOps[sprite_CopOp_Index - 1].size += 4;
 
-            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(WORD*)&ctl_l1);               sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((WORD*)&ctl_l1 + 1));         sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (WORD)((ULONG)saddr >> 16));    sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (WORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(UWORD*)&ctl_l1);               sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((UWORD*)&ctl_l1 + 1));         sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (UWORD)((ULONG)saddr >> 16));    sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (UWORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
           }
           else {
             //Create new CopOp
@@ -3292,10 +3561,10 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
             sprite_CopOps[sprite_CopOp_Index].pointer = sprite_list_i;
 
             *sprite_list_i = WAIT(0, wait > 255 ? wait - 256 : wait);                sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(WORD*)&ctl_l1);               sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((WORD*)&ctl_l1 + 1));         sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (WORD)((ULONG)saddr >> 16));    sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (WORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(UWORD*)&ctl_l1);               sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((UWORD*)&ctl_l1 + 1));         sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (UWORD)((ULONG)saddr >> 16));    sprite_list_i++;
+            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (UWORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
 
             sprite_CopOps_list[sprite_CopOp_Index] = &sprite_CopOps[sprite_CopOp_Index];
             sprite_CopOp_Index++;
@@ -3306,10 +3575,10 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
         }
         else {
           //set this sprite on the copperlist header
-          *paddr = *(WORD*)&ctl_l1; paddr += 2;
-          *paddr = *((WORD*)&ctl_l1 + 1); paddr += 2;
-          *haddr = (WORD)((ULONG)saddr >> 16);  haddr += 2;
-          *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+          *paddr = *(UWORD*)&ctl_l1; paddr += 2;
+          *paddr = *((UWORD*)&ctl_l1 + 1); paddr += 2;
+          *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
+          *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
         }
 
         //get to the next glued sprite (if there is any)
@@ -3321,7 +3590,7 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
     }
   }
 }
-#else /* NOT SMART_SPRITES */
+#else // SMART_SPRITES
 STATIC INLINE VOID LD_setSprite(struct GameObject* go)
 {
   ULONG hsn = ((struct Sprite*)go->u.medium)->hsn;
@@ -3344,10 +3613,10 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
 
     UBYTE* saddr = image->sprite_bank->data + offset;
     #ifdef DYNAMIC_COPPERLIST
-      WORD* haddr = (WORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH) + hsn * 4;
-    #else
-      WORD* haddr = CL_SPR0PTH + hsn * 4;
-    #endif
+      UWORD* haddr = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH) + hsn * 4;
+    #else // DYNAMIC_COPPERLIST
+      UWORD* haddr = CL_SPR0PTH + hsn * 4;
+    #endif // !DYNAMIC_COPPERLIST
 
     //Prepare the two sprite control words (in one long) for the static vertical coords.
     ULONG ctl_l0 = (y << 24) | ((s << 8) & 0xFF00) | ((y >> 8) << 2) | ((s >> 8) << 1);
@@ -3369,8 +3638,8 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
         }
 
         //set the sprite address on CopperList
-        *haddr = (WORD)((ULONG)saddr >> 16);  haddr += 2;
-        *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+        *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
+        *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
 
         //get to the attached sprite
         saddr += ssize;
@@ -3383,8 +3652,8 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
         }
 
         //set this sprite address on CopperList as well
-        *haddr = (WORD)((ULONG)saddr >> 16);  haddr += 2;
-        *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+        *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
+        *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
 
         //get to the next glued sprite (if there is any)
         saddr += ssize;
@@ -3407,8 +3676,8 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
         }
 
         //set the sprite address on CopperList
-        *haddr = (WORD)((ULONG)saddr >> 16);  haddr += 2;
-        *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+        *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
+        *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
 
         //get to the next glued sprite (if there is any)
         saddr += ssize;
@@ -3418,5 +3687,6 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
     }
   }
 }
-#endif
+#endif // !SMART_SPRITES
+#endif // NUM_SPRITES
 ///

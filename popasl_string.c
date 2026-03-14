@@ -72,6 +72,7 @@ extern struct Project {
   STRPTR palettes_header;
   STRPTR data_drawer;
   STRPTR assets_drawer;
+  ULONG screen_depth;
 }g_Project;
 ///
 

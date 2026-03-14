@@ -1,11 +1,12 @@
 #ifndef DISKIO_H
 #define DISKIO_H
 
-#define BM_TYPE_BITMAP      0x0
-#define BM_TYPE_DISPLAYABLE BMF_DISPLAYABLE
-#define BM_TYPE_INTERLEAVED BMF_INTERLEAVED
-#define BM_TYPE_GAMEFONT    BMF_DISPLAYABLE
-#define BM_TYPE_BOBSHEET    0x26
+#define BM_TYPE_BITMAP                  0x0
+#define BM_TYPE_DISPLAYABLE             BMF_DISPLAYABLE
+#define BM_TYPE_INTERLEAVED             BMF_INTERLEAVED
+#define BM_TYPE_GAMEFONT                BMF_DISPLAYABLE
+#define BM_TYPE_BOBSHEET                0x26
+#define BM_TYPE_BOBSHEET_NONINTERLEAVED 0x22
 
 #ifndef Unity
 #define Unity 0x10000UL

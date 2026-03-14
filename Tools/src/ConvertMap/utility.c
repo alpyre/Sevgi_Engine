@@ -61,19 +61,21 @@ BOOL aToi(STRPTR text, LONG *result)
   STRPTR curs = text;
   LONG value = 0;
   LONG multiplier = 1;
-  WORD len = 0;
+  LONG len = 0;
+  LONG sign = 1;
 
   // Find the start position of the number in string
   while (*curs)
   {
-    if (*curs > 47 && *curs < 58) break;
+    if (*curs == '-') sign = -1;
+    if (*curs >= '0' && *curs <= '9') break;
     curs++;
   }
 
   //Find the number end (or decimal part of the number end)
   while (TRUE)
   {
-    if (!*curs || *curs == '.' || (*curs!=',' && (*curs < 48 || *curs > 57))) break;
+    if (*curs!=',' && (*curs < '0' || *curs > '9')) break;
     curs++;
     len++;
   }
@@ -83,15 +85,13 @@ BOOL aToi(STRPTR text, LONG *result)
 
   for (; len > 0; len--)
   {
-    if (len == 1 && *curs == '-')          // first letter can be a minus sign.
-      { value *= -1; break; }
-    if (*curs == 44) { curs--; continue; } // if you meet a "," just skip it
-    value += ((*curs - 48) * multiplier);
+    if (*curs == ',') { curs--; continue; } // if you meet a "," just skip it
+    value += ((*curs - '0') * multiplier);
     multiplier *= 10;
     curs--;
   }
 
-  *result = value;
+  *result = value * sign;
   return TRUE;
 }
 ///

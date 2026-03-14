@@ -19,9 +19,9 @@ STATIC BOOL prepGradients(ULONG level_num)
       static struct Gradient* grad_list[NUM_GRADIENTS] = {0};
       #ifdef CT_AGA
         grad_list[0] = createGradient(GRD_TYPE_AGA, GRADIENT_COLOR_REG, GRADIENT_HEIGHT, 0, GRADIENT_HEIGHT, 0, GRD_BLITABLE, example_huelist);
-      #else
+      #else // CT_AGA
         grad_list[0] = createGradient(GRD_TYPE_OCS, GRADIENT_COLOR_REG, GRADIENT_HEIGHT, 0, GRADIENT_HEIGHT, 0, GRD_BLITABLE, example_huelist);
-      #endif
+      #endif // !CT_AGA
 
       //Init the color_table of the gradient
       grad_list[0]->color_table = newColorTable_GRD(grad_list[0], CT_DEFAULT_STEPS, 0);
@@ -29,9 +29,9 @@ STATIC BOOL prepGradients(ULONG level_num)
 
       #if BOTTOM_PANEL_HEIGHT > 0
       rainbow = createRainbow(grad_list, end_Instructions);
-      #else
+      #else // BOTTOM_PANEL_HEIGHT
       rainbow = createRainbow(grad_list, NULL);
-      #endif
+      #endif // !BOTTOM_PANEL_HEIGHT
 
       if (!rainbow) {
         retval = FALSE;

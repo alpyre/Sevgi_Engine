@@ -108,7 +108,7 @@ STATIC UWORD* CopperList  = (UWORD*) 0;
 
 #ifdef USE_CLP
 STATIC UWORD* CL_PALETTE    = (UWORD*)0;
-#endif
+#endif // USE_CLP
 STATIC UWORD* CL_BPL1PTH  = (UWORD*) 0;
 STATIC UWORD* CL_SPR0PTH  = (UWORD*) 0;
 
@@ -117,7 +117,7 @@ STATIC ULONG copperList_Instructions[] = {
 #ifdef USE_CLP
   #define CLP_DEPTH MENU_SCREEN_DEPTH
   #include "clp.c"
-#endif //USE_CLP
+#endif // USE_CLP
   MOVE(FMODE,   MENU_FMODE_V),                //              Set Sprite/Bitplane Fetch Modes
   MOVE(BPLCON0, BPLCON0_V),                   //              Set a lowres display
   MOVE(BPLCON1, 0),                           //              Set h_scroll register
@@ -217,7 +217,7 @@ STATIC VOID vblankEvents()
 {
   #ifndef USE_CLP
   setColorTable(color_table);
-  #endif
+  #endif // !USE_CLP
   MD_setSprite(&mouse_pointer);
 }
 ///
@@ -464,7 +464,7 @@ STATIC ULONG menuDisplayLoop()
     #ifdef USE_CLP
     waitVBeam(8); //Make sure all color instructions on the copperlist are read
     setColorTable_CLP(color_table, CL_PALETTE, 1, color_table->colors); //No need to fade color 0
-    #endif
+    #endif // USE_CLP
     updateBOBs();
     waitTOF();
     continue;
@@ -520,8 +520,8 @@ VOID MD_blitBOB(struct GameObject* go)
   BltBitMap(rastPort->BitMap, xDest, yDest, BOBsBackBuffer, (bob->background - BOBsBackBuffer->Planes[0]) * 8, 0, xSize, ySize, 0x0C0, 0xFF, NULL);
   // Paste bob into screen bitmap
   busyWaitBlit();
-  BltMaskBitMapRastPort(image->bob_sheet, xSrc, row + ySrc, rastPort, xDest, yDest, xSize, ySize, (ABC|ABNC|ANBC), image->mask);
-  #endif
+  BltMaskBitMapRastPort(image->bob_sheet->bitmap, xSrc, row + ySrc, rastPort, xDest, yDest, xSize, ySize, (ABC|ABNC|ANBC), image->mask);
+  #endif // NUM_BOBS
 }
 ///
 ///MD_unBlitBOB(gameobject)
@@ -536,6 +536,6 @@ VOID MD_unBlitBOB(struct GameObject* go)
 
   busyWaitBlit();
   BltBitMapRastPort(BOBsBackBuffer, (bob->background - BOBsBackBuffer->Planes[0]) * 8, 0, rastPort, bob->lastBlt.x1, bob->lastBlt.y1, bob->lastBlt.words, bob->lastBlt.rows, 0x0C0);
-  #endif
+  #endif // NUM_BOBS
 }
 ///

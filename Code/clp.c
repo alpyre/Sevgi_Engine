@@ -137,6 +137,7 @@
   MOVE(COLOR29, 0x0),                         //
   MOVE(COLOR30, 0x0),                         //
   MOVE(COLOR31, 0x0),                         //
+  #if CLP_DEPTH > 7
   MOVE(BPLCON3, BPLCON3_V | (4 << 13)),       //              bank 4
   MOVE(COLOR00, 0x0),                         //
   MOVE(COLOR01, 0x0),                         //
@@ -170,7 +171,6 @@
   MOVE(COLOR29, 0x0),                         //
   MOVE(COLOR30, 0x0),                         //
   MOVE(COLOR31, 0x0),                         //
-  #if CLP_DEPTH > 7
   MOVE(BPLCON3, BPLCON3_V | (5 << 13)),       //              bank 5
   MOVE(COLOR00, 0x0),                         //
   MOVE(COLOR01, 0x0),                         //
@@ -415,6 +415,7 @@
   MOVE(COLOR29, 0x0),                         //
   MOVE(COLOR30, 0x0),                         //
   MOVE(COLOR31, 0x0),                         //
+  #if CLP_DEPTH > 7
   MOVE(BPLCON3, BPLCON3_V | BPLCON3_LOCT | (4 << 13)), //     bank 4 LOCT
   MOVE(COLOR00, 0x0),                         //
   MOVE(COLOR01, 0x0),                         //
@@ -448,7 +449,6 @@
   MOVE(COLOR29, 0x0),                         //
   MOVE(COLOR30, 0x0),                         //
   MOVE(COLOR31, 0x0),                         //
-  #if CLP_DEPTH > 7
   MOVE(BPLCON3, BPLCON3_V | BPLCON3_LOCT | (5 << 13)), //     bank 5 LOCT
   MOVE(COLOR00, 0x0),                         //
   MOVE(COLOR01, 0x0),                         //

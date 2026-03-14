@@ -1,3 +1,8 @@
+/******************************************************************************
+ * WARNING: This file is not to be compiled to its own module. It is just     *
+ * inculed by display_level.c.                                                *
+ * Only use globals from display_level.c and do NOT declare new globals here! *
+ ******************************************************************************/
 STATIC VOID levelDisplayLoop()
 {
   UWORD quitting = FALSE;
@@ -18,7 +23,7 @@ STATIC VOID levelDisplayLoop()
       else
         CopperList = CopperList1;
     }
-    #endif //DYNAMIC_COPPERLIST
+    #endif // !DOUBLE_BUFFER && DYNAMIC_COPPERLIST
     new_frame_flag = 1;
 
     doKeyboardIO();
@@ -74,13 +79,20 @@ STATIC VOID levelDisplayLoop()
     updateColorTable_Partial(color_table, 1, color_table->colors);
     updateGameObjects();
     #ifdef DYNAMIC_COPPERLIST
+    /*
+    if (rainbow->gradList[0]->color_table->state != CT_IDLE) {
+      updateColorTable(rainbow->gradList[0]->color_table);
+      setColorTable_GRD(rainbow->gradList[0]->color_table);
+      updateRainbow(rainbow);
+    }
+    */
     updateDynamicCopperList();
-    #else
+    #else // DYNAMIC_COPPERLIST
     #ifdef USE_CLP
     waitVBeam(8); //Make sure all color instructions on the copperlist are read
     setColorTable_CLP(color_table, CL_PALETTE, 1, color_table->colors); //No need to fade color 0
-    #endif
-    #endif
+    #endif // USE_CLP
+    #endif // !DYNAMIC_COPPERLIST
 //    *(UWORD*)0xDFF180 = 0; //DEBUG (displays performance of the above algorithms)
     updateBOBs();
 
@@ -88,9 +100,10 @@ STATIC VOID levelDisplayLoop()
     #ifdef DOUBLE_BUFFER
     waitNextFrame();
     swapBuffers();
-    #else
+    clearBOBs();
+    #else // DOUBLE_BUFFER
     waitTOF();
-    #endif
+    #endif // !DOUBLE_BUFFER
 
     //blit the remaining secondPart tiles first thing on the next frame
     scrollRemaining(&si);

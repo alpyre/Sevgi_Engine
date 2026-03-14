@@ -289,6 +289,7 @@ VOID updateColorTable_Partial(struct ColorTable* ct, ULONG start, ULONG end)
 {
   switch (ct->state) {
     case CT_IDLE:
+    case CT_GO_IDLE:
       return;
     break;
     case CT_FADE_IN:
@@ -296,7 +297,7 @@ VOID updateColorTable_Partial(struct ColorTable* ct, ULONG start, ULONG end)
       struct ColorState* cs, *cs_end;
 
       if (ct->fade_step == ct->fade_steps) {
-        ct->state = CT_IDLE;
+        ct->state = CT_GO_IDLE;
         return;
       }
       ct->fade_step++;
@@ -312,7 +313,7 @@ VOID updateColorTable_Partial(struct ColorTable* ct, ULONG start, ULONG end)
       struct ColorState* cs, *cs_end;
 
       if (ct->fade_step == 0) {
-        ct->state = CT_IDLE;
+        ct->state = CT_GO_IDLE;
         return;
       }
       ct->fade_step--;
@@ -347,7 +348,10 @@ VOID setColorTable_REG(struct ColorTable* ct, ULONG start, ULONG end)
   ULONG bank, bank_start, banks_max;
   #endif
 
-  if (ct->state == CT_IDLE) return;
+  if (ct->state <= CT_GO_IDLE) {
+    ct->state = CT_IDLE;
+    return;
+  }
 
   cs = ct->states + start;
   cs_end = ct->states + end;
@@ -401,7 +405,10 @@ VOID setColorTable_REG(struct ColorTable* ct, ULONG start, ULONG end)
  ******************************************************************************/
 VOID setColorTable_CL(struct ColorTable* ct)
 {
-  if (ct->state == CT_IDLE) return;
+  if (ct->state <= CT_GO_IDLE) {
+    ct->state = CT_IDLE;
+    return;
+  }
   else {
     struct ColorState* cs, *cs_end;
     ULONG* cl_ptr = (ULONG*)ct->table;
@@ -435,7 +442,10 @@ VOID setColorTable_CL(struct ColorTable* ct)
  ******************************************************************************/
 VOID setColorTable_GRD(struct ColorTable* ct)
 {
-  if (ct->state == CT_IDLE) return;
+  if (ct->state <= CT_GO_IDLE) {
+    ct->state = CT_IDLE;
+    return;
+  }
   else {
     struct ColorState* cs, *cs_end;
     struct Gradient* grd = (struct Gradient*)ct->table;
@@ -539,9 +549,9 @@ VOID setColorTable_CLP(struct ColorTable* ct, UWORD* address, ULONG start, ULONG
     cs_end = ct->states + end;
     bank_start = start >> 5;
     inst_start = ((ULONG)address) + 4 + (bank_start * BANK_SIZE) + start_mod * 4;
-    inst_end = ((ULONG)address) + 4 + ((bank_start + 1) * BANK_SIZE);
+    inst_end = ((ULONG)address) + ((bank_start + 1) * BANK_SIZE);
 
-    for (bank = bank_start, banks_max = end >> 5; bank <= banks_max; bank++, inst_start = ((ULONG)address) + 4 + bank * BANK_SIZE, inst_end += BANK_SIZE) {
+    for (bank = bank_start, banks_max = end >> 5; bank <= banks_max; ++bank, inst_start = ((ULONG)address) + 4 + bank * BANK_SIZE, inst_end += BANK_SIZE) {
       for (instruction = inst_start; cs < cs_end && instruction < inst_end; cs++, instruction += 4) {
         UWORD* color = (UWORD*)instruction;
         #if CT_PRECISION == 8
@@ -554,9 +564,9 @@ VOID setColorTable_CLP(struct ColorTable* ct, UWORD* address, ULONG start, ULONG
 
     cs = ct->states + start;
     inst_start = loct_start + 4 + (bank_start * BANK_SIZE) + start_mod * 4;
-    inst_end = loct_start + 4 + ((bank_start + 1) * BANK_SIZE);
+    inst_end = loct_start + ((bank_start + 1) * BANK_SIZE);
 
-    for (bank = bank_start; bank <= banks_max; bank++, inst_start = loct_start + 4 + bank * BANK_SIZE, inst_end += BANK_SIZE) {
+    for (bank = bank_start; bank <= banks_max; ++bank, inst_start = loct_start + 4 + bank * BANK_SIZE, inst_end += BANK_SIZE) {
       for (instruction = inst_start; cs < cs_end && instruction < inst_end; cs++, instruction += 4) {
         UWORD* color = (UWORD*)instruction;
         #if CT_PRECISION == 8
@@ -584,6 +594,10 @@ VOID setColorTable_CLP(struct ColorTable* ct, UWORD* address, ULONG start, ULONG
       #endif
     }
 #endif //CT_AGA
+
+    if (ct->state == CT_GO_IDLE) {
+      ct->state = CT_IDLE;
+    }
   }
 }
 
@@ -612,6 +626,10 @@ VOID setColorTable_CLP_ECS(struct ColorTable* ct, UWORD* address, ULONG start, U
         *color = ((UWORD)cs->color.bytes.RH << 8) | (cs->color.bytes.GH << 4) | cs->color.bytes.BH;
       #endif
     }
+
+    if (ct->state == CT_GO_IDLE) {
+      ct->state = CT_IDLE;
+    }
   }
 }
 */
@@ -639,7 +657,7 @@ VOID setColorTable_CLP_AGA(struct ColorTable* ct, UWORD* address, ULONG start, U
     cs_end = ct->states + end;
     bank_start = start >> 5;
     inst_start = ((ULONG)address) + 4 + (bank_start * BANK_SIZE) + start_mod * 4;
-    inst_end = ((ULONG)address) + 4 + ((bank_start + 1) * BANK_SIZE);
+    inst_end = ((ULONG)address) + ((bank_start + 1) * BANK_SIZE);
 
     for (bank = bank_start, banks_max = end >> 5; bank <= banks_max; bank++, inst_start = ((ULONG)address) + 4 + bank * BANK_SIZE, inst_end += BANK_SIZE) {
       for (instruction = inst_start; cs < cs_end && instruction < inst_end; cs++, instruction += 4) {
@@ -654,7 +672,7 @@ VOID setColorTable_CLP_AGA(struct ColorTable* ct, UWORD* address, ULONG start, U
 
     cs = ct->states + start;
     inst_start = loct_start + 4 + (bank_start * BANK_SIZE) + start_mod * 4;
-    inst_end = loct_start + 4 + ((bank_start + 1) * BANK_SIZE);
+    inst_end = loct_start + ((bank_start + 1) * BANK_SIZE);
 
     for (bank = bank_start; bank <= banks_max; bank++, inst_start = loct_start + 4 + bank * BANK_SIZE, inst_end += BANK_SIZE) {
       for (instruction = inst_start; cs < cs_end && instruction < inst_end; cs++, instruction += 4) {
@@ -665,6 +683,10 @@ VOID setColorTable_CLP_AGA(struct ColorTable* ct, UWORD* address, ULONG start, U
           *color = ((UWORD)cs->color.bytes.RL << 4 & 0xF00) | (cs->color.bytes.GL & 0xF0) | (cs->color.bytes.BL >> 4);
         #endif
       }
+    }
+
+    if (ct->state == CT_GO_IDLE) {
+      ct->state = CT_IDLE;
     }
   }
 }
@@ -849,14 +871,14 @@ INLINE VOID setColor(ULONG index, UBYTE R, UBYTE G, UBYTE B)
     ULONG bank = (index / 32) << 13;
     index %= 32;
     custom.bplcon3 = BPLCON3_V | bank;
-  #endif
+  #endif // CT_AGA
 
   custom.color[index] = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
   #ifdef CT_AGA
   custom.bplcon3 = BPLCON3_V | BPLCON3_LOCT | bank;
   custom.color[index] = ((UWORD)R << 8 & 0xF00) | (G << 4 & 0xF0) | (B & 0xF);
   custom.bplcon3 = BPLCON3_V;
-  #endif
+  #endif // CT_AGA
 }
 ///
 ///setColor_CLP(index, address, size, R, G, B)
@@ -881,10 +903,10 @@ INLINE VOID setColor_CLP(ULONG index, UWORD* address, ULONG size, UBYTE R, UBYTE
 
   *color = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
   *color_loct = ((UWORD)R << 8 & 0xF00) | (G << 4 & 0xF0) | (B & 0xF);
-#else //CT_AGA
+#else // CT_AGA
   UWORD* color = (UWORD*)((ULONG)address + index * 4);
   *color = ((UWORD)R << 4 & 0xF00) | (G & 0xF0) | (B >> 4);
-#endif //CT_AGA
+#endif // !CT_AGA
 }
 
 /******************************************************************************
@@ -963,6 +985,6 @@ VOID updateColor(struct ColorTable* ct, ULONG index, UBYTE R, UBYTE G, UBYTE B)
   cs->color.value.B = cs->increment.B * ct->fade_step;
 #ifndef USE_CLP
   setColor(index, R, G, B);
-#endif //USE_CLP
+#endif // !USE_CLP
 }
 ///

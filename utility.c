@@ -321,19 +321,21 @@ BOOL aToi(STRPTR text, LONG *result)
   STRPTR curs = text;
   LONG value = 0;
   LONG multiplier = 1;
-  WORD len = 0;
+  LONG len = 0;
+  LONG sign = 1;
 
   // Find the start position of the number in string
   while (*curs)
   {
-    if (*curs > 47 && *curs < 58) break;
+    if (*curs == '-') sign = -1;
+    if (*curs >= '0' && *curs <= '9') break;
     curs++;
   }
 
   //Find the number end (or decimal part of the number end)
   while (TRUE)
   {
-    if (!*curs || *curs == '.' || (*curs!=',' && (*curs < 48 || *curs > 57))) break;
+    if (*curs!=',' && (*curs < '0' || *curs > '9')) break;
     curs++;
     len++;
   }
@@ -343,15 +345,13 @@ BOOL aToi(STRPTR text, LONG *result)
 
   for (; len > 0; len--)
   {
-    if (len == 1 && *curs == '-')          // first letter can be a minus sign.
-      { value *= -1; break; }
-    if (*curs == 44) { curs--; continue; } // if you meet a "," just skip it
-    value += ((*curs - 48) * multiplier);
+    if (*curs == ',') { curs--; continue; } // if you meet a "," just skip it
+    value += ((*curs - '0') * multiplier);
     multiplier *= 10;
     curs--;
   }
 
-  *result = value;
+  *result = value * sign;
   return TRUE;
 }
 ///
@@ -600,7 +600,7 @@ VOID replaceChars(STRPTR str, STRPTR restricted, UBYTE ch)
 ///
 ///pathPart(pathname)
 /******************************************************************************
- * Returns a the directory part of a pathname in a newly allocated string.    *
+ * Returns the directory part of a pathname in a newly allocated string.      *
  ******************************************************************************/
 STRPTR pathPart(STRPTR pathname)
 {
@@ -613,6 +613,37 @@ STRPTR pathPart(STRPTR pathname)
     if (result) {
       strncpy(result, pathname, path_len);
       result[path_len] = 0;
+    }
+  }
+
+  return result;
+}
+///
+///extensionPart(pathname)
+/******************************************************************************
+ * Returns a pointer to the extension part of a pathname/filename.            *
+ * If there are more than one extensions only the last one will be returned.  *
+ * Returns NULL if no extension is found.                                     *
+ * WARNING: DO NOT DEALLOCATE THE RETURNED STRING!                            *
+ ******************************************************************************/
+STRPTR extensionPart(STRPTR pathname)
+{
+  STRPTR result = NULL;
+
+  if (pathname) {
+    UBYTE* filename = FilePart(pathname);
+    ULONG filename_len = strlen(filename);
+    UBYTE *cursor = filename + filename_len;
+    ULONG len = 0;
+
+    while (cursor >= filename) {
+      cursor--;
+      if (*cursor == '.') break;
+      len++;
+    }
+
+    if (len < filename_len) {
+      result = ++cursor;
     }
   }
 

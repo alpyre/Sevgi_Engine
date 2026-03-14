@@ -4,7 +4,7 @@
 #ifdef FONTS_H
 STATIC struct TextAttr textAttrs[NUM_TEXTFONTS] = {{"Helvetica.font", 9, FS_NORMAL, FPF_DESIGNED}};
 STATIC STRPTR gameFontFiles[NUM_GAMEFONTS] = {"orbitron_15.fnt"};
-#endif
+#endif // FONTS_H
 
 #ifdef LEVEL_H
 // LEVEL 0 (Main Menu)
@@ -31,6 +31,6 @@ STATIC struct LevelData levelData[NUM_LEVELS] = {{"Main Menu",
                                                   0
                                                  }
                                                 };
-#endif
+#endif // LEVEL_H
 
 #endif /* ASSETS_H */

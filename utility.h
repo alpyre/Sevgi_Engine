@@ -54,6 +54,7 @@ STRPTR makePath(STRPTR dir, STRPTR file, STRPTR extension);
 STRPTR stripExtension(STRPTR pathname);
 VOID replaceChars(STRPTR str, STRPTR restricted, UBYTE ch);
 STRPTR pathPart(STRPTR pathname);
+STRPTR extensionPart(STRPTR pathname);
 BOOL searchString(STRPTR source, STRPTR str, ULONG* pos);
 BOOL locateStrInFile(BPTR fh, STRPTR str);
 BOOL locateArrayStart(BPTR fh);

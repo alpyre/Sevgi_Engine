@@ -288,7 +288,7 @@ struct Rainbow* createEmptyRainbow()
     rb->copOps[0].size = 1;
     rb->copOps[0].pointer = rb->list;
   }
-#else
+#else // SCREEN_END < 256
   struct Rainbow* rb = newRainbow(1, 1, 0, FALSE, 1);
   if (rb) {
     ULONG copperList[2] = {
@@ -305,7 +305,7 @@ struct Rainbow* createEmptyRainbow()
     rb->copOps[1].size = 1;
     rb->copOps[1].pointer = rb->list + 1;
   }
-#endif
+#endif // !SCREEN_END < 256
 
   return rb;
 }
@@ -397,7 +397,7 @@ struct Rainbow* createRainbow(struct Gradient** gradList, ULONG* end_insts)
         rb->copOps[0].wait = 0xFFFF;
         rb->copOps[0].size = num_end_insts;
         rb->copOps[0].pointer = rb->list;
-#else
+#else // SCREEN_END < 256
       rb = newRainbow(1, 0, 1, FALSE, num_end_insts);
       if (rb) {
         *rb->list = WAIT(225, 255);
@@ -409,7 +409,7 @@ struct Rainbow* createRainbow(struct Gradient** gradList, ULONG* end_insts)
         rb->copOps[1].wait = 0xFFFF;
         rb->copOps[1].size = num_end_insts;
         rb->copOps[1].pointer = rb->list + 1;
-#endif
+#endif // !SCREEN_END < 256
         return rb;
       }
       else return NULL;
@@ -634,7 +634,7 @@ struct Rainbow* createRainbow(struct Gradient** gradList, ULONG* end_insts)
       if (!tbl_inst[256 - SCREEN_START]) {
         tbl_inst[256 - SCREEN_START] = 1;
       }
-#endif
+#endif // SCREEN_END >= 256
 
     // Pass 9: Count num_ops and num_insts
     for (i = 0; i < SCREEN_HEIGHT; i++) {
@@ -839,7 +839,7 @@ VOID blitGradient(struct Gradient* grd, struct Rainbow* rb)
 ///
 ///updateRainbow(rainbow)
 /******************************************************************************
- * Updates the latests states of the gradients on a rainbow to itself by      *
+ * Updates the latest states of the gradients on a rainbow to itself by       *
  * blitting the new instruction values in case of a move or scroll.           *
  ******************************************************************************/
 VOID updateRainbow(struct Rainbow* rb)

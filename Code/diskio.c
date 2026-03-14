@@ -17,6 +17,7 @@
 #include "audio.h"
 #include "display.h"
 #include "diskio.h"
+#include "fonts.h"
 ///
 
 ///locateStrInFile(fileHandle, str)
@@ -236,6 +237,10 @@ struct BitMap* loadILBMBitMap(STRPTR fileName, ULONG type, ULONG extra_width)
             ULONG allocNoCheck  = 1;
             ULONG allocMemCheck = MEMF_CHIP | MEMF_FAST;
 
+  #ifdef USE_NONINTERLEAVED_BOBS
+            if (type == BM_TYPE_BOBSHEET && bmhd.bmh_Depth != SCREEN_DEPTH) type = BM_TYPE_BOBSHEET_NONINTERLEAVED;
+  #endif // USE_NONINTERLEAVED_BOBS
+
             switch (type) {
               case BM_TYPE_BOBSHEET:
                 if ((bmhd.bmh_Width % 16)) {
@@ -248,6 +253,19 @@ struct BitMap* loadILBMBitMap(STRPTR fileName, ULONG type, ULONG extra_width)
                 allocNoCheck  = 0;
                 allocMemCheck = MEMF_CHIP;
               break;
+  #ifdef USE_NONINTERLEAVED_BOBS
+              case BM_TYPE_BOBSHEET_NONINTERLEAVED:
+                if ((bmhd.bmh_Width % 16)) {
+                  puts("ILBM width must be a multiple of 16!");
+                  Close(fh);
+                  return NULL;
+                }
+                allocHeight   = bmhd.bmh_Height;
+                allocFlags    = BMF_DISPLAYABLE;
+                allocNoCheck  = 1;
+                allocMemCheck = MEMF_CHIP;
+              break;
+   #endif // USE_NONINTERLEAVED_BOBS
               case BM_TYPE_GAMEFONT:
               case BM_TYPE_BITMAP:
               default:
@@ -457,19 +475,19 @@ BOOL checkLocalType(UBYTE type)
 {
   #ifdef BIG_IMAGE_SIZES
     UBYTE local_type = 0x4;
-  #else
+  #else // BIG_IMAGE_SIZES
     #ifdef SMALL_IMAGE_SIZES
       UBYTE local_type = 0x2;
-    #else
+    #else // SMALL_IMAGE_SIZES
       UBYTE local_type = 0x0;
-    #endif
-  #endif
+    #endif // !SMALL_IMAGE_SIZES
+  #endif // !BIG_IMAGE_SIZES
 
   #ifdef SMALL_HITBOX_SIZES
     local_type |= 0x10;
-  #endif
+  #endif // SMALL_HITBOX_SIZES
 
-  return (BOOL)(local_type == type);
+  return (BOOL)(local_type == (type & 0x1E));
 }
 ///
 ///loadSpriteBank(fileName)
@@ -523,7 +541,7 @@ struct SpriteBank* loadSpriteBank(STRPTR fileName)
               Read(fh, bank->data, bank->dataSize);
 
               //Read hitboxes
-              if (type & 0x08) {
+              if (type & HAS_HITBOXES) {
                 Read(fh, &bank->num_hitboxes, sizeof(UWORD));
                 bank->hitboxes = AllocMem(sizeof(struct HitBox) * bank->num_hitboxes, MEMF_ANY);
                 if (bank->hitboxes) {
@@ -625,6 +643,9 @@ struct BOBSheet* loadBOBSheet(STRPTR fileName)
     UBYTE id[8];
     UBYTE sheet_file[32];
     struct BitMap* sheet_ilbm = NULL;
+  #ifdef USE_NONINTERLEAVED_BOBS
+    struct BitMap* sheet_mask = NULL; // Only valid for non-interleaved, NULL for interleaved BOBs.
+  #endif // USE_NONINTERLEAVED_BOBS
 
     Read(fh, id, 8);
     if (strncmp(id, "BOBSHEET", 8) == 0) {
@@ -635,16 +656,40 @@ struct BOBSheet* loadBOBSheet(STRPTR fileName)
       }
       if (i) {
         AddPart(path, sheet_file, PATH_BUFFER_LENGTH);
-        sheet_ilbm = loadILBMBitMap(path, BM_TYPE_BOBSHEET, 0);
-        if (sheet_ilbm) {
-          Read(fh, &properties.type, sizeof(properties.type));
-          Read(fh, &properties.num_images, sizeof(properties.num_images));
+        Read(fh, &properties.type, sizeof(properties.type));
 
-          if (checkLocalType(properties.type & 0xFE)) {
+        if (checkLocalType(properties.type)) {
+  #ifdef USE_NONINTERLEAVED_BOBS
+          UBYTE type = properties.type & 0x20 ? BM_TYPE_BOBSHEET_NONINTERLEAVED : BM_TYPE_BOBSHEET;
+  #else // USE_NONINTERLEAVED_BOBS
+          UBYTE type = BM_TYPE_BOBSHEET;
+  #endif // !USE_NONINTERLEAVED_BOBS
+
+
+          sheet_ilbm = loadILBMBitMap(path, type, 0);
+          if (sheet_ilbm) {
+  #ifdef USE_NONINTERLEAVED_BOBS
+            if (type == BM_TYPE_BOBSHEET_NONINTERLEAVED || sheet_ilbm->Depth != SCREEN_DEPTH) {
+              type = BM_TYPE_BOBSHEET_NONINTERLEAVED;
+              sheet_mask = createBltMasks(sheet_ilbm);
+              if (!sheet_mask) {
+                printf("BOB sheet: %s", fileName);
+                FreeBitMap(sheet_ilbm);
+                Close(fh);
+                return NULL;
+              }
+            }
+  #endif // USE_NONINTERLEAVED_BOBS
+
+            Read(fh, &properties.num_images, sizeof(properties.num_images));
+
             bs = (struct BOBSheet*)AllocMem(sizeof(struct BOBSheet) + properties.num_images * sizeof(struct BOBImage), MEMF_ANY);
             if (bs) {
               bs->num_images = properties.num_images;
               bs->bitmap = sheet_ilbm;
+  #ifdef USE_NONINTERLEAVED_BOBS
+              bs->mask = sheet_mask;
+  #endif // USE_NONINTERLEAVED_BOBS
 
               switch (properties.type & 0x01) {
                 case BST_DISTRUBUTED:
@@ -668,9 +713,14 @@ struct BOBSheet* loadBOBSheet(STRPTR fileName)
                     bs->image[i].width = props.width;
                     bs->image[i].height = props.height;
                     bs->image[i].bytesPerRow = bytesPerRow;
-                    bs->image[i].bob_sheet = sheet_ilbm;
+                    bs->image[i].bob_sheet = bs;
                     bs->image[i].pointer = sheet_ilbm->Planes[0] + (row * props.height * sheet_ilbm->BytesPerRow) + (col * bytesPerRow);
-                    bs->image[i].mask = bs->image[i].pointer + sheet_ilbm->Rows * sheet_ilbm->BytesPerRow / 2;
+  #ifdef USE_NONINTERLEAVED_BOBS
+                    if (type == BM_TYPE_BOBSHEET_NONINTERLEAVED)
+                      bs->image[i].mask = sheet_mask->Planes[0] + (row * props.height * sheet_mask->BytesPerRow) + (col * bytesPerRow);
+                    else
+  #endif // USE_NONINTERLEAVED_BOBS
+                      bs->image[i].mask = bs->image[i].pointer + sheet_ilbm->Rows * sheet_ilbm->BytesPerRow / 2;
                   }
                 }
                 break;
@@ -693,15 +743,20 @@ struct BOBSheet* loadBOBSheet(STRPTR fileName)
                     bs->image[i].h_offs = props.h_offs;
                     bs->image[i].v_offs = props.v_offs;
                     bs->image[i].bytesPerRow = (((props.width - 1) / 16) + 1) * 2;
-                    bs->image[i].bob_sheet = sheet_ilbm;
+                    bs->image[i].bob_sheet = bs;
                     bs->image[i].pointer = sheet_ilbm->Planes[0] + (props.row * sheet_ilbm->BytesPerRow) + (props.word * 2);
-                    bs->image[i].mask = bs->image[i].pointer + sheet_ilbm->Rows * sheet_ilbm->BytesPerRow / 2;
+  #ifdef USE_NONINTERLEAVED_BOBS
+                    if (type == BM_TYPE_BOBSHEET_NONINTERLEAVED)
+                      bs->image[i].mask = sheet_mask->Planes[0] + (props.row * sheet_mask->BytesPerRow) + (props.word * 2);
+                    else
+  #endif // USE_NONINTERLEAVED_BOBS
+                      bs->image[i].mask = bs->image[i].pointer + sheet_ilbm->Rows * sheet_ilbm->BytesPerRow / 2;
                   }
                 }
                 break;
               }
               //Load hitboxes
-              if (properties.type & 0x08) {
+              if (properties.type & HAS_HITBOXES) {
                 Read(fh, &bs->num_hitboxes, sizeof(UWORD));
                 bs->hitboxes = AllocMem(sizeof(struct HitBox) * bs->num_hitboxes, MEMF_ANY);
                 if (bs->hitboxes) {
@@ -737,9 +792,9 @@ struct BOBSheet* loadBOBSheet(STRPTR fileName)
             }
             else { puts("Not enough memory for BOB sheet!"); FreeBitMap(sheet_ilbm); }
           }
-          else { printf("Bob sheet %s is not compatible with compiled image/hitbox sizes:\nPlease check BIG_IMAGE_SIZES, SMALL_IMAGE_SIZES and SMALL_HITBOX_SIZES defines\n", fileName); FreeBitMap(sheet_ilbm); }
+          else puts("Bob sheet ilbm could not be loaded!");
         }
-        else puts("Bob sheet ilbm could not be loaded!");
+        else printf("Bob sheet %s is not compatible with compiled image/hitbox sizes:\nPlease check BIG_IMAGE_SIZES, SMALL_IMAGE_SIZES and SMALL_HITBOX_SIZES defines\n", fileName);
       }
       else puts("Invalid bob sheet ilbm filename!");
     }
@@ -765,6 +820,9 @@ VOID freeBOBSheet(struct BOBSheet* bs)
     if (bs->bitmap) {
       WaitBlit();
       FreeBitMap(bs->bitmap);
+  #ifdef USE_NONINTERLEAVED_BOBS
+      if (bs->mask) FreeBitMap(bs->mask);
+  #endif // USE_NONINTERLEAVED_BOBS
     }
     FreeMem(bs, sizeof(struct BOBSheet) + bs->num_images * sizeof(struct BOBImage));
   }

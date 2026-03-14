@@ -316,7 +316,7 @@ BOOL takeOverSystem()
       vblank_handler.is_Node.ln_Pri = 127;
       vblank_handler.is_Node.ln_Name = "VBlank_Interrupt";
       vblank_handler.is_Data = 0;
-      vblank_handler.is_Code = (APTR)customVBlankHandler;
+      vblank_handler.is_Code = (VOID(*)())customVBlankHandler;
       AddIntServer(INTB_VERTB, &vblank_handler);
 
       // setup a custom input handler
@@ -330,7 +330,7 @@ BOOL takeOverSystem()
             input_handler.is_Node.ln_Type = NT_INTERRUPT;
             input_handler.is_Node.ln_Pri = 127;
             input_handler.is_Data = 0;
-            input_handler.is_Code = (APTR)customInputHandler;
+            input_handler.is_Code = (VOID(*)())customInputHandler;
 
             input_ioreq->io_Command = IND_ADDHANDLER;
             input_ioreq->io_Data = &input_handler;

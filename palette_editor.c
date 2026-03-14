@@ -7,17 +7,14 @@
 #define MUIM_PaletteEditor_Rem_Palette 0x80430503
 #define MUIM_PaletteEditor_Chg_Palette 0x80430504
 #define MUIM_PaletteEditor_Update_Name 0x80430505
-#define MUIM_PaletteEditor_Import_ILBM 0x80430506
-#define MUIM_PaletteEditor_Move        0x80430507
-#define MUIM_PaletteEditor_LoadAs      0x80430508
-#define MUIM_PaletteEditor_SaveAs      0x80430509
-#define MUIM_PaletteEditor_Reset       0x8043050A
+#define MUIM_PaletteEditor_Move        0x80430506
 
 #define MUIV_PaletteEditor_Up   0x01
 #define MUIV_PaletteEditor_Down 0x02
 ///
 ///Includes
 #include <stdio.h>            // <-- For sprintf()
+#include <string.h>           // <-- For strncpy()
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/asl.h>
@@ -28,6 +25,7 @@
 #include <libraries/mui.h>
 #include <proto/muimaster.h>
 #include <clib/alib_protos.h> // <-- Required for DoSuperMethod()
+#include <libraries/gadtools.h>
 
 #include <SDI_compiler.h>     //     Required for
 #include <SDI_hook.h>         // <-- multi platform
@@ -51,6 +49,7 @@ struct cl_ObjTable
   Object* listview;
   Object* list_new;
   Object* list_import;
+  Object* list_export;
   Object* list_remove;
   Object* list_move_up;
   Object* list_move_down;
@@ -85,6 +84,18 @@ struct cl_Msg2
   ULONG MethodID;
   STRPTR filename;
 };
+
+struct ColorMapFile {
+  UBYTE form[4];
+  ULONG form_size;
+  UBYTE form_id[4];
+  UBYTE bmhd_id[4];
+  ULONG bmhd_size;
+  struct BitMapHeader bmhd;
+  UBYTE cmap_id[4];
+  ULONG cmap_size;
+  UBYTE cmap[0];
+};
 ///
 ///Globals
 extern APTR g_MemoryPool;
@@ -102,6 +113,7 @@ extern struct Project {
   STRPTR palettes_header;
   STRPTR data_drawer;
   STRPTR assets_drawer;
+  ULONG screen_depth;
 }g_Project;
 ///
 ///Hooks
@@ -239,16 +251,18 @@ VOID freePaletteItem(struct PaletteItem* p)
 
 VOID updateActivePalette(struct cl_Data* data)
 {
-  struct PaletteItem* p;
+  if (data->edited) {
+    struct PaletteItem* p;
 
-  DoMethod(data->obj_table.listview, MUIM_List_GetEntry, MUIV_List_GetEntry_Active, (APTR)&p);
+    DoMethod(data->obj_table.listview, MUIM_List_GetEntry, MUIV_List_GetEntry_Active, (APTR)&p);
 
-  if (p) {
-    UBYTE* new_palette;
-    freePalette(p->palette);
+    if (p) {
+      UBYTE* new_palette;
+      freePalette(p->palette);
 
-    get(data->obj_table.color_palette, MUIA_ColorPalette_Palette, &new_palette);
-    p->palette = new_palette;
+      get(data->obj_table.color_palette, MUIA_ColorPalette_Palette, &new_palette);
+      p->palette = new_palette;
+    }
   }
 }
 
@@ -374,6 +388,117 @@ VOID load_Palettes_File(STRPTR path, struct cl_Data* data)
 
     Close(fh);
   }
+}
+
+ULONG calcMergedPaletteSize(UBYTE* p1, UBYTE* p2)
+{
+  ULONG p1_size = p1[0] + 1;
+  ULONG p2_size = p2[0] + 1;
+  ULONG merged_size = p1_size;
+  ULONG p1_i, p2_i, i;
+  ULONG p1_imax = 1 + p1_size * 3;
+  ULONG p2_imax = 1 + p2_size * 3;
+
+  for (p2_i = 1; p2_i < p2_imax; p2_i += 3) {
+    ULONG found = FALSE;
+    for (p1_i = 1; p1_i < p1_imax; p1_i += 3) {
+      if (p1[p1_i] == p2[p2_i] && p1[p1_i + 1] == p2[p2_i + 1] && p1[p1_i + 2] == p2[p2_i + 2]) {
+        found = TRUE;
+        break;
+      }
+    }
+
+    if (!found) merged_size++;
+  }
+
+  // Round merged_size up to a valid palette size value
+  // NOTE: too big merged_size is to be handled by the caller
+  for (i = 2; i <= 512; i *= 2) {
+    if (merged_size <= i) break;
+  }
+
+  merged_size = i;
+
+  return merged_size;
+}
+///
+
+///prepareMenu()
+STATIC struct NewMenu* prepareMenu()
+{
+  #define MENU_SIZE 13
+  struct NewMenu* menu = (struct NewMenu*) AllocPooled(g_MemoryPool, sizeof(struct NewMenu) * MENU_SIZE);
+
+  if (menu) {
+    menu[0].nm_Type     = NM_TITLE;
+    menu[0].nm_Label    = "File";
+    menu[0].nm_UserData = (APTR)NULL;
+
+    menu[1].nm_Type     = NM_ITEM;
+    menu[1].nm_Label    = "New";
+    menu[1].nm_CommKey  = "N";
+    menu[1].nm_Flags    = NM_ITEMDISABLED;
+    menu[1].nm_UserData = (APTR)MUIM_PaletteEditor_Reset;
+
+    menu[2].nm_Type     = NM_ITEM;
+    menu[2].nm_Label    = "Load...";
+    menu[2].nm_CommKey  = "L";
+    menu[2].nm_UserData = (APTR)MUIM_PaletteEditor_LoadAs;
+
+    menu[3].nm_Type     = NM_ITEM;
+    menu[3].nm_Label    = "Save As...";
+    menu[3].nm_CommKey  = "A";
+    menu[3].nm_Flags    = NM_ITEMDISABLED;
+    menu[3].nm_UserData = (APTR)MUIM_PaletteEditor_SaveAs;
+
+    menu[4].nm_Type     = NM_TITLE;
+    menu[4].nm_Label    = "Edit";
+    menu[4].nm_UserData = (APTR)NULL;
+
+    menu[5].nm_Type     = NM_ITEM;
+    menu[5].nm_Label    = "Undo";
+    menu[5].nm_CommKey  = "Z";
+    menu[5].nm_Flags    = NM_ITEMDISABLED;
+    menu[5].nm_UserData = (APTR)NULL;
+
+    menu[6].nm_Type     = NM_ITEM;
+    menu[6].nm_Label    = "Redo";
+    menu[6].nm_CommKey  = "Y";
+    menu[6].nm_Flags    = NM_ITEMDISABLED;
+    menu[6].nm_UserData = (APTR)NULL;
+
+    menu[7].nm_Type     = NM_TITLE;
+    menu[7].nm_Label    = "Palette";
+    menu[7].nm_UserData = (APTR)NULL;
+
+    menu[8].nm_Type     = NM_ITEM;
+    menu[8].nm_Label    = "Import...";
+    menu[8].nm_CommKey  = "I";
+    menu[8].nm_UserData = (APTR)MUIM_PaletteEditor_Import_ILBM;
+
+    menu[9].nm_Type     = NM_ITEM;
+    menu[9].nm_Label    = "Export...";
+    menu[9].nm_CommKey  = "E";
+    menu[9].nm_Flags    = NM_ITEMDISABLED;
+    menu[9].nm_UserData = (APTR)MUIM_PaletteEditor_Export_ILBM;
+
+    menu[10].nm_Type     = NM_ITEM;
+    menu[10].nm_Label    = "Append...";
+    menu[10].nm_CommKey   = "A";
+    menu[10].nm_Flags    = NM_ITEMDISABLED;
+    menu[10].nm_UserData = (APTR)MUIM_PaletteEditor_Append_ILBM;
+
+    menu[11].nm_Type     = NM_ITEM;
+    menu[11].nm_Label    = "Merge...";
+    menu[11].nm_CommKey  = "M";
+    menu[11].nm_Flags    = NM_ITEMDISABLED;
+    menu[11].nm_UserData = (APTR)MUIM_PaletteEditor_Merge_ILBM;
+
+    menu[12].nm_Type     = NM_END;
+
+    return menu;
+  }
+  return NULL;
 }
 ///
 
@@ -545,7 +670,7 @@ ULONG m_Import_ILBM(struct IClass* cl, Object* obj, Msg msg)
                                     ASLFR_DrawersOnly, FALSE,
                                     ASLFR_DoSaveMode, FALSE,
                                     ASLFR_DoPatterns, TRUE,
-                                    ASLFR_InitialPattern, "#?.(iff|ilbm|pic|bsh)",
+                                    ASLFR_InitialPattern, "#?.(iff|ilbm|pic|bsh|col)",
                                     ASLFR_InitialDrawer, g_Project.assets_drawer,
                                     ASLFR_InitialFile, "",
                                     TAG_END) && strlen(g_FileReq->fr_File)) {
@@ -566,6 +691,243 @@ ULONG m_Import_ILBM(struct IClass* cl, Object* obj, Msg msg)
   }
 
   DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
+
+  return 0;
+}
+///
+///m_Append_ILBM(cl, obj, msg)
+ULONG m_Append_ILBM(struct IClass* cl, Object* obj, Msg msg)
+{
+  struct cl_Data* data = INST_DATA(cl, obj);
+  struct PaletteItem* pi1;
+  struct PaletteItem* pi2;
+
+  updateActivePalette(data);
+
+  DoMethod(data->obj_table.listview, MUIM_List_GetEntry, MUIV_List_GetEntry_Active, (APTR)&pi1);
+  if (pi1) {
+    STRPTR path = NULL;
+    struct Window* window;
+
+    get(obj, MUIA_Window_Window, &window);
+    DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
+
+    if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Append ILBM palette",
+                                      ASLFR_Window, window,
+                                      ASLFR_PositiveText, "Append",
+                                      ASLFR_DrawersOnly, FALSE,
+                                      ASLFR_DoSaveMode, FALSE,
+                                      ASLFR_DoPatterns, TRUE,
+                                      ASLFR_InitialPattern, "#?.(iff|ilbm|pic|bsh|col)",
+                                      ASLFR_InitialDrawer, g_Project.assets_drawer,
+                                      ASLFR_InitialFile, "",
+                                      TAG_END) && strlen(g_FileReq->fr_File)) {
+      path = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, NULL);
+      if (path) {
+        pi2 = newPaletteItemFromILBM(path);
+        if (pi2) {
+          ULONG p1_size = pi1->palette[0] + 1;
+          ULONG p2_size = pi2->palette[0] + 1;
+          ULONG p3_size = MAX(p1_size, p2_size) * 2;
+
+          if (p3_size <= 256) {
+            UBYTE* p3 = AllocPooled(g_MemoryPool, p3_size * 3 + 1);
+            if (p3) {
+              p3[0] = p3_size - 1;
+              memcpy(&p3[1], &pi1->palette[1], p1_size * 3);
+              memcpy(&p3[p1_size * 3 + 1], &pi2->palette[1], p2_size * 3);
+              freePalette(pi1->palette);
+              pi1->palette = p3;
+
+              DoMethod(data->obj_table.color_palette, MUIM_Set, MUIA_ColorPalette_Palette, pi1->palette);
+              DoMethod(obj, MUIM_Set, MUIA_PaletteEditor_Edited, TRUE);
+            }
+          }
+          else {
+            MUI_Request(App, obj, NULL, "Palette Editor", "*_OK", "Palettes too big to be appended!");
+          }
+
+          freePaletteItem(pi2);
+        }
+
+        freeString(path);
+      }
+    }
+
+    DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
+  }
+
+  return 0;
+}
+///
+///m_Merge_ILBM(cl, obj, msg)
+ULONG m_Merge_ILBM(struct IClass* cl, Object* obj, Msg msg)
+{
+  struct cl_Data* data = INST_DATA(cl, obj);
+  struct PaletteItem* pi1;
+  struct PaletteItem* pi2;
+
+  updateActivePalette(data);
+
+  DoMethod(data->obj_table.listview, MUIM_List_GetEntry, MUIV_List_GetEntry_Active, (APTR)&pi1);
+  if (pi1) {
+    STRPTR path = NULL;
+    struct Window* window;
+
+    get(obj, MUIA_Window_Window, &window);
+    DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
+
+    if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Merge ILBM palette",
+                                      ASLFR_Window, window,
+                                      ASLFR_PositiveText, "Merge",
+                                      ASLFR_DrawersOnly, FALSE,
+                                      ASLFR_DoSaveMode, FALSE,
+                                      ASLFR_DoPatterns, TRUE,
+                                      ASLFR_InitialPattern, "#?.(iff|ilbm|pic|bsh|col)",
+                                      ASLFR_InitialDrawer, g_Project.assets_drawer,
+                                      ASLFR_InitialFile, "",
+                                      TAG_END) && strlen(g_FileReq->fr_File)) {
+      path = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, NULL);
+      if (path) {
+        pi2 = newPaletteItemFromILBM(path);
+        if (pi2) {
+          ULONG p1_size = pi1->palette[0] + 1;
+          ULONG p2_size = pi2->palette[0] + 1;
+          ULONG p3_size = calcMergedPaletteSize(pi1->palette, pi2->palette);
+
+          if (p3_size <= 256) {
+            if (p3_size != p1_size) {
+              UBYTE* p3 = AllocPooled(g_MemoryPool, p3_size * 3 + 1);
+              if (p3) {
+                UBYTE* p1 = pi1->palette;
+                UBYTE* p2 = pi2->palette;
+                ULONG p1_i, p2_i;
+                ULONG p1_imax = 1 + p1_size * 3;
+                ULONG p2_imax = 1 + p2_size * 3;
+                ULONG p3_i = p1_imax;
+
+                p3[0] = p3_size - 1;
+                memcpy(&p3[1], &pi1->palette[1], p1_size * 3);
+
+                for (p2_i = 1; p2_i < p2_imax; p2_i += 3) {
+                  ULONG found = FALSE;
+                  for (p1_i = 1; p1_i < p1_imax; p1_i += 3) {
+                    if (p1[p1_i] == p2[p2_i] && p1[p1_i + 1] == p2[p2_i + 1] && p1[p1_i + 2] == p2[p2_i + 2]) {
+                      found = TRUE;
+                      break;
+                    }
+                  }
+
+                  if (!found) {
+                    memcpy(&p3[p3_i], &p2[p2_i], 3);
+                    p3_i += 3;
+                  }
+                }
+
+                freePalette(pi1->palette);
+                pi1->palette = p3;
+
+                DoMethod(data->obj_table.color_palette, MUIM_Set, MUIA_ColorPalette_Palette, pi1->palette);
+                DoMethod(obj, MUIM_Set, MUIA_PaletteEditor_Edited, TRUE);
+              }
+            }
+            else {
+              MUI_Request(App, obj, NULL, "Palette Editor", "*_OK", "Palette colors were identical!");
+            }
+          }
+          else {
+            MUI_Request(App, obj, NULL, "Palette Editor", "*_OK", "Palettes too big to be appended!");
+          }
+
+          freePaletteItem(pi2);
+        }
+
+        freeString(path);
+      }
+    }
+
+    DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
+  }
+
+  return 0;
+}
+///
+///m_Export_ILBM(cl, obj, msg)
+ULONG m_Export_ILBM(struct IClass* cl, Object* obj, Msg msg)
+{
+  struct cl_Data *data = INST_DATA(cl, obj);
+  struct PaletteItem* p;
+
+  updateActivePalette(data);
+
+  DoMethod(data->obj_table.listview, MUIM_List_GetEntry, MUIV_List_GetEntry_Active, (APTR)&p);
+  if (p) {
+    STRPTR path = NULL;
+    struct Window* window;
+
+    get(obj, MUIA_Window_Window, &window);
+    DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
+
+    if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Export ILBM palette",
+                                      ASLFR_Window, window,
+                                      ASLFR_PositiveText, "Export",
+                                      ASLFR_DrawersOnly, FALSE,
+                                      ASLFR_DoSaveMode, TRUE,
+                                      ASLFR_DoPatterns, TRUE,
+                                      ASLFR_InitialPattern, "#?.(iff|ilbm|pic|bsh|col)",
+                                      ASLFR_InitialDrawer, g_Project.assets_drawer,
+                                      ASLFR_InitialFile, "",
+                                      TAG_END) && strlen(g_FileReq->fr_File)) {
+      path = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, NULL);
+      if (path) {
+        if (Exists(path)) {
+          if (!MUI_Request(App, obj, NULL, "Palette Editor", "*_Overwrite|_Cancel", "Color palette file already exists!")) {
+            freeString(path);
+            path = NULL;
+          }
+        }
+        else if (!extensionPart(g_FileReq->fr_File)) {
+            freeString(path);
+            path = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, ".col");
+        }
+      }
+
+      if (path) {
+        BPTR fh = Open(path, MODE_NEWFILE);
+
+        if (fh) {
+          ULONG num_colors = p->palette[0] + 1;
+          //num_colors is always even so no need to do padding
+          ULONG file_size = sizeof(struct ColorMapFile) + num_colors * 3;
+          APTR file_buffer = AllocMem(file_size, MEMF_ANY | MEMF_CLEAR);
+
+          if (file_buffer) {
+            struct ColorMapFile* file = (struct ColorMapFile*) file_buffer;
+            strncpy(file->form, "FORM", 4);
+            file->form_size = file_size - 8;
+            strncpy(file->form_id, "ILBM", 4);
+            strncpy(file->bmhd_id, "BMHD", 4);
+            file->bmhd_size = sizeof(struct BitMapHeader);
+            file->bmhd.bmh_Depth = colors2depth(num_colors);
+            file->bmhd.bmh_Masking = 2;
+            strncpy(file->cmap_id, "CMAP", 4);
+            file->cmap_size = num_colors * 3;
+            memcpy(file->cmap, &p->palette[1], file->cmap_size);
+
+            Write(fh, file_buffer, file_size);
+
+            FreeMem(file_buffer, file_size);
+          }
+
+          Close(fh);
+        }
+
+        freeString(path);
+      }
+    }
+
+    DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
+  }
 
   return 0;
 }
@@ -772,6 +1134,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* listview;
     Object* list_new;
     Object* list_import;
+    Object* list_export;
     Object* list_remove;
     Object* list_move_up;
     Object* list_move_down;
@@ -788,6 +1151,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     MUIA_Window_Height, MUIV_Window_Height_Visible(40),
     MUIA_Window_ID, MAKE_ID('S','V','G','4'),
     MUIA_Window_Title, "Palette Editor",
+    MUIA_Window_Menustrip, MUI_MakeObject(MUIO_MenustripNM, (ULONG)prepareMenu(), 0),
     MUIA_Window_RootObject, MUI_NewObject(MUIC_Group,
       MUIA_Group_Child, MUI_NewObject(MUIC_Group,
         MUIA_Group_Horiz, TRUE,
@@ -823,6 +1187,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
             MUIA_Group_HorizSpacing, 2,
             MUIA_Group_Child, (objects.list_new       = MUI_NewButton("New", NULL, "Create new palette")),
             MUIA_Group_Child, (objects.list_import    = MUI_NewButton("Import", NULL, "Import palette from an ILBM file")),
+            MUIA_Group_Child, (objects.list_export    = MUI_NewButton("Export", NULL, "Export palette to an ILBM palette file")),
             MUIA_Group_Child, (objects.list_remove    = MUI_NewButton("Remove", NULL, "Remove selected palette")),
             MUIA_Group_Child, (objects.list_move_up   = MUI_NewButton("Up", NULL, "Move selected palette up")),
             MUIA_Group_Child, (objects.list_move_down = MUI_NewButton("Down", NULL, "Move selected palette down")),
@@ -909,6 +1274,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     DoMethod(objects.name, MUIM_Notify, MUIA_String_Acknowledge, MUIV_EveryTime, obj, 1, MUIM_PaletteEditor_Update_Name);
     //Clicking Import button should call m_Import_ILBM() method
     DoMethod(objects.list_import, MUIM_Notify, MUIA_Pressed, FALSE, obj, 1, MUIM_PaletteEditor_Import_ILBM);
+    //Clicking Export button should call m_Export_ILBM() method
+    DoMethod(objects.list_export, MUIM_Notify, MUIA_Pressed, FALSE, obj, 1, MUIM_PaletteEditor_Export_ILBM);
     //Load Button
     DoMethod(objects.load, MUIM_Notify, MUIA_Pressed, FALSE, obj, 1, MUIM_PaletteEditor_LoadAs);
     //Save Button
@@ -946,6 +1313,22 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
 
     DoMethod(obj, MUIM_Notify, MUIA_Window_CloseRequest, TRUE, obj, 3,
       MUIM_Set, MUIA_Window_Open, FALSE);
+
+    //Tie buttons and menu disabled states to eachother
+    DoMethod(objects.new, MUIM_Notify, MUIA_Disabled, MUIV_EveryTime, obj, 3,
+      MUIM_Window_SetMenuState, MUIM_PaletteEditor_Reset, MUIV_NotTriggerValue);
+
+    DoMethod(objects.save, MUIM_Notify, MUIA_Disabled, MUIV_EveryTime, obj, 3,
+      MUIM_Window_SetMenuState, MUIM_PaletteEditor_SaveAs, MUIV_NotTriggerValue);
+
+    DoMethod(objects.new, MUIM_Notify, MUIA_Disabled, MUIV_EveryTime, obj, 3,
+      MUIM_Window_SetMenuState, MUIM_PaletteEditor_Export_ILBM, MUIV_NotTriggerValue);
+
+    DoMethod(objects.new, MUIM_Notify, MUIA_Disabled, MUIV_EveryTime, obj, 3,
+      MUIM_Window_SetMenuState, MUIM_PaletteEditor_Append_ILBM, MUIV_NotTriggerValue);
+
+    DoMethod(objects.new, MUIM_Notify, MUIA_Disabled, MUIV_EveryTime, obj, 3,
+      MUIM_Window_SetMenuState, MUIM_PaletteEditor_Merge_ILBM, MUIV_NotTriggerValue);
 
     data->obj_table.new = objects.new;
     data->obj_table.load = objects.load;
@@ -1052,6 +1435,12 @@ SDISPATCHER(cl_Dispatcher)
       return m_Change_Palette(cl, obj, msg);
     case MUIM_PaletteEditor_Import_ILBM:
       return m_Import_ILBM(cl, obj, msg);
+    case MUIM_PaletteEditor_Append_ILBM:
+      return m_Append_ILBM(cl, obj, msg);
+    case MUIM_PaletteEditor_Merge_ILBM:
+      return m_Merge_ILBM(cl, obj, msg);
+    case MUIM_PaletteEditor_Export_ILBM:
+      return m_Export_ILBM(cl, obj, msg);
     case MUIM_PaletteEditor_Move:
       return m_Move_Palette(cl, obj, (struct cl_Msg*)msg);
     case MUIM_PaletteEditor_Load:

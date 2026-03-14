@@ -30,6 +30,7 @@
 #include "dosupernew.h"
 #include "utility.h"
 #include "integer_gadget.h"
+#include "assets_editor.h"
 #include "game_settings.h"
 ///
 ///Structs
@@ -72,6 +73,7 @@ struct cl_ObjTable
 struct cl_Data
 {
   struct cl_ObjTable obj_table;
+  Object* assetsEditor;
   BOOL custom_level_display;
   BOOL edited;
 };
@@ -92,6 +94,16 @@ extern struct FileRequester* g_FileReq;
 extern Object* App;
 extern struct MUI_CustomClass* MUIC_Integer;
 extern struct MUI_CustomClass* MUIC_ImageDisplay;
+
+extern struct Project {
+  STRPTR directory;
+  STRPTR settings_header;
+  STRPTR assets_header;
+  STRPTR palettes_header;
+  STRPTR data_drawer;
+  STRPTR assets_drawer;
+  ULONG screen_depth;
+}g_Project;
 
 STRPTR paula_cycles[] = {"PAL", "NTSC", NULL};
 
@@ -130,6 +142,7 @@ STRPTR save_strings[] = {
 " // Number of levels in the game",
 " // Number of Amiga TextFonts to load",
 " // Number of GameFonts to load",
+"//Allow non-interleaved bob sheets",
 "#define SCR_WIDTH_EXTRA  64  // Additional horizontal pixels for scroll\n",
 "#define SCR_HEIGHT_EXTRA 32  // Additional vertical pixels for scroll (2 extra tiles)\n",
 "#define PAULA_PAL_CYCLES  3546895\n#define PAULA_NTSC_CYCLES 3579545\n#define PAULA_MIN_PERIOD  124\n\n",
@@ -169,7 +182,8 @@ STRPTR save_strings[] = {
 "NUM_GAMEOBJECTS ",
 "SMALL_IMAGE_SIZES",
 "BIG_IMAGE_SIZES",
-"SMALL_HITBOX_SIZES"
+"SMALL_HITBOX_SIZES",
+"USE_NONINTERLEAVED_BOBS"
 };
 
 enum {
@@ -207,6 +221,7 @@ enum {
   SS_COMMENT_NUM_LEVELS,
   SS_COMMENT_NUM_TEXTFONTS,
   SS_COMMENT_NUM_GAMEFONTS,
+  SS_COMMENT_USE_NONINTERLEAVED_BOBS,
   SS_SCR_WIDTH_EXTRA,
   SS_SCR_HEIGHT_EXTRA,
   SS_PAULA_VALUES,
@@ -246,7 +261,8 @@ enum {
   SS_DEF_NUM_GAMEOBJECTS,
   SS_DEF_SMALL_IMAGE_SIZES,
   SS_DEF_BIG_IMAGE_SIZES,
-  SS_DEF_SMALL_HITBOX_SIZES
+  SS_DEF_SMALL_HITBOX_SIZES,
+  SS_DEF_USE_NONINTERLEAVED_BOBS
 };
 
 static struct {
@@ -438,17 +454,15 @@ STATIC ULONG m_SetDepthLimits(struct IClass* cl, Object* obj, Msg msg)
       DoMethod(data->obj_table.int_scrDepth, MUIM_NoNotifySet, MUIA_Integer_Max, 4);
       DoMethod(data->obj_table.int_scrPf2Depth, MUIM_NoNotifySet, MUIA_Disabled, FALSE);
       DoMethod(data->obj_table.int_scrPf2Height, MUIM_NoNotifySet, MUIA_Disabled, FALSE);
-      DoMethod(data->obj_table.int_bplFetch, MUIM_NoNotifySet, MUIA_Disabled, TRUE);
-      DoMethod(data->obj_table.int_bplFetch, MUIM_NoNotifySet, MUIA_Integer_Value, 1);
       m_SetPF2DepthLimits(cl, obj, msg);
     }
     else {
       DoMethod(data->obj_table.int_scrDepth, MUIM_NoNotifySet, MUIA_Integer_Max, 8);
       DoMethod(data->obj_table.int_scrPf2Depth, MUIM_NoNotifySet, MUIA_Disabled, TRUE);
       DoMethod(data->obj_table.int_scrPf2Height, MUIM_NoNotifySet, MUIA_Disabled, TRUE);
-      DoMethod(data->obj_table.int_bplFetch, MUIM_NoNotifySet, MUIA_Disabled, FALSE);
     }
 
+    DoMethod(data->obj_table.int_bplFetch, MUIM_NoNotifySet, MUIA_Disabled, FALSE);
     DoMethod(data->obj_table.int_sprFetch, MUIM_NoNotifySet, MUIA_Disabled, FALSE);
   }
   else {
@@ -612,6 +626,7 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
     ULONG max_bobs;
     ULONG max_sprites;
     ULONG num_gameobjects;
+    ULONG use_noninterleaved_bobs;
   }settings;
 
   fh = Open(msg->filename, MODE_READWRITE);
@@ -647,6 +662,10 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
     get(data->obj_table.int_numBOBs, MUIA_Integer_Value, &settings.max_bobs);
     get(data->obj_table.int_numSprites, MUIA_Integer_Value, &settings.max_sprites);
     get(data->obj_table.int_numGameObjects, MUIA_Integer_Value, &settings.num_gameobjects);
+
+    //store the bitmap depth of the level screen's tilemap layer globally so that Assets Editor can know it
+    g_Project.screen_depth = settings.screen_depth;
+    get(data->assetsEditor, MUIA_AssetsEditor_NonInterleaved, &settings.use_noninterleaved_bobs);
 
     WriteSaveString(SS_HEADER);
     WriteSaveString(SS_RECT_OPEN);
@@ -719,7 +738,9 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
 
     writeSetting(fh, NULL, SS_DEF_SMALL_IMAGE_SIZES, NULL, NO_VALUE, NULL, !settings.small_sizes, FALSE);
     writeSetting(fh, NULL, SS_DEF_BIG_IMAGE_SIZES, NULL, NO_VALUE, NULL, !settings.big_sizes, FALSE);
-    writeSetting(fh, NULL, SS_DEF_SMALL_HITBOX_SIZES, NULL, NO_VALUE, NULL, !settings.small_hitbox_sizes, FALSE);
+    writeSetting(fh, NULL, SS_DEF_SMALL_HITBOX_SIZES, NULL, NO_VALUE, NULL, !settings.small_hitbox_sizes, TRUE);
+
+    writeSetting(fh, SS_COMMENT_USE_NONINTERLEAVED_BOBS, SS_DEF_USE_NONINTERLEAVED_BOBS, NULL, NO_VALUE, NULL, !settings.use_noninterleaved_bobs, FALSE);
 
     WriteSaveString(SS_FOOTER);
 
@@ -1285,6 +1306,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     	MUIM_Set, MUIA_GameSettings_Edited, TRUE);
     /**************************************************************************/
 
+    data->assetsEditor = NULL;
     data->custom_level_display = FALSE;
     data->edited = FALSE;
     data->obj_table.grp_video = objects.grp_video;
@@ -1357,6 +1379,9 @@ static ULONG m_Set(struct IClass* cl, Object* obj, struct opSet* msg)
       //<SUBCLASS ATTRIBUTES HERE>
       case MUIA_GameSettings_Edited:
         data->edited = tag->ti_Data;
+      break;
+      case MUIA_GameSettings_AssetsEditor:
+        data->assetsEditor = (Object*)tag->ti_Data;
       break;
     }
   }

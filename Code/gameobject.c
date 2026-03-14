@@ -20,14 +20,6 @@
 #include "gameobject.h"
 ///
 ///defines
-//BOB flags
-#define BOB_ASSIGNED 0x01
-#define BOB_RESIGNED 0x02
-#define BOB_DRAWN    0x04
-#define BOB_CLEARED  0x08
-#define BOB_DYING    0x10
-#define BOB_DEAD     0x20
-
 //Sprite flags
 #define SPR_ASSIGNED 0x01
 #define HSN_NOT_SET  0x09
@@ -41,19 +33,25 @@ extern VOID (*gobjCollisionFunction[NUM_GOBJ_COLL_FUNCS])(struct GameObject*, st
 extern VOID (*tileCollisionFunction[NUM_TILE_COLL_FUNCS])(struct GameObject*);
 #ifdef DOUBLE_BUFFER
   extern ULONG g_active_buffer; //from display_level.c
-#else
+#else // DOUBLE_BUFFER
   #define g_active_buffer 0
-#endif
+#endif // !DOUBLE_BUFFER
 
 //exported globals
 struct GameObject** gameobjectList; // will be set by initGameObjects()
+#if NUM_SPRITES
 struct Sprite sprites[NUM_SPRITES];
 struct GameObject* spriteList[NUM_SPRITES + 1];
+#endif // NUM_SPRITES
 #if NUM_BOBS
 struct BOB bobs[NUM_BOBS];
+#ifdef DOUBLE_BUFFER
+struct GameObject* bobList[2][NUM_BOBS + 1];
+#else // DOUBLE_BUFFER
 struct GameObject* bobList[NUM_BOBS + 1];
+#endif // DOUBLE_BUFFER
 struct BitMap* BOBsBackBuffer = NULL;
-#endif
+#endif // NUM_BOBS
 
 //local globals
 //NOTE: These 4 mapPos values are actually unsigned (meaning always positive).
@@ -70,25 +68,27 @@ LONG* mapPosY  = NULL;   // map's vertical position in pixels
 LONG* mapPosX2 = NULL;   // defines the square that displayed on
 LONG* mapPosY2 = NULL;   // ...the screen.
 
+#if NUM_SPRITES
 STATIC struct Sprite* avail_sprites[NUM_SPRITES + 1];
 STATIC struct Sprite** avail_sprite;
 STATIC UBYTE sprite_index = 0;
+#endif // NUM_SPRITES
 #if NUM_BOBS
 STATIC struct BOB* avail_bobs[NUM_BOBS + 1];
 STATIC struct BOB** avail_bob;
 STATIC UWORD bob_index = 0;
-#endif
+#endif // NUM_BOBS
 
 STATIC ULONG max_gameobject_height = 0;
 
 //The total number of gameobjects at init time
 ULONG num_gameobjects = 0;
-#if NUM_GAMEOBJECTS > 0
+#if NUM_GAMEOBJECTS
 //Spawnable / de-spawnable gameobjects
 STATIC struct GameObject gameobjects[NUM_GAMEOBJECTS];
 STATIC struct GameObject* avail_gameobjects[NUM_GAMEOBJECTS + 1];
 STATIC struct GameObject** avail_gameobject;
-#endif
+#endif // NUM_GAMEOBJECTS
 ///
 ///prototypes
   // Displays which want to use gameobject routines has to provide these two...
@@ -113,15 +113,22 @@ VOID initGameObjects(VOID* blitBOBFunc, VOID* unBlitBOBFunc, ULONG max_bob_width
   mapPosX2 = &map->mapPosX2;
   mapPosY2 = &map->mapPosY2;
 
+  #if NUM_SPRITES
   sprite_index = 0;
   spriteList[0] = NULL;
+  #endif // NUM_SPRITES
 
   #if NUM_BOBS
   blitBOB = (VOID (*)(struct GameObject*))blitBOBFunc;
   unBlitBOB = (VOID (*)(struct GameObject*))unBlitBOBFunc;
 
   bob_index = 0;
+  #ifdef DOUBLE_BUFFER
+  bobList[0][0] = NULL;
+  bobList[1][0] = NULL;
+  #else // DOUBLE_BUFFER
   bobList[0] = NULL;
+  #endif // !DOUBLE_BUFFER
   #endif // NUM_BOBS
 
   if (current_level.gameobject_bank) {
@@ -129,7 +136,8 @@ VOID initGameObjects(VOID* blitBOBFunc, VOID* unBlitBOBFunc, ULONG max_bob_width
     max_gameobject_height = max_go_height;
     num_gameobjects = current_level.gameobject_bank[current_level.current.gameobject_bank]->num_gameobjects;
 
-    #if NUM_GAMEOBJECTS > 0
+    //Spawnable / de-spawnable gameobjects
+    #if NUM_GAMEOBJECTS
     {
       ULONG i;
       for (i = 0; i < NUM_GAMEOBJECTS; i++) {
@@ -138,7 +146,7 @@ VOID initGameObjects(VOID* blitBOBFunc, VOID* unBlitBOBFunc, ULONG max_bob_width
       avail_gameobjects[NUM_GAMEOBJECTS] = NULL;
       avail_gameobject = &avail_gameobjects[0];
     }
-    #endif
+    #endif // NUM_GAMEOBJECTS
 
     #if NUM_BOBS
     {
@@ -159,7 +167,7 @@ VOID initGameObjects(VOID* blitBOBFunc, VOID* unBlitBOBFunc, ULONG max_bob_width
       avail_bobs[NUM_BOBS] = NULL;
       avail_bob = &avail_bobs[0];
     }
-    #endif
+    #endif // NUM_BOBS
 
     #if NUM_SPRITES
     {
@@ -174,7 +182,7 @@ VOID initGameObjects(VOID* blitBOBFunc, VOID* unBlitBOBFunc, ULONG max_bob_width
       avail_sprites[NUM_SPRITES] = NULL;
       avail_sprite = &avail_sprites[0];
     }
-    #endif
+    #endif // NUM_SPRITES
   }
 }
 ///
@@ -185,10 +193,10 @@ VOID initGameObjects(VOID* blitBOBFunc, VOID* unBlitBOBFunc, ULONG max_bob_width
  * used by unBlitBOB().                                                       *
  ******************************************************************************/
 #if NUM_BOBS
-struct BitMap* allocBOBBackgroundBuffer(UWORD max_bob_width, UWORD max_bob_height, UWORD max_bob_depth)
+struct BitMap* allocBOBBackgroundBuffer(UWORD max_bob_width, UWORD max_bob_height, UWORD screen_depth)
 {
-  struct BitMap* bm = AllocBitMap((((max_bob_width + 15) / 16) * 16) * NUM_BOBS + (NUM_BOBS == 1 ? 16 : 0),
-                                  max_bob_height, max_bob_depth,
+  struct BitMap* bm = AllocBitMap((((max_bob_width + 15) / 16) * 16) * NUM_BOBS,
+                                  max_bob_height, screen_depth,
                                   BMF_DISPLAYABLE | BMF_INTERLEAVED | BMF_CLEAR, NULL);
   if (bm) {
     if ((TypeOfMem(bm->Planes[0]) & MEMF_CHIP) && (GetBitMapAttr(bm, BMA_FLAGS) & BMF_INTERLEAVED)) {
@@ -206,7 +214,7 @@ struct BitMap* allocBOBBackgroundBuffer(UWORD max_bob_width, UWORD max_bob_heigh
 ///
 
 ///SpriteListFunctions
-#ifdef SMART_SPRITES
+#if NUM_SPRITES && defined SMART_SPRITES
 INLINE STATIC VOID addToSpriteBehindList(struct GameObject* go1, struct GameObject* go2)
 {
   if (go1->priority > go2->priority) {
@@ -230,7 +238,7 @@ INLINE STATIC VOID terminateSpriteLists(struct Sprite* spr)
   spr->rasterList_index = 0;
   spr->behindList_index = 0;
 }
-#endif
+#endif // NUM_SPRITES && SMART_SPRITES
 ///
 ///BOBListFunctions
 #if NUM_BOBS
@@ -270,7 +278,8 @@ INLINE STATIC VOID terminateBOBClearList(struct BOB* bob)
 /******************************************************************************
  * For a BOB which has moved to a new location on screen to be able to draw   *
  * itself, there must not be any bobs that has not cleared themselves. This   *
- * function fills up a list of such bobs to be cleared.                       *
+ * function fills up a list of such bobs to be cleared. Dead bobs are of      *
+ * course excluded from this list.                                            *
  * NOTE: This function is called at a state where bobList holds the bobs      *
  * drawn the previous frame.                                                  *
  * OPTIMIZE: This function introduces a performance hit! It is a traversion   *
@@ -289,24 +298,27 @@ INLINE STATIC VOID fillBOBCl2DrList(struct GameObject* go1)
     if (go2 != go1) {
       struct BOB* go2_bob = (struct BOB*)go2->u.medium;
 
-      if (go1->y2 < go2_bob->lastBlt.y2 - max_gameobject_height) break;
-      if (go1->y2 > go2_bob->lastBlt.y1 && go2_bob->lastBlt.y2 >= go1->y1 &&
+      if (!(go2_bob->flags & BOB_DEAD)) {
+        if (go1->y2 < go2_bob->lastBlt.y2 - max_gameobject_height) break;
+        if (go1->y2 > go2_bob->lastBlt.y1 && go2_bob->lastBlt.y2 >= go1->y1 &&
           go1->x2 > go2_bob->lastBlt.x1 && go2_bob->lastBlt.x2 >= go1->x1) {
-        //Add this bob to "clear to draw" list of the first gameobject
-        go1_bob->cl2drList[index++] = go2;
+            //Add this bob to "clear to draw" list of the first gameobject
+            go1_bob->cl2drList[index++] = go2;
+          }
       }
     }
   }
   go1_bob->cl2drList[index] = NULL;
 }
-#endif // DOUBLE_BUFFER
+#endif // !DOUBLE_BUFFER
 #endif // NUM_BOBS
 ///
 ///assignSprite(gameobject)
 /******************************************************************************
  * Assigns a sprite medium to the game object. This is an optimized algorithm.*
- * avail_sprite always points to a pointer to the next available sprite medium.*                                                        *
+ * avail_sprite always points to a pointer to the next available sprite medium.*
  ******************************************************************************/
+#if NUM_SPRITES
 INLINE STATIC VOID assignSprite(struct GameObject* go)
 {
   if (*avail_sprite) {
@@ -317,8 +329,10 @@ INLINE STATIC VOID assignSprite(struct GameObject* go)
     avail_sprite++;
   }
 }
+#endif // NUM_SPRITES
 ///
 ///resignSprite(gameobject)
+#if NUM_SPRITES
 INLINE STATIC VOID resignSprite(struct GameObject* go)
 {
   struct Sprite* spr = (struct Sprite*)go->u.medium;
@@ -327,6 +341,7 @@ INLINE STATIC VOID resignSprite(struct GameObject* go)
   spr->flags &= ~SPR_ASSIGNED;
   go->u.medium = NULL;
 }
+#endif // NUM_SPRITES
 ///
 ///assignBOB(gameobject)
 /******************************************************************************
@@ -338,23 +353,24 @@ INLINE STATIC VOID assignBOB(struct GameObject* go)
 {
   if (*avail_bob) {
     struct BOB* bob = *avail_bob;
-    bob->flags |= BOB_ASSIGNED;
+    bob->flags = (BOB_ASSIGNED | BOB_CLEARED);
     go->u.mediums[g_active_buffer] = (APTR)bob;
     avail_bob++;
   }
 }
-#endif
+#endif // NUM_BOBS
 ///
 ///resignBOB(gameobject)
+/******************************************************************************
+ * Actual BOB resignation will be done in clearBOB function.                  *
+ ******************************************************************************/
 #if NUM_BOBS
 INLINE STATIC VOID resignBOB(struct GameObject* go)
 {
   struct BOB* bob = (struct BOB*)go->u.mediums[g_active_buffer];
-  avail_bob--;
-  *avail_bob = bob;
   bob->flags |= BOB_RESIGNED;
 }
-#endif
+#endif // NUM_BOBS
 ///
 ///checkGameObjectCollisions()
 /******************************************************************************
@@ -383,20 +399,20 @@ STATIC VOID checkGameObjectCollisions()
             addToBOBDrawList(go1, go2);
           }
           #endif // NUM_BOBS
-          #ifdef SMART_SPRITES
+          #if NUM_SPRITES && defined SMART_SPRITES
           if (go1->type == SPRITE_OBJECT && go2->type == SPRITE_OBJECT) {
             addToSpriteBehindList(go1, go2);
           }
-          #endif // SMART_SPRITES
+          #endif // NUM_SPRITES && SMART_SPRITES
 
           if (go1->collide) go1->collide(go1, go2);
           if (go2->collide) go2->collide(go2, go1);
         }
-        #ifdef SMART_SPRITES
+        #if NUM_SPRITES && defined SMART_SPRITES
         else if (go1->type == SPRITE_OBJECT && go2->type == SPRITE_OBJECT) {
           addToSpriteRasterList(go1, go2);
         }
-        #endif
+        #endif // NUM_SPRITES && SMART_SPRITES
       }
     }
 
@@ -404,26 +420,38 @@ STATIC VOID checkGameObjectCollisions()
       #if NUM_BOBS
       case BOB_OBJECT:
       if (go1->u.mediums[g_active_buffer]) {
+        #ifdef DOUBLE_BUFFER
+        bobList[g_active_buffer][bob_index++] = go1;
+        #else // DOUBLE_BUFFER
         bobList[bob_index++] = go1;
+        #endif // !DOUBLE_BUFFER
         terminateBOBDrawList((struct BOB*)go1->u.mediums[g_active_buffer]);
       }
       break;
       #endif // NUM_BOBS
+      #if NUM_SPRITES
       case SPRITE_OBJECT:
       if (go1->u.medium) {
         spriteList[sprite_index++] = go1;
         #ifdef SMART_SPRITES
         terminateSpriteLists((struct Sprite*)go1->u.medium);
-        #endif
+        #endif // SMART_SPRITES
       }
       break;
+      #endif // NUM_SPRITES
     }
   }
 
   #if NUM_BOBS
+  #ifdef DOUBLE_BUFFER
+  bobList[g_active_buffer][bob_index] = NULL; bob_index = 0;
+  #else // DOUBLE_BUFFER
   bobList[bob_index] = NULL; bob_index = 0;
-  #endif
+  #endif // !DOUBLE_BUFFER
+  #endif // NUM_BOBS
+  #if NUM_SPRITES
   spriteList[sprite_index] = NULL; sprite_index = 0;
+  #endif // NUM_SPRITES
 }
 ///
 ///clearBOB(gameobject)
@@ -447,8 +475,9 @@ VOID clearBOB(struct GameObject* self)
       if (!(bob->flags & BOB_CLEARED)) unBlitBOB(self);
 
       if (bob->flags & BOB_RESIGNED) {
-        bob->flags &= ~(BOB_ASSIGNED | BOB_RESIGNED | BOB_DEAD);
-        bob->clearList_index = 0;
+        bob->flags &= ~(BOB_ASSIGNED);
+        avail_bob--;
+        *avail_bob = bob;
         self->u.mediums[g_active_buffer] = NULL;
       }
     }
@@ -457,7 +486,7 @@ VOID clearBOB(struct GameObject* self)
     bob->flags &= ~BOB_DRAWN; // this is only here for dead bobs!
   }
 }
-#endif
+#endif // NUM_BOBS
 ///
 ///drawBOB(gameobject)
 #if NUM_BOBS
@@ -479,7 +508,7 @@ VOID drawBOB(struct GameObject* self)
     while ((go = *go_ptr++)) {
       if (go->u.medium) clearBOB(go);
     }
-    #endif
+    #endif // !DOUBLE_BUFFER
 
     go_ptr = bob->drawList;
     while ((go = *go_ptr++)) {
@@ -514,7 +543,7 @@ VOID drawBOB(struct GameObject* self)
  * WARNING: Only used with SMART_SPRITES.                                     *
  * NOTE: Could be optimized by storing 'used' in struct Sprite                *
  ******************************************************************************/
-#ifdef SMART_SPRITES
+#if NUM_SPRITES && defined SMART_SPRITES
 UWORD getSpriteHSN(struct GameObject* go)
 {
   struct Sprite* sprite = (struct Sprite*)go->u.medium;
@@ -577,10 +606,10 @@ UWORD setSpriteHSN(struct GameObject* go)
     return (UWORD)((0x00FF >> (8 - num_images)) << sprite->hsn);
   }
 }
-#endif
+#endif // NUM_SPRITES && defined SMART_SPRITES
 ///
 ///updateSmartSprites()
-#ifdef SMART_SPRITES
+#if NUM_SPRITES && defined SMART_SPRITES
 VOID updateSmartSprites(VOID)
 {
   struct GameObject** go_ptr = spriteList;
@@ -592,22 +621,48 @@ VOID updateSmartSprites(VOID)
     go = *(++go_ptr);
   }
 }
-#endif
+#endif // NUM_SPRITES && SMART_SPRITES
+///
+///clearBOBs()
+/******************************************************************************
+ * We have to change the scheduling of BOB clear events from the level bitmap *
+ * in double buffered mode. This function is to be called first thing after   *
+ * swapping buffers in level_display_loop so that all BOBs are removed from   *
+ * the bitmap before another scroll event. That's because the unBlitBOB()     *
+ * function can only tolarate a single 16-pixel scroll event. Otherwise       *
+ * graphics glitches will occur.                                              *
+ * NOTE: We have to unset the BOB_CLEARED flags and terminate clear lists of  *
+ * all bobs of the previous frame before we call clearBOB().                  *
+ ******************************************************************************/
+#if NUM_BOBS && defined DOUBLE_BUFFER
+VOID clearBOBs()
+{
+  struct GameObject** go_ptr = bobList[g_active_buffer];
+  struct GameObject* go;
+
+  while ((go = *go_ptr++)) {
+    struct BOB* bob =(struct BOB*)go->u.mediums[g_active_buffer];
+    bob->flags &= ~BOB_CLEARED;
+    terminateBOBClearList(bob);
+  }
+
+  go_ptr = bobList[g_active_buffer];
+  while ((go = *go_ptr++)) {
+    clearBOB(go);
+  }
+}
+#endif // NUM_BOBS && DOUBLE_BUFFER
 ///
 ///updateBOBs()
 VOID updateBOBs()
 {
 #if NUM_BOBS
+  #ifdef DOUBLE_BUFFER
+  struct GameObject** go_ptr = bobList[g_active_buffer];
+  #else // DOUBLE_BUFFER
   struct GameObject** go_ptr = bobList;
+  #endif // !DOUBLE_BUFFER
   struct GameObject* go;
-
-#ifdef DOUBLE_BUFFER
-  while ((go = *go_ptr++)) {
-    clearBOB(go);
-  }
-
-  go_ptr = bobList;
-#endif // DOUBLE_BUFFER
 
   while ((go = *go_ptr++)) {
     drawBOB(go);
@@ -630,6 +685,7 @@ VOID updateGameObject(struct GameObject* go)
   if (go->collideTile) go->collideTile(go);
 
   switch (go->type) {
+    #if NUM_SPRITES
     case SPRITE_OBJECT:
       // Check if the GameObject is inside the visible display
       if (go->u.medium) {
@@ -648,6 +704,7 @@ VOID updateGameObject(struct GameObject* go)
         assignSprite(go);
       }
     break;
+    #endif // NUM_SPRITES
     #if NUM_BOBS
     case BOB_OBJECT:
       // Check if the GameObject is inside the visible display
@@ -661,7 +718,7 @@ VOID updateGameObject(struct GameObject* go)
         if (go->x != go->old_x || go->y != go->old_y) {
           fillBOBCl2DrList(go);
         }
-        #endif
+        #endif // !DOUBLE_BUFFER
 
         //Reset some bob members for the next draw
         ((struct BOB*)go->u.mediums[g_active_buffer])->flags &= (~(BOB_DRAWN | BOB_CLEARED));
@@ -716,18 +773,18 @@ VOID updateGameObjects()
       }
       *(l + 1) = v;
     }
-    #if NUM_GAMEOBJECTS > 0
+    #if NUM_GAMEOBJECTS
     //Removes despawned/destroyed gameobjects from gameobjectList
     for (--i; (*i)->y2 == MAXINT && num_gameobjects; i--) {
       *i = NULL;
       num_gameobjects--;
     }
-    #endif
+    #endif // NUM_GAMEOBJECTS
 
     checkGameObjectCollisions();
-    #ifdef SMART_SPRITES
+    #if NUM_SPRITES && defined SMART_SPRITES
     updateSmartSprites();
-    #endif
+    #endif // NUM_SPRITES && defined SMART_SPRITES
   }
 }
 ///
@@ -1057,7 +1114,7 @@ ULONG checkPointHitBoxCollision(struct GameObject* go, LONG x, LONG y)
  * to find a free spawnable gameobject.                                       *
  * NOTE: If no free spawnable gameobject is available nothing will be done!   *
  ******************************************************************************/
-#if NUM_GAMEOBJECTS > 0
+#if NUM_GAMEOBJECTS
 struct GameObject* spawnGameObject(struct GameObject* go)
 {
   struct GameObject* spawn = NULL;
@@ -1071,7 +1128,7 @@ struct GameObject* spawnGameObject(struct GameObject* go)
 
   return spawn;
 }
-#endif
+#endif // NUM_GAMEOBJECTS
 ///
 ///despawnGameObject(go)
 /******************************************************************************
@@ -1080,7 +1137,7 @@ struct GameObject* spawnGameObject(struct GameObject* go)
  * WARNING: NEVER CALL THIS ON A NON-SPAWNED GAMEOBJECT FROM A BANK!          *
  * Use destroyGameObject() instead!                                           *
  ******************************************************************************/
-#if NUM_GAMEOBJECTS > 0
+#if NUM_GAMEOBJECTS
 VOID despawnGameObject(struct GameObject* go)
 {
   go->state = GOB_INACTIVE; //Will resign its mediums
@@ -1088,7 +1145,7 @@ VOID despawnGameObject(struct GameObject* go)
   *avail_gameobject = go;
   go->y2 = MAXINT; //Will mark this game object to be removed from gameObjectList
 }
-#endif
+#endif // NUM_GAMEOBJECTS
 ///
 ///destroyGameObject(go)
 /******************************************************************************

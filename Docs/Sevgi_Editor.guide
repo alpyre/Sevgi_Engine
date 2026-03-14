@@ -7,7 +7,7 @@
 
                 Asset creator and manager for Sevgi_Engine
 
-                             Version 0.154
+                             Version 0.155
 
                           User Documentation
 
@@ -296,13 +296,33 @@ You can also put names to your levels here.
 ==============
 
 This tool will help you create the color palettes of your game defined in
-palettes.h.
+palettes.h. As the name of the file suggests, all the palettes you wish to use
+in your game will be contained in this file.
 
-You can set the names for the arrays that defines each palette here. The
-palettes defined here will be available in asset editor.
+You can set the names for the arrays that define each palette here. The palettes
+defined here will be available in the Assets Editor. You can enlist them for the
+levels so they will be loaded and prepared into "ColorTable"s so you can access
+them using the global current_level.
 
-Using the "Import" button you can quickly import color palettes from the ILBM
-sheets you will probably be using for your tilesets.
+You can also edit the palette colors and change palette depths here as well.
+
+Using the "Import" button, you can quickly import color palettes from the ILBM
+sheets you will probably be using for your tilesets and BOB sheets. ILBM color
+palettes (.col) are also supported.
+
+Using the "Export" button, you can save the selected palette as an ILBM color
+palette file (.col). Which you can load using your ILBM editors (like Deluxe
+Paint or Personal Paint).
+
+Palette Editor also has some more features accessible using the "Palette"
+menu in the right mouse menu strip.
+
+Using the "Append..." menu item, you can combine two ILBM color palettes into
+one. The selected palette will be expanded in size (depth), and the colors from
+the selected ILBM file will be appended to the end of it.
+
+There is also the "Merge..." menu item, which basically works like "Append...",
+but only adds a color if it is not already in the selected palette.
 
 @endnode
 
@@ -572,6 +592,24 @@ These sizes determine the size of these hypothetical rectangles.
 
 @{b}Compress:@{ub}
     RLE compresses the resulting BOBSheet's ILBM file.
+
+@{b}Force non-interleaved:@{ub}
+    Forces the created bob sheet to be allocated by the game code as a
+    non-interleaved bitmap. This will allow the blit mask for the sheet to be a
+    single plane bitmap. Meaning it will use less chip memory, but blits from it
+    will be much less optimized. You should only use this if you really need to
+    save chip memory or you have found some other benefit to have your sheet be
+    non-interleaved.
+    @{b}NOTE:@{ub} Most likely, you'll need to select this option to free up Chip RAM in
+    the later stages of your game and level development. This means most of your
+    BOB Sheets will already be created and used in the game. Recreating BOB
+    sheets by activating this option will also require you to recreate all the
+    hitboxes, if you used them. It's recommended to instead use a hex editor and
+    set the 5th bit of the type byte on the .sht file in this case. It would be
+    wise refering to the BOB sheet file structure explained in the end of
+    gameobject.h file (type byte is the first byte after the sheet ILBM's null
+    terminated file name and anding with 0x20 will set the FORCE_NONINTERLEAVED
+    bit).
 
 @{b}Small Sizes:@{ub}
     Uses BYTEs instead of WORDs to store image hot spot offset information.

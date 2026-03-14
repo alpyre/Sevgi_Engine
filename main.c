@@ -9,7 +9,7 @@
 #define VERSION         0
 #define REVISION        155
 #define VERSIONSTRING   "0.155"
-#define AUTHOR          "Ibrahim Alper Sï¿½nmez"
+#define AUTHOR          "Ibrahim Alper Sönmez"
 #define COPYRIGHT       "@ 2024 " AUTHOR
 #define CONTACT         "amithlondestek@gmail.com"
 #define DESCRIPTION     "Game Editor for Sevgi Engine"

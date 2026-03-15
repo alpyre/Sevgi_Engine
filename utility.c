@@ -293,21 +293,20 @@ LONG runCommand(STRPTR command, STRPTR dir, STRPTR output, ULONG stack_size)
                                    NP_Path_Tag, NP_Path_Val,
                                    NP_Dir_Tag, NP_Dir_Val,
                                    NP_StackSize, stack_size,
-                                   SYS_Input, NULL,
-                                   SYS_Output, fh,
+                                   SYS_Input, fh,
+                                   SYS_Output, NULL,
                                    TAG_END);
       if (result < 0) {
+        if (g_System_Path_List) {
+          freePathList(NP_Path_Val);
+          UnLock(NP_Dir_Val);
+        }
         result = 20;
       }
-      if (g_System_Path_List) {
-        if (NP_Dir_Val) UnLock(NP_Dir_Val);
-        if (NP_Path_Val) freePathList(NP_Path_Val);
-      }
-      else {
-        if (new_lock) {
-          CurrentDir(old_lock);
-          UnLock(new_lock);
-        }
+
+      if (!g_System_Path_List) {
+        CurrentDir(old_lock);
+        UnLock(new_lock);
       }
     }
 

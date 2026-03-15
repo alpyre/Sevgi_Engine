@@ -234,6 +234,7 @@ BOOL execute(struct ReturnInfo* ri, STRPTR command)
                                                  SYS_Output, fh,
                                                  TAG_END);
       if (result < 0) {
+        freePathList(NP_Path_Val);
         ri->code = 20;
         ri->string[0] = NULL;
       }
@@ -248,7 +249,6 @@ BOOL execute(struct ReturnInfo* ri, STRPTR command)
         ret_val = TRUE;
       }
 
-      freePathList(NP_Path_Val);
       Close(fh);
       DeleteFile(TEMP_RETURN_STR);
     }

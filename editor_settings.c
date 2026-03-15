@@ -1,6 +1,6 @@
 /******************************************************************************
  * EditorSettings                                                             *
- * WARNING: And object of this class has to be a singleton because of the way *
+ * WARNING: An object of this class has to be a singleton because of the way  *
  * icon tooltypes are read!                                                   *
  ******************************************************************************/
 ///Defines
@@ -31,6 +31,7 @@
 #include "utility.h"
 #include "tooltypes.h"
 #include "popasl_string.h"
+#include "integer_gadget.h"
 #include "editor_settings.h"
 ///
 ///Structs
@@ -39,6 +40,7 @@ struct cl_ObjTable
   Object* IDE;
   Object* cyc_compiler;
   Object* output;
+  Object* run_stack;
 };
 
 struct cl_Data
@@ -48,6 +50,7 @@ struct cl_Data
     STRPTR IDE;
     ULONG compiler_entry;
     STRPTR output;
+    ULONG run_stack;
   }old_values;
   BOOL edited;
 };
@@ -65,19 +68,22 @@ extern STRPTR g_Program_Directory;
 extern STRPTR g_Program_Executable;
 extern BOOL g_First_Run;
 
-extern struct MUI_CustomClass *MUIC_PopASLString;
+extern struct MUI_CustomClass* MUIC_PopASLString;
+extern struct MUI_CustomClass* MUIC_Integer;
 extern Object *App;
 
 enum {
   TTPK_IDE,
   TTPK_COMPILER,
-  TTPK_OUTPUT
+  TTPK_OUTPUT,
+  TTPK_RUNSTACK
 };
 
 static struct ToolTypePref ttprefs[] = {
   {TTP_STRING, "ide", {0}},
   {TTP_STRING, "compiler", {0}},
   {TTP_STRING, "output", {0}},
+  {TTP_VALUE, "runstack", {0}},
   {TTP_END, NULL, {0}}
 };
 
@@ -85,6 +91,7 @@ static struct {
   STRPTR IDE;
   STRPTR compiler;
   STRPTR output;
+  STRPTR run_stack;
   STRPTR save;
   STRPTR use;
   STRPTR cancel;
@@ -92,6 +99,7 @@ static struct {
   "Full path of the IDE software to open game code in.",
   "Compiler choice for the project to be compiled with.",
   "Output console/file to display output.",
+  "Your compiled game executable will be run with this stack size\nwhen launched from the editor using the \"Run Project\" button.",
   "Save settings and close this window.",
   "Use the current settings on this session without saving them.",
   "Discard the changes made and close this window."
@@ -133,14 +141,17 @@ VOID storeOldValues(struct cl_Data* data)
   STRPTR IDE = NULL;
   ULONG compiler_entry = 0;
   STRPTR output = NULL;
+  ULONG run_stack = 0;
 
   get(data->obj_table.IDE, MUIA_String_Contents, &IDE);
   get(data->obj_table.cyc_compiler, MUIA_Cycle_Active, &compiler_entry);
   get(data->obj_table.output, MUIA_String_Contents, &output);
+  get(data->obj_table.run_stack, MUIA_Integer_Value, &run_stack);
 
   data->old_values.IDE = makeString(IDE);
   data->old_values.compiler_entry = compiler_entry;
   data->old_values.output = makeString(output);
+  data->old_values.run_stack = run_stack;
   data->edited = FALSE;
 }
 ///
@@ -150,6 +161,7 @@ VOID restoreOldValues(struct cl_Data* data)
   DoMethod(data->obj_table.IDE, MUIM_Set, MUIA_String_Contents, data->old_values.IDE);
   DoMethod(data->obj_table.cyc_compiler, MUIM_Set, MUIA_Cycle_Active, data->old_values.compiler_entry);
   DoMethod(data->obj_table.output, MUIM_Set, MUIA_String_Contents, data->old_values.output);
+  DoMethod(data->obj_table.run_stack, MUIM_Set, MUIA_Integer_Value, data->old_values.run_stack);
 }
 ///
 ///freeOldValues(data)
@@ -185,6 +197,7 @@ static ULONG m_Close(struct IClass* cl, Object* obj, struct close_Msg* msg)
       get(data->obj_table.output, MUIA_String_Contents, &ttprefs[TTPK_OUTPUT].data.string);
       get(data->obj_table.cyc_compiler, MUIA_Cycle_Active, &compiler_entry);
       ttprefs[TTPK_COMPILER].data.string = compiler_entries[compiler_entry];
+      get(data->obj_table.run_stack, MUIA_Integer_Value, &ttprefs[TTPK_RUNSTACK].data.value);
       putSettings();
     }
     case CLOSE_BY_USE:
@@ -214,6 +227,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* output;
     Object* output_str;
     Object* output_pop;
+    Object* run_stack;
     Object* btn_save;
     Object* btn_use;
     Object* btn_cancel;
@@ -221,6 +235,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
 
   BOOL settings_read = getSettings();
   ULONG compiler_entry = 0;
+  ULONG run_stack = 4096;
 
   if (!strcmp(ttprefs[TTPK_COMPILER].data.string, "__FIRST_RUN__")) {
     g_First_Run = TRUE;
@@ -228,6 +243,10 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
 
   if (!strcmp(ttprefs[TTPK_COMPILER].data.string, "SAS/C")) {
     compiler_entry = 1;
+  }
+
+  if (ttprefs[TTPK_RUNSTACK].data.value) {
+    run_stack = ttprefs[TTPK_RUNSTACK].data.value;
   }
 
   if ((obj = (Object *) DoSuperNew(cl, obj,
@@ -270,6 +289,13 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           ASLFR_InitialFile, "",
           ASLFR_InitialDrawer, "T:",
         TAG_END)),
+        MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Run Stack:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.run_stack, TAG_END),
+        MUIA_Group_Child, (objects.run_stack = NewObject(MUIC_Integer->mcc_Class, NULL,
+          MUIA_Integer_Input, TRUE,
+          MUIA_Integer_Value, run_stack,
+          MUIA_Integer_Min, 4096,
+          MUIA_ShortHelp, help_string.run_stack,
+        TAG_END)),
       TAG_END),
       MUIA_Group_Child, MUI_NewObject(MUIC_Rectangle, MUIA_Rectangle_HBar, TRUE, MUIA_VertWeight, 0, TAG_END),
       MUIA_Group_Child, MUI_NewObject(MUIC_Group,
@@ -291,6 +317,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     data->obj_table.IDE = objects.IDE;
     data->obj_table.cyc_compiler = objects.cyc_compiler;
     data->obj_table.output = objects.output;
+    data->obj_table.run_stack = objects.run_stack;
 
     data->old_values.IDE = NULL;
     data->old_values.output = NULL;
@@ -301,6 +328,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
                                              objects.cyc_compiler,
                                              objects.output_str,
                                              objects.output_pop,
+                                             objects.run_stack,
                                              objects.btn_save,
                                              objects.btn_use,
                                              objects.btn_cancel,
@@ -380,6 +408,9 @@ static ULONG m_Set(struct IClass* cl, Object* obj, struct opSet* msg)
       case MUIA_EditorSettings_Output:
         DoMethod(data->obj_table.output, MUIM_Set, MUIA_String_Contents, tag->ti_Data);
       break;
+      case MUIA_EditorSettings_RunStack:
+        DoMethod(data->obj_table.run_stack, MUIM_Set, MUIA_Integer_Value, tag->ti_Data);
+      break;
     }
   }
 
@@ -401,6 +432,9 @@ static ULONG m_Get(struct IClass* cl, Object* obj, struct opGet* msg)
     return TRUE;
     case MUIA_EditorSettings_Output:
       get(data->obj_table.output, MUIA_String_Contents, msg->opg_Storage);
+    return TRUE;
+    case MUIA_EditorSettings_RunStack:
+      get(data->obj_table.run_stack, MUIA_Integer_Value, msg->opg_Storage);
     return TRUE;
   }
 

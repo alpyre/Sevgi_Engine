@@ -37,6 +37,7 @@
 ///globals
 extern APTR g_MemoryPool;
 extern BPTR g_System_Path_List;
+extern ULONG g_Program_Stack_Size;
 
 struct {
   STRPTR MUI_pp_center;
@@ -134,6 +135,21 @@ BPTR getSystemPathList(struct WBStartup* wbs)
   return cli->cli_CommandDir;
 }
 ///
+///getProgramStackSize()
+/******************************************************************************
+ * Gets the stack size allocated by the OS for the program (even if the       *
+ * program was lauched from Workbench). When launched from WB, the value      *
+ * returned will be the value set in the program's icon file.                 *
+ * NOTE: Actually the result returned is 1000 bytes larger on some AmigaOS    *
+ * versions, but not all. So we take it as it is (do not subtract 1000!).     *
+ ******************************************************************************/
+ULONG getProgramStackSize()
+{
+  struct Process* proc = (struct Process*)FindTask(NULL);
+
+  return ((ULONG)proc->pr_Task.tc_SPUpper - (ULONG)proc->pr_Task.tc_SPLower);
+}
+///
 ///freePathList(path_list)
 VOID freePathList(BPTR path_list)
 {
@@ -185,6 +201,8 @@ BPTR copyPathList(BPTR path_list)
  * to access the return code and output string, also providing the subtask    *
  * with a CLI and the system's pathlist in the case of being ran from the     *
  * Workbench.                                                                 *
+ * The child process will be given at least 8192 bytes of stack size. If the  *
+ * parent procces has a higher stack size it will be given that size.         *
  ******************************************************************************/
 BOOL execute(struct ReturnInfo* ri, STRPTR command)
 {
@@ -192,16 +210,29 @@ BOOL execute(struct ReturnInfo* ri, STRPTR command)
   LONG result = 0;
   ULONG NP_Path_Tag = TAG_IGNORE;
   BPTR  NP_Path_Val = NULL;
+  ULONG NP_Stack_Tag = TAG_IGNORE;
+  BPTR  NP_Stack_Val = NULL;
 
-  if (g_System_Path_List) {
+  if (g_System_Path_List) { // Program was launched from WB
     NP_Path_Tag = NP_Path;
     NP_Path_Val = copyPathList(g_System_Path_List);
+    NP_Stack_Tag = NP_StackSize;
+    NP_Stack_Val = g_Program_Stack_Size < 8192 ? 8192 : g_Program_Stack_Size;
+  }
+  else {  // Program was launched from CLI
+    if (g_Program_Stack_Size < 8192) {
+      NP_Stack_Tag = NP_StackSize;
+      NP_Stack_Val = 8192;
+    }
   }
 
   if (ri && command) {
     BPTR fh = Open(TEMP_RETURN_STR, MODE_NEWFILE);
     if (fh) {
-      result = SystemTags(command, NP_Cli, TRUE, NP_Path_Tag, NP_Path_Val, SYS_Output, fh, TAG_END);
+      result = SystemTags(command, NP_Cli, TRUE, NP_Path_Tag, NP_Path_Val,
+                                                 NP_Stack_Tag, NP_Stack_Val,
+                                                 SYS_Output, fh,
+                                                 TAG_END);
       if (result < 0) {
         freePathList(NP_Path_Val);
         ri->code = 20;
@@ -226,7 +257,7 @@ BOOL execute(struct ReturnInfo* ri, STRPTR command)
   return ret_val;
 }
 ///
-///runCommand(command, dir, output)
+///runCommand(command, dir, output, stack)
 /******************************************************************************
  * A wrapper function which calls the API function System() providing a way   *
  * to access the return code. Also providing the subtask with a CLI, the      *
@@ -234,7 +265,7 @@ BOOL execute(struct ReturnInfo* ri, STRPTR command)
  * Workbench. The output of the command will be written to the file (or       *
  * console) passed in output argument.                                        *
  ******************************************************************************/
-LONG runCommand(STRPTR command, STRPTR dir, STRPTR output)
+LONG runCommand(STRPTR command, STRPTR dir, STRPTR output, ULONG stack_size)
 {
   LONG result = 0;
   ULONG NP_Path_Tag = TAG_IGNORE;
@@ -261,6 +292,7 @@ LONG runCommand(STRPTR command, STRPTR dir, STRPTR output)
       result = SystemTags(command, NP_Cli, TRUE,
                                    NP_Path_Tag, NP_Path_Val,
                                    NP_Dir_Tag, NP_Dir_Val,
+                                   NP_StackSize, stack_size,
                                    SYS_Input, fh,
                                    SYS_Output, NULL,
                                    TAG_END);

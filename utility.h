@@ -31,11 +31,12 @@ struct PathListEntry {
 
 STRPTR getProgDir();
 BPTR getSystemPathList();
+ULONG getProgramStackSize();
 BOOL Exists(STRPTR filename);
 BOOL CopyFile(STRPTR fileSrc, STRPTR fileDest);
 #define CopyDir(dirSrc, dirDest) CopyFile(dirSrc, dirDest)
 BOOL execute(struct ReturnInfo* ri, STRPTR command);
-LONG runCommand(STRPTR command, STRPTR dir, STRPTR output);
+LONG runCommand(STRPTR command, STRPTR dir, STRPTR output, ULONG stack_size);
 LONG getFileSize(STRPTR filename);
 
 BOOL aToi(STRPTR text, LONG *result);

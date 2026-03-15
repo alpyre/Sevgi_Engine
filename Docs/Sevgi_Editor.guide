@@ -363,6 +363,11 @@ For the changes you made in the "Game Settings", "Assets Editor" and "Palette
 Editor" to reflect into the code, you have to click the save button before
 opening in IDE.
 
+The IDE program launched with this button inherits the stack size used by
+Sevgi Editor. This can be an issue if your preferred IDE program needs a stack
+size greater than 8192 bytes. Increasing the stack size for Sevgi Editor from
+its icon properties will fix the problem.
+
 @endnode
 
 @node "07_Compile" "Sevgi_Editor.guide/Features/Compile"
@@ -397,6 +402,9 @@ The output of the game executable (i.e. you are debugging using printfs) will be
 displayed on a console window. The properties of this console window can be
 tweaked in the Editor Settings. Or you can redirect the output to a file if you
 wish.
+
+Your game executable will be run with the stack size set in Editor Settings.
+By default this stack size is 4096 bytes.
 
 @endnode
 

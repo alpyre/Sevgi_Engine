@@ -7,8 +7,8 @@
 ///defines
 #define PROGRAMNAME     "Sevgi Editor"
 #define VERSION         0
-#define REVISION        155
-#define VERSIONSTRING   "0.155"
+#define REVISION        156
+#define VERSIONSTRING   "0.156"
 #define AUTHOR          "Ibrahim Alper Sönmez"
 #define COPYRIGHT       "@ 2024 " AUTHOR
 #define CONTACT         "amithlondestek@gmail.com"
@@ -194,6 +194,7 @@ struct {
             "Tools/GOBBanker",
             {FALSE, FALSE, FALSE, FALSE, FALSE}};
 
+ULONG  g_Program_Stack_Size = 8192;
 BPTR   g_System_Path_List = NULL;
 BPTR   g_Program_Directory_Lock = NULL;
 STRPTR g_Program_Directory = NULL;
@@ -367,6 +368,8 @@ struct Config *Init()
 int main(int argc, char **argv)
 {
   int rc = 20;
+
+  g_Program_Stack_Size = getProgramStackSize();
 
   //argc != 0 identifies call from shell
   if (argc)
@@ -1329,9 +1332,11 @@ VOID runProject()
           if (project_path) {
             if (Exists(project_path)) {
               STRPTR output;
+              ULONG run_stack;
               get(window.settings, MUIA_EditorSettings_Output, &output);
+              get(window.settings, MUIA_EditorSettings_RunStack, &run_stack);
 
-              runCommand(project_exe, g_Project.directory, output);
+              runCommand(project_exe, g_Project.directory, output, run_stack);
             }
             freeString(project_path);
           }
@@ -1350,6 +1355,6 @@ VOID makeProject(STRPTR cmd)
   STRPTR output;
   get(window.settings, MUIA_EditorSettings_Output, &output);
 
-  runCommand(cmd, g_Project.directory, output);
+  runCommand(cmd, g_Project.directory, output, g_Program_Stack_Size);
 }
 ///

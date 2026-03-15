@@ -33,9 +33,10 @@
 #define GRD_TYPE_AGA 2  // ...define type, but also are used in calculations!
 
 //Color table states
-#define CT_IDLE 0
-#define CT_FADE_IN 1
-#define CT_FADE_OUT 2
+#define CT_IDLE     0
+#define CT_GO_IDLE  1
+#define CT_FADE_IN  2
+#define CT_FADE_OUT 3
 
 #if CT_PRECISION == 8
   struct ColorState {
@@ -104,6 +105,7 @@ struct ColorTable* newColorTable_CL(UWORD* copperlist, UWORD fade_steps, ULONG s
 struct ColorTable* newColorTable_GRD(struct Gradient* grd, UWORD fade_steps, ULONG step);
 VOID changeFadeSteps(struct ColorTable* ct, ULONG steps);
 VOID freeColorTable(struct ColorTable* ct);
+VOID initColorTable(struct ColorTable* ct);
 #define updateColorTable(ct) updateColorTable_Partial(ct, 0, ct->colors)
 VOID updateColorTable_Partial(struct ColorTable* ct, ULONG start, ULONG end);
 #define setColorTable(ct) setColorTable_REG(ct, 0, ct->colors)

@@ -127,7 +127,7 @@ VOID PT_FreeModule(struct PT_Module* mod)
 VOID setVolume(UBYTE vol)
 {
   volume_table.volume = vol;
-  volume_table.increment = ((vol + 1) << 24 / volume_table.steps) - 1;
+  volume_table.increment = (((vol + 1) << 24) / volume_table.steps) - 1;
   volume_table.volume_state.value = volume_table.increment * volume_table.step;
 
   PT_SetModuleVolume(vol);
@@ -175,7 +175,7 @@ VOID changeVolumeSteps(UWORD steps)
   volume_table.step = volume_table.step * steps / volume_table.steps;
   volume_table.steps = steps;
 
-  volume_table.increment = ((volume_table.volume + 1) << 24 / steps) - 1;
+  volume_table.increment = (((volume_table.volume + 1) << 24) / steps) - 1;
   //volume_table.volume_state.value = volume_table.increment * volume_table.step;
 }
 ///

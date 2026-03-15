@@ -85,7 +85,10 @@ static ULONG m_SetPicture(struct IClass* cl, Object* obj, STRPTR picture)
   static UBYTE window_title[108];
   struct cl_Data* data = INST_DATA(cl, obj);
 
-  if (strcmp(data->picture, picture)) {
+  if ((data->picture == NULL && picture != NULL) ||
+    (data->picture != NULL && picture == NULL) ||
+    (data->picture != NULL && picture != NULL &&
+     strcmp(data->picture, picture) != 0)) {
     if (DoMethod(data->obj_table.dtPic_group, MUIM_Group_InitChange)) {
       if (data->picture) {
         //free the dtpic object
@@ -111,8 +114,18 @@ static ULONG m_SetPicture(struct IClass* cl, Object* obj, STRPTR picture)
     }
 
     DoMethod(data->obj_table.str_sizes, MUIM_Set, MUIA_Text_Contents, getILBMSizes(picture));
-    strcpy(window_title, FilePart(picture));
-    DoMethod(obj, MUIM_Set, MUIA_Window_Title, window_title);
+    if (picture) {
+      STRPTR part;
+
+      part = FilePart(picture);
+      if (!part) {
+        part = picture;
+      }
+
+      strncpy(window_title, part, sizeof(window_title) - 1);
+      window_title[sizeof(window_title) - 1] = '\0';
+      DoMethod(obj, MUIM_Set, MUIA_Window_Title, window_title);
+    }
   }
 
   if (data->picture) {

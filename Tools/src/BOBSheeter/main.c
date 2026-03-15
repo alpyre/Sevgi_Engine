@@ -6,11 +6,11 @@
 ///defines
 #define PROGRAMNAME     "BOBSheeter"
 #define VERSION         0
-#define REVISION        13
-#define VERSIONSTRING   "0.13"
+#define REVISION        14
+#define VERSIONSTRING   "0.14"
 
 //define command line syntax and number of options
-#define RDARGS_TEMPLATE "ILBMFILE/A, SHEETFILE/A, STRTX/N/A, STRTY/N/A, SEPX/N/A, SEPY/N/A, COLUMNS/N/A, ROWS/N/A, WIDTH/N/A, HEIGHT/N/A, HSX/N, HSY/N, X=REVX/S, Y=REVY/S, C=COLFIRST/S, D=NOCOMP/S, F=FORCENI, S=SMALL/S, B=BIG/S"
+#define RDARGS_TEMPLATE "ILBMFILE/A, SHEETFILE/A, STRTX/N/A, STRTY/N/A, SEPX/N/A, SEPY/N/A, COLUMNS/N/A, ROWS/N/A, WIDTH/N/A, HEIGHT/N/A, HSX/N, HSY/N, X=REVX/S, Y=REVY/S, C=COLFIRST/S, D=NOCOMP/S, F=FORCENI/S, S=SMALL/S, B=BIG/S"
 #define RDARGS_OPTIONS  19
 
 enum {
@@ -514,6 +514,7 @@ struct Parameters* checkParameters(struct Config *config)
   params.no_compression = config->Options[NOCOMP] ? TRUE : FALSE;
   params.force_ni = config->Options[FORCENI] ? TRUE : FALSE;
   params.small_sizes = config->Options[SMALL] ? TRUE : FALSE;
+  params.big_sizes = config->Options[BIG] ? TRUE : FALSE;
 
   if (!params.columns) {
     puts("Columns cannot be zero!");

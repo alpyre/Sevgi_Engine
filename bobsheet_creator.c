@@ -324,15 +324,15 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
         }
       }
 
-      sprintf(command, "%s \"%s\" \"%s\" %lu %lu %lu %lu %lu %lu %lu %lu %ld %ld %s %s %s %s %s %s %s",
+      sprintf(command, "%s \"%s\" \"%s\" %lu %lu %lu %lu %lu %lu %lu %lu %ld %ld%s%s%s%s%s%s%s",
         g_Tools.bob_sheeter, source, ilbmpath, margin_x, margin_y, spacing_x, spacing_y, columns, rows, width, height, hotspot_x, hotspot_y,
-        reverse_x ? "REVX" : "",
-        reverse_y ? "REVY" : "",
-        columns_first ? "COLFIRST" : "",
-        compress ? "" : "NOCOMP",
-        force_ni ? "" : "FORCENI",
-        small ? "SMALL" : "",
-        big ? "BIG" : "");
+        reverse_x ? " REVX" : "",
+        reverse_y ? " REVY" : "",
+        columns_first ? " COLFIRST" : "",
+        compress ? "" : " NOCOMP",
+        force_ni ? " FORCENI" : "",
+        small ? " SMALL" : "",
+        big ? " BIG" : "");
 
       if (execute(&rtrn, command))
         error_string = rtrn.string;

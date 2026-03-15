@@ -334,13 +334,13 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
         }
       }
 
-      sprintf(command, "%s \"%s\" \"%s\" %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld %s %s %s %s %s",
+      sprintf(command, "%s \"%s\" \"%s\" %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu %ld %ld %ld%s%s%s%s%s",
         g_Tools.sprite_banker, source, filepath, margin_x, margin_y, spacing_x, spacing_y, columns, rows, width, height, colors, sfmode, hsn, hotspot_x, hotspot_y,
-        reverse_x ? "REVX" : "",
-        reverse_y ? "REVY" : "",
-        columns_first ? "COLFIRST" : "",
-        small ? "SMALL" : "",
-        big ? "BIG" : "");
+        reverse_x ? " REVX" : "",
+        reverse_y ? " REVY" : "",
+        columns_first ? " COLFIRST" : "",
+        small ? " SMALL" : "",
+        big ? " BIG" : "");
 
       if (execute(&rtrn, command))
         error_string = rtrn.string;

@@ -414,7 +414,7 @@ STRPTR makeString2(STRPTR str1, STRPTR str2)
 }
 
 STRPTR makeString3(STRPTR str1, STRPTR str2, STRPTR str3) {
-  ULONG len = strlen(str1) + strlen(str2) + strlen(str2) + 1;
+  ULONG len = strlen(str1) + strlen(str2) + strlen(str3) + 1;
   STRPTR result = AllocPooled(g_MemoryPool, len);
 
   if (result) {

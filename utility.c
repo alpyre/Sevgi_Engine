@@ -262,9 +262,11 @@ BOOL execute(struct ReturnInfo* ri, STRPTR command)
  * A wrapper function which calls the API function System() providing a way   *
  * to access the return code. Also providing the subtask with a CLI, the      *
  * current directory and the system's pathlist in the case of being ran from  *
- * Workbench. The output of the command will be written to the file (or       *
- * console) passed in output argument.                                        *
+ * Workbench. The file (or console) passed in output argument is opened and   *
+ * supplied as the command's input stream; with SYS_Output left NULL,         *
+ * AmigaDOS determines the effective output stream accordingly.               *
  ******************************************************************************/
+
 LONG runCommand(STRPTR command, STRPTR dir, STRPTR output, ULONG stack_size)
 {
   LONG result = 0;

@@ -388,7 +388,7 @@ STATIC ULONG menuDisplayLoop()
   BOOL exiting = FALSE;
   ULONG return_value = 0;
   ULONG input_delay = 0;
-  clicked_button = NULL;
+  clicked_button = 0;
 
   color_table->state = CT_FADE_IN;
 

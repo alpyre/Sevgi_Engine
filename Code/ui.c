@@ -38,8 +38,13 @@
 
 #define IS_IN_RECT(x, y, x1, y1, x2, y2) ((x) >= (x1) && (x) < (x2) && (y) >= (y1) && (y) < (y2))
 
-#define	LONG_MAX   0x7FFFFFFFL
-#define	LONG_MIN (-0x7FFFFFFFL - 1)
+#ifndef LONG_MAX
+#define LONG_MAX   0x7FFFFFFFL
+#endif
+
+#ifndef LONG_MIN
+#define LONG_MIN (-0x7FFFFFFFL - 1)
+#endif
 ///
 ///prototypes
 VOID setParents(struct UIO_Group* root);
@@ -60,7 +65,7 @@ extern volatile ULONG g_frame_counter;
 
 struct UIObject* ui_active_object = NULL; // the object in focus
 
-STATIC ULONG ui_screen_start = NULL;
+STATIC ULONG ui_screen_start = 0;
 STATIC struct RastPort* ui_rastport = NULL;  // the layered RastPort to draw ui graphics
 STATIC struct UIObject* ui_current_clipper = NULL; // last object setClip() has been called with
 STATIC struct UIObject* ui_hovered_object = NULL; // the object under the mouse pointer
@@ -72,8 +77,8 @@ STATIC struct MinList ui_anim_list;
 STATIC UWORD ui_disabled_pattern1[] = {0xAAAA, 0x5555};
 STATIC UWORD ui_disabled_pattern2[] = {0x5555, 0xAAAA};
 #ifdef UI_USE_STRING_GADGETS
-STATIC UBYTE ui_password_string[] = {UIOV_STRING_PASSWORD_CHAR, NULL};
-STATIC UBYTE ui_dotted_string[] = {UIOV_STRING_DOTTED_CHAR, NULL};
+STATIC UBYTE ui_password_string[] = {UIOV_STRING_PASSWORD_CHAR, 0};
+STATIC UBYTE ui_dotted_string[] = {UIOV_STRING_DOTTED_CHAR, 0};
 #endif // UI_USE_STRING_GADGETS
 ///
 
@@ -4132,7 +4137,7 @@ VOID actionString(struct UIObject* self, WORD pointer_x, WORD pointer_y, BOOL pr
         case ASCII_DEL_ALL:
         if (string->cursor_pos < string->content_length) {
           STRPTR cursor_addr = string->content + string->cursor_pos;
-          *cursor_addr = NULL;
+          *cursor_addr = 0;
           string->content_length = string->cursor_pos;
         }
         break;

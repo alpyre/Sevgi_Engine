@@ -1,13 +1,17 @@
 /******************************************************************************
  * BOBSheeter                                                                 *
  * NOTE: This tool only creates BST_IRREGULAR type bob sheets.                *
+ * WARNING: SHEETFILE argument is the pathname of the compacted destination   *
+ * ILBM sheet. Not the destination .sht file. Do NOT add .sht extension to    *
+ * this argument. Adding .iff or .ilbm is OK, as long as it does not match    *
+ * the ILBMFILE argument. Otherwise your input file will be overwritten!      *
  ******************************************************************************/
 
 ///defines
 #define PROGRAMNAME     "BOBSheeter"
 #define VERSION         0
-#define REVISION        14
-#define VERSIONSTRING   "0.14"
+#define REVISION        15
+#define VERSIONSTRING   "0.15"
 
 //define command line syntax and number of options
 #define RDARGS_TEMPLATE "ILBMFILE/A, SHEETFILE/A, STRTX/N/A, STRTY/N/A, SEPX/N/A, SEPY/N/A, COLUMNS/N/A, ROWS/N/A, WIDTH/N/A, HEIGHT/N/A, HSX/N, HSY/N, X=REVX/S, Y=REVY/S, C=COLFIRST/S, D=NOCOMP/S, F=FORCENI/S, S=SMALL/S, B=BIG/S"
@@ -498,6 +502,7 @@ void CleanUp(struct Config *config)
 struct Parameters* checkParameters(struct Config *config)
 {
   static struct Parameters params;
+  ULONG len_sheetfilename = strlen(FilePart((STRPTR)config->Options[SHEETFILE]));
   params.start_h = *(ULONG*)config->Options[STRTX];
   params.start_v = *(ULONG*)config->Options[STRTY];
   params.separation_h = *(ULONG*)config->Options[SEPX];
@@ -515,6 +520,22 @@ struct Parameters* checkParameters(struct Config *config)
   params.force_ni = config->Options[FORCENI] ? TRUE : FALSE;
   params.small_sizes = config->Options[SMALL] ? TRUE : FALSE;
   params.big_sizes = config->Options[BIG] ? TRUE : FALSE;
+
+
+  if (!len_sheetfilename) {
+    puts("Invalid sheetfile name!");
+    return NULL;
+  }
+
+  if (len_sheetfilename > 30) {
+    puts("Sheet file name too long!");
+    return NULL;
+  }
+
+  if (!strcmp(FilePart((STRPTR)config->Options[SHEETFILE]) + len_sheetfilename - 4, ".sht")) {
+    puts("Sheet file name can NOT have .sht extension!\nYou should pass the name (or pathname) you desire for the destination compacted BOBSheet ilbm file.");
+    return NULL;
+  }
 
   if (!params.columns) {
     puts("Columns cannot be zero!");

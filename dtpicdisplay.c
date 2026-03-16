@@ -82,7 +82,7 @@ STRPTR getILBMSizes(STRPTR file)
 ///m_SetPicture(cl, obj, picture)
 static ULONG m_SetPicture(struct IClass* cl, Object* obj, STRPTR picture)
 {
-  static UBYTE window_title[108];
+  static UBYTE window_title[MAX_FILENAME_LENGTH + 1] = {0};
   struct cl_Data* data = INST_DATA(cl, obj);
 
   if (strcmp(data->picture, picture)) {
@@ -111,7 +111,7 @@ static ULONG m_SetPicture(struct IClass* cl, Object* obj, STRPTR picture)
     }
 
     DoMethod(data->obj_table.str_sizes, MUIM_Set, MUIA_Text_Contents, getILBMSizes(picture));
-    strcpy(window_title, FilePart(picture));
+    strncpy(window_title, FilePart(picture), MAX_FILENAME_LENGTH);
     DoMethod(obj, MUIM_Set, MUIA_Window_Title, window_title);
   }
 

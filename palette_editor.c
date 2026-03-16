@@ -135,7 +135,6 @@ STRPTR newPaletteName(struct cl_Data* data)
   sprintf(buffer, "%s_%lu", name_str, list_size);
 
   return makeString(buffer);
-
 }
 
 VOID replacePaletteName(struct PaletteItem* p, STRPTR name)

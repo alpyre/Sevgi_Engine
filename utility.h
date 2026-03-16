@@ -8,6 +8,7 @@
 #define ALPHANUMERIC "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 #define MAX_STR_LENGTH 256
 #define MAX_CMD_LENGTH 512
+#define MAX_FILENAME_LENGTH 107
 #define TEMP_RETURN_STR  "T:svgedtr_return_str"
 
 #if !defined (__MORPHOS__)

@@ -1642,7 +1642,7 @@ for your UI objects.
   You can use this to create an empty area in a group. For example, you have
   a columned group and a specific row needs to have less objects than the number
   of columns. You can fill their space with rectangle objects. If you want the
-  rectange to be of predetermined pos and/or size, use the following macro.
+  rectangle to be of predetermined pos and/or size, use the following macro.
 
 @{b}UI_SIZED_RECTANGLE@{ub}(name, x, y, width, height)
   Same object as UI_RECTANGLE, but you can declare fixed-size and/or position
@@ -2110,7 +2110,7 @@ sprite to display these sprite images at runtime.
 
 Amiga Hardware allows for reusing same hardware sprites for different images
 on different vertical raster positions. Smart Sprites also provides this
-feature. It achives this by resetting sprite registers for different sprite
+feature. It achieves this by resetting sprite registers for different sprite
 data just as the video beam is at correct position. Since the best place to do
 this is in the copperlist, Smart Sprites relies on @{"CopOps" link "Concepts_10CopOps"} and @{"Dynamic Copperlist" link "Concepts_20DynamicCopperlist"}.
 
@@ -2258,7 +2258,7 @@ save them.
 At this stage, you can implement the artistic decoration and functionality of
 your game's main menu. This is achieved by writing code in the display_menu.c
 file. The buttons on the main menu utilizes the UI implementations from ui.c and
-ui.h. You should also consider modifiying the draw methods of UI objects to have
+ui.h. You should also consider modifying the draw methods of UI objects to have
 a unique looking @{"UI" link "Concepts_19UI"} for your game.
 
 General events such as game start, game end, scoring, etc. in game levels can be
@@ -6129,7 +6129,7 @@ FUNCTION
     press. Animates the objects on anim list (ui_anim_list). Activates, selects
     or highlights clicked or hovered objects regarding the mouse pointer state.
     Re-renders clicked, selected, or activated objects and calls the
-    corresponding onClick, onHover, onActive, onAcknowledge ect. functions.
+    corresponding onClick, onHover, onActive, onAcknowledge etc. functions.
 
 INPUTS
     root      - root group object to update (must be initialized with initUI)

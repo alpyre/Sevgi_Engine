@@ -118,7 +118,7 @@ BOOL loadHitboxes(BPTR fh, struct Sheet* sheet, UBYTE type)
 ///loadBobSheet(fileName)
 /******************************************************************************
  * Allocates a new struct Sheet and loads the given bob sheet file (.sht)     *
- * from disk into it by loading the ilbm file refered by the file as an       *
+ * from disk into it by loading the ilbm file referred by the file as an      *
  * ILBMImage and creates all the ImageSpec structures it defines.             *
  ******************************************************************************/
 #define PATH_BUFFER_LENGTH 128

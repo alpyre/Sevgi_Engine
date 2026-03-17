@@ -1292,7 +1292,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     DoMethod(objects.color_palette, MUIM_Notify, MUIA_ColorPalette_Edited, TRUE, obj, 3,
       MUIM_Set, MUIA_PaletteEditor_Edited, TRUE);
 
-    //Changing pallette size manually should update edited state
+    //Changing palette size manually should update edited state
     DoMethod(objects.size, MUIM_Notify, MUIA_Integer_Value, MUIV_EveryTime, obj, 3,
       MUIM_Set, MUIA_PaletteEditor_Edited, TRUE);
     //State of edited should disable/enable save button
@@ -1313,7 +1313,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     DoMethod(obj, MUIM_Notify, MUIA_Window_CloseRequest, TRUE, obj, 3,
       MUIM_Set, MUIA_Window_Open, FALSE);
 
-    //Tie buttons and menu disabled states to eachother
+    //Tie buttons and menu disabled states to each other
     DoMethod(objects.new, MUIM_Notify, MUIA_Disabled, MUIV_EveryTime, obj, 3,
       MUIM_Window_SetMenuState, MUIM_PaletteEditor_Reset, MUIV_NotTriggerValue);
 

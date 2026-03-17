@@ -93,7 +93,7 @@ HOOKPROTO(template_item_dispfunc, LONG, char **array, struct TemplateItem* ti)
 MakeStaticHook(template_item_disphook, template_item_dispfunc);
 ///
 
-//private funtions
+//private functions
 ///newTemplateItem(drawer)
 struct TemplateItem* newTemplateItem(STRPTR drawername) {
   struct TemplateItem* ti = (struct TemplateItem*)AllocPooled(g_MemoryPool, sizeof(struct TemplateItem));

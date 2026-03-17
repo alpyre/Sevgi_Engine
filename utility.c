@@ -138,7 +138,7 @@ BPTR getSystemPathList(struct WBStartup* wbs)
 ///getProgramStackSize()
 /******************************************************************************
  * Gets the stack size allocated by the OS for the program (even if the       *
- * program was lauched from Workbench). When launched from WB, the value      *
+ * program was launched from Workbench). When launched from WB, the value     *
  * returned will be the value set in the program's icon file.                 *
  * NOTE: Actually the result returned is 1000 bytes larger on some AmigaOS    *
  * versions, but not all. So we take it as it is (do not subtract 1000!).     *
@@ -202,7 +202,7 @@ BPTR copyPathList(BPTR path_list)
  * with a CLI and the system's pathlist in the case of being ran from the     *
  * Workbench.                                                                 *
  * The child process will be given at least 8192 bytes of stack size. If the  *
- * parent procces has a higher stack size it will be given that size.         *
+ * parent process has a higher stack size it will be given that size.         *
  ******************************************************************************/
 BOOL execute(struct ReturnInfo* ri, STRPTR command)
 {
@@ -612,7 +612,7 @@ STRPTR stripExtension(STRPTR pathname)
 ///
 ///replaceChars(string, restricted, char)
 /******************************************************************************
- * Replaces all occurances of a list of characters (passed as a string in the *
+ * Replaces all occurrences of a list of characters (passed as a string in the*
  * second argument) in a string with the char given in the third argument.    *
  * Can be used to make filename strings compatible with AmigaDOS replacing    *
  * restricted characters with an allowed one.                                 *

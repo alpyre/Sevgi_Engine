@@ -88,14 +88,26 @@
 
 #if TOP_PANEL_HEIGHT > 0
   #define TOP_PANEL_DEPTH SCREEN_PLANES
-  #define BPLXMOD_TP (((SCREEN_WIDTH + SCR_WIDTH_EXTRA) * TOP_PANEL_DEPTH - SCREEN_WIDTH - SCROLL_PIXELS) / 8)
+  #if BPL_FMODE == 1
+    #define TOP_PANEL_BITMAP_WIDTH SCREEN_WIDTH
+    #define BPLXMOD_TP ((TOP_PANEL_BITMAP_WIDTH * TOP_PANEL_DEPTH - SCREEN_WIDTH) / 8)
+  #else // BPL_FMODE == 1
+    #define TOP_PANEL_BITMAP_WIDTH (SCREEN_WIDTH + SCR_WIDTH_EXTRA)
+    #define BPLXMOD_TP ((TOP_PANEL_BITMAP_WIDTH * TOP_PANEL_DEPTH - SCREEN_WIDTH - SCROLL_PIXELS) / 8)
+  #endif // BPL_FMODE != 1
   #define BPLCON0_V_TP ((TOP_PANEL_DEPTH == 8 ? BPLCON0_BPU3 : (TOP_PANEL_DEPTH * BPLCON0_BPU0)) | BPLCON0_COLOR | USE_BPLCON3)
   #define TOP_PANEL_END (DISPLAY_START + TOP_PANEL_HEIGHT - 1)
 #endif // TOP_PANEL_HEIGHT
 
 #if BOTTOM_PANEL_HEIGHT > 0
   #define BOTTOM_PANEL_DEPTH SCREEN_PLANES
-  #define BPLXMOD_BP (((SCREEN_WIDTH + SCR_WIDTH_EXTRA) * BOTTOM_PANEL_DEPTH - SCREEN_WIDTH - SCROLL_PIXELS) / 8)
+  #if BPL_FMODE == 1
+    #define BOTTOM_PANEL_BITMAP_WIDTH SCREEN_WIDTH
+    #define BPLXMOD_BP ((BOTTOM_PANEL_BITMAP_WIDTH * BOTTOM_PANEL_DEPTH - SCREEN_WIDTH) / 8)
+  #else // BPL_FMODE == 1
+    #define BOTTOM_PANEL_BITMAP_WIDTH (SCREEN_WIDTH + SCR_WIDTH_EXTRA)
+    #define BPLXMOD_BP ((BOTTOM_PANEL_BITMAP_WIDTH * BOTTOM_PANEL_DEPTH - SCREEN_WIDTH - SCROLL_PIXELS) / 8)
+  #endif // BPL_FMODE != 1
   #define BPLCON0_V_BP ((BOTTOM_PANEL_DEPTH == 8 ? BPLCON0_BPU3 : (BOTTOM_PANEL_DEPTH * BPLCON0_BPU0)) | BPLCON0_COLOR | USE_BPLCON3)
   #define BOTTOM_PANEL_START (SCREEN_END + 1)
   #if BOTTOM_PANEL_START < 256
@@ -627,7 +639,7 @@ STATIC struct BitMap* openScreen()
   #endif // !DOUBLE_BUFFER
 
           #if TOP_PANEL_HEIGHT > 0
-          if ((top_panel_rastport = allocRastPort(SCREEN_WIDTH + SCR_WIDTH_EXTRA, TOP_PANEL_HEIGHT, TOP_PANEL_DEPTH,
+          if ((top_panel_rastport = allocRastPort(TOP_PANEL_BITMAP_WIDTH, TOP_PANEL_HEIGHT, TOP_PANEL_DEPTH,
                                                   BMF_STANDARD | BMF_INTERLEAVED | BMF_DISPLAYABLE | BMF_CLEAR,
                                                   bm, RPF_BITMAP, 0))) {
             //All allocations OK
@@ -649,7 +661,7 @@ STATIC struct BitMap* openScreen()
             #if TOP_PANEL_HEIGHT > 0
             if (top_panel_rastport) {
             #endif // TOP_PANEL_HEIGHT
-              if ((bottom_panel_rastport = allocRastPort(SCREEN_WIDTH + SCR_WIDTH_EXTRA, BOTTOM_PANEL_HEIGHT, BOTTOM_PANEL_DEPTH,
+              if ((bottom_panel_rastport = allocRastPort(BOTTOM_PANEL_BITMAP_WIDTH, BOTTOM_PANEL_HEIGHT, BOTTOM_PANEL_DEPTH,
                                                          BMF_STANDARD | BMF_INTERLEAVED | BMF_DISPLAYABLE | BMF_CLEAR,
                                                          bm, RPF_BITMAP, 0))) {
                 //All allocations OK
@@ -2136,7 +2148,7 @@ VOID LD_unBlitBOB(struct GameObject* go)
   #ifdef USE_NONINTERLEAVED_BOBS
     }
   #endif // USE_NONINTERLEAVED_BOBS
-  
+
     bob->flags &= ~BOB_BLITTED;
   }
 #endif // NUM_BOBS

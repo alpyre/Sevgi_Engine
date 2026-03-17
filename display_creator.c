@@ -935,7 +935,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
     }
     else failure = TRUE;
 
-    if (failure) MUI_Request(App, obj, NULL, "Sevgi Editor", "OK", "An error occured!");
+    if (failure) MUI_Request(App, obj, NULL, "Sevgi Editor", "OK", "An error occurred!");
     else {
       MUI_Request(App, obj, NULL, "Sevgi Editor", "OK", "Source files:\n   \33b%s.c\33n and\n   \33b%s.h\33n are created in your project directory.\n"
                                   "Calling the function \33bshow%sDisplay()\33n will have it displayed.\n"

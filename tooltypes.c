@@ -308,7 +308,7 @@ VOID setTooltypes(STRPTR prog_path, struct ToolTypePref* ttprefs)
 ///freeToolTypePrefStrings(ttprefs[])
 /******************************************************************************
  * WARNING: Calling this assumes all the strings on the ToolTypePref array    *
- * were allocated on the g_MemoryPool or NULL. A succesful getTooltypes()     *
+ * were allocated on the g_MemoryPool or NULL. A successful getTooltypes()    *
  * guarantees this. So beware not to call this if getTooltypes() returns      *
  * FALSE. BTW, we can safely ignore calling this if we do the getTooltypes()  *
  * once at program start, and setTooltypes() at program quit.                 *

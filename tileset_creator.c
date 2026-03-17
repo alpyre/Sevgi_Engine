@@ -86,7 +86,7 @@ static struct {
   "The ILBM tileset file as source.",
   "The color depth of the ILBM tileset file.",
   "Width and height of each tile.",
-  "The inital pixel spacing at the top\nand left side of the ILBM file.",
+  "The initial pixel spacing at the top\nand left side of the ILBM file.",
   "Pixel spacing between each tile image on the ILBM file.",
   "Adds an empty tile at ID=0 of the created tileset.",
   "Number of tiles to extract from the source ILBM.",

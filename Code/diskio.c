@@ -618,9 +618,9 @@ VOID freeSpriteBank(struct SpriteBank* bank)
 
 ///loadBobSheet(fileName)
 /******************************************************************************
- * Allocates a new struct BOBSheet and loads the given bob sheet file (.sht)  *
- * from disk into it by loading the ilbm file refered by the file with        *
- * BM_TYPE_BOBSHEET and creates all the BOBImage structures it defines.       *
+ * Loads the specified BOB sheet (.sht) file from disk into a newly allocated *
+ * struct BOBSheet, loads the ILBM file that the file refers to (using        *
+ * BM_TYPE_BOBSHEET), and sets up all of the BOBImage structures it specifies.*                                                                 *
  ******************************************************************************/
 #define PATH_BUFFER_LENGTH 128
 

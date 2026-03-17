@@ -436,7 +436,7 @@ struct RastPort* allocRastPort(ULONG sizex, ULONG sizey, ULONG depth, ULONG bm_f
  * Only to free RastPorts created by allocRastPort().                         *
  * free_flags determine which components to be freed along with the rastport. *
  * ie. you can create a rastport with RPF_ALL, create graphics on its BitMap  *
- * using rasport funtions, then free it with (RPF_ALL & ~RPF_BITMAP) so that  *
+ * using rasport functions, then free it with (RPF_ALL & ~RPF_BITMAP) so that *
  * the bitmap allocated remains but the Layer, TmpRas and AreaInfo are freed. *
  * WARNING: Do not forget to take pointers to components excluded from        *
  * freeing beforehand. Otherwise you'll have no way to free them and so a     *

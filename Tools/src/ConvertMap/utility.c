@@ -290,8 +290,8 @@ STRPTR stripExtension(STRPTR pathname)
 ///
 ///replaceChars(string, restricted, char)
 /******************************************************************************
- * Replaces all occurances of a list of characters (passed as a string in the *
- * second argument) in a string with the char given in the third argument.    *
+ * Replaces all occurrences of a list of characters (passed as a string in    *
+ * the second argument) in a string with the char given in the third argument.*
  * Can be used to make filename strings compatible with AmigaDOS replacing    *
  * restricted characters with an allowed one.                                 *
  ******************************************************************************/

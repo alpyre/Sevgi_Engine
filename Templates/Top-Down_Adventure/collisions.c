@@ -37,7 +37,7 @@ VOID (*tileCollisionFunction[NUM_TILE_COLL_FUNCS])(struct GameObject*) = {NULL,
  * pushing out horizontal first. Otherwise there will be leakages in blocking.*
  * NOTE: You must overlap block objects at least one pixel if you need        *
  * compound shapes which use more than one gameobject. Otherwise there will   *
- * be leakages in blocking. Colliding block objects won't push eachother out  *
+ * be leakages in blocking. Colliding block objects won't push each other out *
  * as long as they don't have an anim.direction.                              *
  ******************************************************************************/
 VOID blockObjectCollision(struct GameObject* go1, struct GameObject* go2)

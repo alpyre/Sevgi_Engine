@@ -377,7 +377,7 @@ INLINE STATIC VOID resignBOB(struct GameObject* go)
  * Checks all GameObjects for collisions. It also checks out of display       *
  * collisions. For linear time collision check the algorithm depends on the   *
  * gameobjectList being pre-sorted.                                           *
- * Colliding game objects' mediums get eachothers pointers on their           *
+ * Colliding game objects' mediums get each other's pointers on their         *
  * respective lists according to their display priorities.                    *
  * OPTIMIZE: Refactor for SPRITE_OBJECT / BOB_OBJECT cross checks!            *
  ******************************************************************************/

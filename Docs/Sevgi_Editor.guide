@@ -80,8 +80,8 @@ the templates that most closely matches the genre of the game you intend to
 create. This will create the source code with specific features implemented for
 the genre and this cannot be changed later.
 
-If this is the first time running Sevgi_Editor please first choose your preferred
-compiler and IDE from the Settings -> Editor Settings menu.
+If this is the first time running Sevgi_Editor please first choose your
+preferred compiler and IDE from the Settings -> Editor Settings menu.
 
 @endnode
 
@@ -117,7 +117,7 @@ screen (implemented in display_level.c).
 @{b}Palette on copperlist:@{ub}
     Creates a section of MOVE instructions (@{"CLP" LINK Sevgi_Engine.guide/Concepts_08CLP}) on the copperlist of level
     display (and all other non-custom displays) for setting color registers.
-    When this is set, color updates (like fade in/out) will be done modifiying
+    When this is set, color updates (like fade in/out) will be done modifying
     the instructions on the copperlists. When this is disabled color updates are
     done on color registers directly on vertical blanks (which has been reported
     to cause glitches on some accelerated systems and this is why this is the

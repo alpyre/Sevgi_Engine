@@ -50,44 +50,62 @@ UWORD NULL_SPRITE_ADDRESS_L; //   "      "    "    "    "    "  "  "     "
 
 // private globals
 STATIC struct Screen* null_screen = NULL; // We only call an OpenScreen() for null display
-STATIC UWORD* CopperList = (UWORD*)  0;
-STATIC UWORD* CL_BPL1PTH = (UWORD*)  0;
-STATIC UWORD* CL_SPR0PTH = (UWORD*)  0;
+///
+///copperlists
+/******************************************************************************
+ * Instructions on this copperlist initializes all displays in the engine!    *
+ ******************************************************************************/
+STATIC UWORD* CopperList_init = (UWORD*) 0;
+STATIC UWORD* CL_SPR0PTH      = (UWORD*) 0;
 
-STATIC ULONG copperList_Instructions[] = {
+STATIC ULONG init_copperlist_instructions[] = {
+  // Access Ptr:  Action:
+  MOVE_PH(SPR0PTH, 0),                        // CL_SPR0PTH   Set sprite pointers
+  MOVE(SPR0PTL, 0),                           //               "     "      "
+  MOVE(SPR1PTH, 0),                           //               "     "      "
+  MOVE(SPR1PTL, 0),                           //               "     "      "
+  MOVE(SPR2PTH, 0),                           //               "     "      "
+  MOVE(SPR2PTL, 0),                           //               "     "      "
+  MOVE(SPR3PTH, 0),                           //               "     "      "
+  MOVE(SPR3PTL, 0),                           //               "     "      "
+  MOVE(SPR4PTH, 0),                           //               "     "      "
+  MOVE(SPR4PTL, 0),                           //               "     "      "
+  MOVE(SPR5PTH, 0),                           //               "     "      "
+  MOVE(SPR5PTL, 0),                           //               "     "      "
+  MOVE(SPR6PTH, 0),                           //               "     "      "
+  MOVE(SPR6PTL, 0),                           //               "     "      "
+  MOVE(SPR7PTH, 0),                           //               "     "      "
+  MOVE(SPR7PTL, 0),                           //               "     "      "
+  WAIT(0, 14),                                //              Wait for the VBlank_Interrupt
+  MOVE(COPJMP2, 0),                           //              Jump to the actual copperlist
+  END
+};
+
+/******************************************************************************
+ * Creates a completely empty (black) display.                                *
+ ******************************************************************************/
+STATIC UWORD* CopperList_null = (UWORD*) 0;
+STATIC UWORD* CL_BPL1PTH      = (UWORD*) 0;
+
+STATIC ULONG null_copperlist_instructions[] = {
                                               // Access Ptr:  Action:
   MOVE(COLOR00, 0x0),                         //              Set color 0 to black
   MOVE(FMODE,   0),                           //              Set Sprite/Bitplane Fetch Modes
+  MOVE(DIWSTRT, DIWSTART_V),                  //              Set Display Window Start
+  MOVE(DIWSTOP, DIWSTOP_V),                   //              Set Display Window Stop
+  MOVE(DDFSTRT, DDFSTART_V),                  //              Set Data Fetch Start to fetch early
+  MOVE(DDFSTOP, DDFSTOP_V),                   //              Set Data Fetch Stop
   MOVE(BPLCON0, (NULL_SCREEN_DEPTH * BPLCON0_BPU0)),
   MOVE(BPLCON1, 0),                           // CL_BPLCON1   Set h_scroll register
   MOVE(BPLCON2, 0x264),
   MOVE(BPL1MOD, BPLXMOD_V),                   //              Set bitplane mods
   MOVE(BPL2MOD, BPLXMOD_V),                   //               "     "       "
-  MOVE(DIWSTRT, DIWSTART_V),                  //              Set Display Window Start
-  MOVE(DIWSTOP, DIWSTOP_V),                   //              Set Display Window Stop
-  MOVE(DDFSTRT, DDFSTART_V),                  //              Set Data Fetch Start to fetch early
-  MOVE(DDFSTOP, DDFSTOP_V),                   //              Set Data Fetch Stop
   MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH   Set bitplane addresses
   MOVE(BPL1PTL, 0),                           // CL_BPL1PTL    "      "       "
-  MOVE_PH(SPR0PTH, 0),                        // CL_SPR0PTH   Set sprite pointers
-  MOVE(SPR0PTL, 0),                           // CL_SPT0PTL    "     "      "
-  MOVE(SPR1PTH, 0),                           // CL_SPT1PTH    "     "      "
-  MOVE(SPR1PTL, 0),                           // CL_SPT1PTL    "     "      "
-  MOVE(SPR2PTH, 0),                           // CL_SPT2PTH    "     "      "
-  MOVE(SPR2PTL, 0),                           // CL_SPT2PTL    "     "      "
-  MOVE(SPR3PTH, 0),                           // CL_SPT3PTH    "     "      "
-  MOVE(SPR3PTL, 0),                           // CL_SPT3PTL    "     "      "
-  MOVE(SPR4PTH, 0),                           // CL_SPT4PTH    "     "      "
-  MOVE(SPR4PTL, 0),                           // CL_SPT4PTL    "     "      "
-  MOVE(SPR5PTH, 0),                           // CL_SPT5PTH    "     "      "
-  MOVE(SPR5PTL, 0),                           // CL_SPT5PTL    "     "      "
-  MOVE(SPR6PTH, 0),                           // CL_SPT6PTH    "     "      "
-  MOVE(SPR6PTL, 0),                           // CL_SPT6PTL    "     "      "
-  MOVE(SPR7PTH, 0),                           // CL_SPT7PTH    "     "      "
-  MOVE(SPR7PTL, 0),                           // CL_SPT7PTL    "     "      "
   END
 };
 ///
+
 ///prototypes (private)
 STATIC struct Screen* openNullScreen(VOID);
 STATIC VOID closeNullScreen(VOID);
@@ -124,7 +142,9 @@ STATIC UBYTE* locateNullSpritePtr(UBYTE* ptr)
  * We also set the NULL_SPRITE pointers which will be used to point unused    *
  * sprites to in all our other screens. The same memory for the one line      *
  * blank null_bitmap will be used for this.                                   *
-  *****************************************************************************/
+ * WARNING: This screen has to be kept open during the lifetime of the engine,*
+ * and its opening and closing must only be handled by takeOverSystem().      *
+ ******************************************************************************/
 STATIC struct Screen* openNullScreen() {
   static ULONG color_table32[] = {1 << 16 | 0, 0,0,0, 0};
 
@@ -150,6 +170,11 @@ STATIC struct Screen* openNullScreen() {
 }
 ///
 ///closeNullScreen()
+/******************************************************************************
+ * Deallocates the null bitmap, and closes the main screen of the engine.     *
+ * WARNING: This screen has to be kept open during the lifetime of the engine,*
+ * and its opening and closing must only be handled by takeOverSystem().      *
+ ******************************************************************************/
 STATIC VOID closeNullScreen()
 {
   if (null_screen) {
@@ -160,28 +185,40 @@ STATIC VOID closeNullScreen()
 ///
 
 ///createNullCopperList()
+/******************************************************************************
+ * This function is responsible for allocation and initialization of both the *
+ * init and null copperlists!                                                 *
+ ******************************************************************************/
 STATIC UWORD* createNullCopperList()
 {
-  if (allocCopperList(copperList_Instructions, CopperList, CL_SINGLE)) {
-    UWORD* sp;
+  if (allocCopperList(init_copperlist_instructions, CopperList_init, CL_SINGLE)) {
+    if (allocCopperList(null_copperlist_instructions, CopperList_null, CL_SINGLE)) {
+      UWORD* sp;
 
-    //Set copperlist bitplane instructions point to the null_screen's bitmap
-    *CL_BPL1PTH = (WORD)((ULONG)null_screen->RastPort.BitMap->Planes[0] >> 16);
-    *(CL_BPL1PTH + 2) = (WORD)((ULONG)null_screen->RastPort.BitMap->Planes[0] & 0xFFFF);
+      //Set all sprite pointers on init copperlist to null_sprite
+      for (sp = CL_SPR0PTH; sp < CL_SPR0PTH + 32; sp += 2) {
+        *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+        *sp = NULL_SPRITE_ADDRESS_L;
+      }
 
-    //Set all sprite pointers to null_sprite
-    for (sp = CL_SPR0PTH; sp < CL_SPR0PTH + 32; sp += 2) {
-      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
-      *sp = NULL_SPRITE_ADDRESS_L;
+      //Set bitplane instructions on null copperlist to point to the null_screen's bitmap
+      *CL_BPL1PTH = (WORD)((ULONG)null_screen->RastPort.BitMap->Planes[0] >> 16);
+      *(CL_BPL1PTH + 2) = (WORD)((ULONG)null_screen->RastPort.BitMap->Planes[0] & 0xFFFF);
     }
+    else
+      puts("Couldn't allocate NULL Copperlist!");
   }
   else
-    puts("Couldn't allocate NULL CopperList!");
+    puts("Couldn't allocate init Copperlist!");
 
-  return CopperList;
+  return CopperList_null;
 }
 ///
 ///activateNullCopperList()
+/******************************************************************************
+ * The actual display takover.                                                *
+ * WARNING: Should only be called by takeOverSystem()!                        *
+ ******************************************************************************/
 VOID activateNullCopperList()
 {
   WaitVBL();
@@ -190,13 +227,14 @@ VOID activateNullCopperList()
   custom.beamcon0 = DISPLAYPAL;
   custom.bplcon3 = BPLCON3_V;
 
-  custom.cop2lc = (ULONG)CopperList;
+  custom.cop1lc = (ULONG)CopperList_init;
+  custom.cop2lc = (ULONG)CopperList_null;
 
   busyWaitBlit();
   WaitVBL();
 
   // Enable Blitter, Copper, Bitplane DMA's.
-  custom.copjmp2 = 0;
+  custom.copjmp1 = 0;
   custom.dmacon = DMAF_SETCLR | DMAF_BLITTER | DMAF_COPPER | DMAF_RASTER | DMAF_SPRITE | DMAF_DISK | DMAF_MASTER;
   custom.bplcon4 = 0;
 
@@ -204,6 +242,10 @@ VOID activateNullCopperList()
 }
 ///
 ///deactivateNullCopperList()
+/******************************************************************************
+ * Initializes display release back to system.                                *
+ * WARNING: Should only be called by takeOverSystem()!                        *
+ ******************************************************************************/
 VOID deactivateNullCopperList()
 {
   custom.intena = INTF_VERTB;
@@ -212,9 +254,8 @@ VOID deactivateNullCopperList()
 ///disposeNullCopperList()
 STATIC VOID disposeNullCopperList()
 {
-  if (CopperList) {
-    freeCopperList(CopperList);
-  }
+  if (CopperList_null) freeCopperList(CopperList_null); CopperList_null = NULL;
+  if (CopperList_init) freeCopperList(CopperList_init); CopperList_init = NULL;
 }
 ///
 
@@ -239,11 +280,15 @@ VOID closeNullDisplay()
 }
 ///
 ///switchToNullCopperList()
+/******************************************************************************
+ * Use this function to switch to a safe copperlist and display an empty      *
+ * (black) screen before closing other displays.                              *
+ * ****************************************************************************/
 VOID switchToNullCopperList()
 {
   removeVBlankEvents();
   WaitVBeam(299);
-  custom.cop2lc = (ULONG)CopperList;
+  custom.cop2lc = (ULONG)CopperList_null;
   new_frame_flag = 1;
   waitTOF();
   blackOut();

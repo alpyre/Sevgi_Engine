@@ -399,6 +399,9 @@ VOID giveBackSystem()
 	// enable window pointer
 	self->pr_WindowPtr = old_winptr;
 
+	// restore copinit
+	custom.cop1lc = (ULONG)GfxBase->copinit;
+
 	// restore old view
 	LoadView(old_view);
 	WaitTOF();

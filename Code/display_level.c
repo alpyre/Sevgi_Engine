@@ -303,11 +303,7 @@ STATIC UWORD* CL_PALETTE    = (UWORD*)0;
 
 #ifndef SMART_SPRITES
 STATIC UWORD* CL_SPR0PTH    = (UWORD*)0;
-#else // !SMART_SPRITES
-#if TOP_PANEL_HEIGHT > 0
-STATIC UWORD* TP_SPR0PTH    = (UWORD*)0;
-#endif // TOP_PANEL_HEIGHT
-#endif // SMART_SPRITES
+#endif // !SMART_SPRITES
 
 #if TOP_PANEL_HEIGHT > 0
 STATIC UWORD* TP_BPL1PTH    = (UWORD*)0;
@@ -368,11 +364,6 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(SPR6PTL, 0),                           //               "     "      "
   MOVE(SPR7PTH, 0),                           //               "     "      "
   MOVE(SPR7PTL, 0),                           //               "     "      "
-#else // !SMART_SPRITES
-#if TOP_PANEL_HEIGHT > 0
-  MOVE_PH(SPR0PTH, 0),                        // TP_SPR0PTH   Set OS's mouse sprite off
-  MOVE(SPR0PTL, 0),                           //               "    "    "     "     "
-#endif // TOP_PANEL_HEIGHT
 #endif // !SMART_SPRITES
   //TOP PANEL INSTRUCTIONS
 #if TOP_PANEL_HEIGHT > 0
@@ -2287,11 +2278,6 @@ STATIC UWORD* createCopperList()
 #ifdef SMART_SPRITES
         CL_SPR0POS = (UWORD*)((ULONG)CL_SPR0POS - (ULONG)CopperList);
         CL_SPR0PTH = (UWORD*)((ULONG)CL_SPR0PTH - (ULONG)CopperList);
-  #if TOP_PANEL_HEIGHT > 0
-        //disable OS's mouse pointer
-        *TP_SPR0PTH = NULL_SPRITE_ADDRESS_H;
-        *(TP_SPR0PTH + 2) = NULL_SPRITE_ADDRESS_L;
-  #endif // TOP_PANEL_HEIGHT
 #else // SMART_SPRITES
         CL_SPR0PTH = (UWORD*)((ULONG)CL_SPR0PTH - (ULONG)CopperList);
 #endif // !SMART_SPRITES

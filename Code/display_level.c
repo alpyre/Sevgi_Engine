@@ -153,7 +153,6 @@ STATIC VOID disposeCopperList(VOID);
 STATIC VOID updateCopperList(VOID);
 STATIC VOID switchToLevelCopperList(VOID);
 #ifdef DYNAMIC_COPPERLIST
-STATIC VOID updateDynamicCopperList(VOID);
 STATIC INLINE VOID initCopperListBlit(VOID);
 STATIC BOOL prepGradients(ULONG level_num);
 STATIC VOID freeGradients(VOID);
@@ -301,27 +300,21 @@ STATIC UWORD* CopperList    = (UWORD*)0;
 STATIC UWORD* CL_PALETTE    = (UWORD*)0;
 #endif // USE_CLP
 
-#ifndef SMART_SPRITES
-STATIC UWORD* CL_SPR0PTH    = (UWORD*)0;
-#endif // !SMART_SPRITES
+#if defined DYNAMIC_COPPERLIST && !defined DOUBLE_BUFFER
+STATIC UWORD* CL_COP2LCH    = (UWORD*)0;
+#endif // DYNAMIC_COPPERLIST && !DOUBLE_BUFFER
 
 #if TOP_PANEL_HEIGHT > 0
 STATIC UWORD* TP_BPL1PTH    = (UWORD*)0;
+STATIC UWORD* TP_SPR0PTH    = (UWORD*)0;
+STATIC UWORD* TP_SPR0POS    = (UWORD*)0;
 #endif // TOP_PANEL_HEIGHT
 
 STATIC UWORD* CL_BPLCON1    = (UWORD*)0;
 STATIC UWORD* CL_BPL1PTH    = (UWORD*)0;
-STATIC UWORD* CL_BPL1PTL    = (UWORD*)0;
 
-#ifdef DYNAMIC_COPPERLIST
-#ifndef DOUBLE_BUFFER
-STATIC UWORD* CL_COP2LCH    = (UWORD*)0;
-#endif // !DOUBLE_BUFFER
-#ifdef SMART_SPRITES
-STATIC UWORD* CL_SPR0POS    = (UWORD*)0;
 STATIC UWORD* CL_SPR0PTH    = (UWORD*)0;
-#endif // SMART_SPRITES
-#endif // DYNAMIC_COPPERLIST
+STATIC UWORD* CL_SPR0POS    = (UWORD*)0;
 
 STATIC UWORD* CL_VIDSPLT    = (UWORD*)0;
 STATIC UWORD* CL_VIDSPLT2   = (UWORD*)0;
@@ -332,7 +325,16 @@ STATIC UWORD* CL_ENDWAIT    = (UWORD*)0;
 
 #if BOTTOM_PANEL_HEIGHT > 0
 STATIC UWORD* BP_COP2LCH    = (UWORD*)0;
+#ifdef DYNAMIC_COPPERLIST
+//These three are to satisfy copperAllocator() DO NOT USE
+STATIC UWORD* BP_DUMMY_01   = (UWORD*)0;
+STATIC UWORD* BP_DUMMY_02   = (UWORD*)0;
+STATIC UWORD* BP_DUMMY_03   = (UWORD*)0;
+#else // DYNAMIC_COPPERLIST
 STATIC UWORD* BP_BPL1PTH    = (UWORD*)0;
+STATIC UWORD* BP_SPR0PTH    = (UWORD*)0;
+STATIC UWORD* BP_SPR0POS    = (UWORD*)0;
+#endif // !DYNAMIC_COPPERLIST
 #endif // BOTTOM_PANEL_HEIGHT
 
 STATIC UWORD* CL_END        = (UWORD*)0;
@@ -341,30 +343,16 @@ STATIC ULONG copperList_Instructions[] = {
                                               // Access Ptr:  Action:
 #ifdef USE_CLP
   #define CLP_DEPTH USE_CLP
-  #include "clp.c"
+  #include "clp.c"                            // CL_PALETTE   Set color registers
 #endif //USE_CLP
   MOVE(FMODE,   FMODE_V),                     //              Set Sprite/Bitplane Fetch Modes
   MOVE(DIWSTRT, DIWSTART_V),                  //              Set Display Window Start
   MOVE(DIWSTOP, DIWSTOP_V),                   //              Set Display Window Stop
   MOVE(DMACON,  0x8020),                      //              Enable sprite DMA
-#ifndef SMART_SPRITES
-  MOVE_PH(SPR0PTH, 0),                        // CL_SPR0PTH   Set sprite pointers
-  MOVE(SPR0PTL, 0),                           //               "     "      "
-  MOVE(SPR1PTH, 0),                           //               "     "      "
-  MOVE(SPR1PTL, 0),                           //               "     "      "
-  MOVE(SPR2PTH, 0),                           //               "     "      "
-  MOVE(SPR2PTL, 0),                           //               "     "      "
-  MOVE(SPR3PTH, 0),                           //               "     "      "
-  MOVE(SPR3PTL, 0),                           //               "     "      "
-  MOVE(SPR4PTH, 0),                           //               "     "      "
-  MOVE(SPR4PTL, 0),                           //               "     "      "
-  MOVE(SPR5PTH, 0),                           //               "     "      "
-  MOVE(SPR5PTL, 0),                           //               "     "      "
-  MOVE(SPR6PTH, 0),                           //               "     "      "
-  MOVE(SPR6PTL, 0),                           //               "     "      "
-  MOVE(SPR7PTH, 0),                           //               "     "      "
-  MOVE(SPR7PTL, 0),                           //               "     "      "
-#endif // !SMART_SPRITES
+#if defined DYNAMIC_COPPERLIST && !defined DOUBLE_BUFFER
+  MOVE_PH(COP2LCH, 0),                        // CL_COP2LCH   Address to switch to the other double
+  MOVE(COP2LCL, 0),                           //              buffered copper list at VBL
+#endif // DYNAMIC_COPPERLIST && !DOUBLE_BUFFER
   //TOP PANEL INSTRUCTIONS
 #if TOP_PANEL_HEIGHT > 0
   MOVE(DDFSTRT, DEFAULT_DDFSTRT_LORES),       //              Set Data Fetch Start
@@ -373,27 +361,16 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(BPLCON1, 0),                           //              No scroll
   MOVE(BPLCON2, 0x23F),                       //              Default plane priorities
   MOVE(BPLCON3, BPLCON3_V),                   //              Border blank
-  MOVE(BPLCON4, 0x0),                         //              Default sprite colors
+  MOVE(BPLCON4, 0x11),                        //              Default sprite colors
   MOVE(BPL1MOD, BPLXMOD_TP),                  //              Set bitplane mods for top panel
   MOVE(BPL2MOD, BPLXMOD_TP),                  //               "     "       "   "   "    "
-  MOVE_PH(BPL1PTH, 0),                        // TP_BPL1PTH   Set bitplane addresses
-  MOVE(BPL1PTL, 0),                           //               "      "       "
-  MOVE(BPL2PTH, 0),                           //               "      "       "
-  MOVE(BPL2PTL, 0),                           //               "      "       "
-  MOVE(BPL3PTH, 0),                           //               "      "       "
-  MOVE(BPL3PTL, 0),                           //               "      "       "
-  MOVE(BPL4PTH, 0),                           //               "      "       "
-  MOVE(BPL4PTL, 0),                           //               "      "       "
-  MOVE(BPL5PTH, 0),                           //               "      "       "
-  MOVE(BPL5PTL, 0),                           //               "      "       "
-  MOVE(BPL6PTH, 0),                           //               "      "       "
-  MOVE(BPL6PTL, 0),                           //               "      "       "
-  MOVE(BPL7PTH, 0),                           //               "      "       "
-  MOVE(BPL7PTL, 0),                           //               "      "       "
-  MOVE(BPL8PTH, 0),                           //               "      "       "
-  MOVE(BPL8PTL, 0),                           //               "      "       "
-  WAIT(0, TOP_PANEL_END),                     //              Last row of top panel switches to level display
-  MOVE(DMACON, 0x100),                        //              Disable Bitplane DMA
+  #define BPLI_DEPTH TOP_PANEL_DEPTH
+  #include "bpli.c"                           // TP_BPL1PTH   Set bitplane addresses
+  WAIT(0, DISPLAY_START - 1),                 //              Wait the line before display (for sprite instructions)
+  #define SPRI_DDFSTRT DEFAULT_DDFSTRT_LORES  // TP_SPR0PTH   Set sprite registers for top panel
+  #include "spri.c"                           // TP_SPR0POS    "      "       "     "   "    "
+  WAIT(0, TOP_PANEL_END),                     //              Wait last row of top panel (switch to level display)
+  MOVE(DMACON, 0x120),                        //              Disable Bitplane & Sprite DMAs
 #endif // TOP_PANEL_HEIGHT
   //END OF TOP PANEL INSTRUCTIONS
   MOVE(DDFSTRT, DDFSTART_V),                  //              Set Data Fetch Start to fetch early
@@ -405,94 +382,65 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(BPLCON4, 0x11),
   MOVE(BPL1MOD, BPLXMOD_V),                   //              Set bitplane mods
   MOVE(BPL2MOD, BPLXMOD_V_PF2),               //               "     "       "
-  MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH   Set bitplane addresses
-  MOVE_PH(BPL1PTL, 0),                        // CL_BPL1PTL    "      "       "
-  MOVE(BPL2PTH, 0),                           //               "      "       "
-  MOVE(BPL2PTL, 0),                           //               "      "       "
-  MOVE(BPL3PTH, 0),                           //               "      "       "
-  MOVE(BPL3PTL, 0),                           //               "      "       "
-  MOVE(BPL4PTH, 0),                           //               "      "       "
-  MOVE(BPL4PTL, 0),                           //               "      "       "
-  MOVE(BPL5PTH, 0),                           //               "      "       "
-  MOVE(BPL5PTL, 0),                           //               "      "       "
-  MOVE(BPL6PTH, 0),                           //               "      "       "
-  MOVE(BPL6PTL, 0),                           //               "      "       "
-  MOVE(BPL7PTH, 0),                           //               "      "       "
-  MOVE(BPL7PTL, 0),                           //               "      "       "
-  MOVE(BPL8PTH, 0),                           //               "      "       "
-  MOVE(BPL8PTL, 0),                           //               "      "       "
-#ifdef DYNAMIC_COPPERLIST
-#ifndef DOUBLE_BUFFER
-  MOVE_PH(COP2LCH, 0),                        // CL_COP2LCH   Address to switch to the other double
-  MOVE(COP2LCL, 0),                           //              buffered copper list at VBL
-#endif // !DOUBLE_BUFFER
-#ifdef SMART_SPRITES
+  #undef BPLI_DEPTH
+  #define BPLI_DEPTH SCREEN_PLANES
+  #include "bpli.c"                           // CL_BPL1PTH   Set bitplane addresses for level screen
 #if TOP_PANEL_HEIGHT == 0
   WAIT(0, DISPLAY_START - 1),                 //              Wait until sprite DMA fetches pointers (min 26)
-#endif // TOP_PANEL_HEIGHT
-  MOVE_PH(SPR0POS, 0),                        // CL_SPR0POS   Set sprite controls
-  MOVE(SPR0CTL, 0),                           //               "     "      "
-  MOVE(SPR1POS, 0),                           //               "     "      "
-  MOVE(SPR1CTL, 0),                           //               "     "      "
-  MOVE(SPR2POS, 0),                           //               "     "      "
-  MOVE(SPR2CTL, 0),                           //               "     "      "
-  MOVE(SPR3POS, 0),                           //               "     "      "
-  MOVE(SPR3CTL, 0),                           //               "     "      "
-  MOVE(SPR4POS, 0),                           //               "     "      "
-  MOVE(SPR4CTL, 0),                           //               "     "      "
-  MOVE(SPR5POS, 0),                           //               "     "      "
-  MOVE(SPR5CTL, 0),                           //               "     "      "
-  MOVE(SPR6POS, 0),                           //               "     "      "
-  MOVE(SPR6CTL, 0),                           //               "     "      "
-  MOVE(SPR7POS, 0),                           //               "     "      "
-  MOVE(SPR7CTL, 0),                           //               "     "      "
-  MOVE_PH(SPR0PTH, 0),                        // CL_SPR0PTH   Set sprite pointers
-  MOVE(SPR0PTL, 0),                           //               "     "      "
-  MOVE(SPR1PTH, 0),                           //               "     "      "
-  MOVE(SPR1PTL, 0),                           //               "     "      "
-  MOVE(SPR2PTH, 0),                           //               "     "      "
-  MOVE(SPR2PTL, 0),                           //               "     "      "
-  MOVE(SPR3PTH, 0),                           //               "     "      "
-  MOVE(SPR3PTL, 0),                           //               "     "      "
-  MOVE(SPR4PTH, 0),                           //               "     "      "
-  MOVE(SPR4PTL, 0),                           //               "     "      "
-  MOVE(SPR5PTH, 0),                           //               "     "      "
-  MOVE(SPR5PTL, 0),                           //               "     "      "
-  MOVE(SPR6PTH, 0),                           //               "     "      "
-  MOVE(SPR6PTL, 0),                           //               "     "      "
-  MOVE(SPR7PTH, 0),                           //               "     "      "
-  MOVE(SPR7PTL, 0),                           //               "     "      "
-#endif // SMART_SPRITES
-#endif // DYNAMIC_COPPERLIST
+#endif // !TOP_PANEL_HEIGHT
+  #undef SPRI_DDFSTRT
+  #define SPRI_DDFSTRT DDFSTART_V             // CL_SPR0PTH   Set sprite registers for level screen
+  #include "spri.c"                           // CL_SPR0POS    "      "       "     "    "     "
 #if TOP_PANEL_HEIGHT > 0
-  WAIT(0, SCREEN_START),                      //              Enable Bitplane DMA back
-  MOVE(DMACON, 0x8100),                       //              Enable Bitplane DMA back
+  WAIT(0, SCREEN_START),                      //              Wait for the start of tilemap section
+  MOVE(DMACON, 0x8120),                       //              Enable Bitplane & Sprite DMAs back
 #endif // TOP_PANEL_HEIGHT
   // END OF HEADER INSTRUCTIONS IN DYNAMIC_COPPERLIST MODE
+  // WHAT FOLLOWS ARE THE VIDEO SPLIT AND BOTTOM PANEL INSTRUCTIONS IN NON-DYNAMIC_COPPERLIST
   WAIT_PH(0, 0),                              // CL_VIDSPLT   Wait for the scan line...
   WAIT(0, 0),                                 //              ...before video split.
 #ifdef DUALPLAYFIELD
   MOVE(BPL1MOD, VSPLTMOD_V),                  //              Set video split mods
   WAIT_PH(0, 0),                              // CL_VIDSPLT2  Wait for the video split
   WAIT(0, 0),                                 //                "   "   "    "     "
-  MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH_2 Set the high words of...
-  MOVE(BPL3PTH, 0),                           //               "   "   "     "   "
-  MOVE(BPL5PTH, 0),                           //               "   "   "     "   "
-  MOVE(BPL7PTH, 0),                           //               "   "   "     "   "
+  MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH_2 Set the high words of bitplane addresses
+  #if SCREEN_DEPTH > 1
+  MOVE(BPL3PTH, 0),                           //               "   "   "     "   "     "        "
+  #if SCREEN_DEPTH > 2
+  MOVE(BPL5PTH, 0),                           //               "   "   "     "   "     "        "
+  #if SCREEN_DEPTH > 3
+  MOVE(BPL7PTH, 0),                           //               "   "   "     "   "     "        "
+  #endif // SCREEN_DEPTH > 3
+  #endif // SCREEN_DEPTH > 2
+  #endif // SCREEN_DEPTH > 1
   MOVE(BPL1MOD, BPLXMOD_V),                   //              Reset video split mod
 #else // DUALPLAYFIELD
   MOVE(BPL1MOD, VSPLTMOD_V),                  //              Set video split mods
   MOVE(BPL2MOD, VSPLTMOD_V),                  //               "    "     "    "
   WAIT_PH(0, 0),                              // CL_VIDSPLT2  Wait for the video split
   WAIT(0, 0),                                 //                "   "   "    "     "
-  MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH_2 Set the high words of...
-  MOVE(BPL2PTH, 0),                           //              ...bitplane addresses
-  MOVE(BPL3PTH, 0),                           //               "   "   "     "   "
-  MOVE(BPL4PTH, 0),                           //               "   "   "     "   "
-  MOVE(BPL5PTH, 0),                           //               "   "   "     "   "
-  MOVE(BPL6PTH, 0),                           //               "   "   "     "   "
-  MOVE(BPL7PTH, 0),                           //               "   "   "     "   "
-  MOVE(BPL8PTH, 0),                           //               "   "   "     "   "
+  MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH_2 Set the high words of bitplane addresses
+  #if SCREEN_DEPTH > 1
+  MOVE(BPL2PTH, 0),                           //               "   "   "     "   "     "        "
+  #if SCREEN_DEPTH > 2
+  MOVE(BPL3PTH, 0),                           //               "   "   "     "   "     "        "
+  #if SCREEN_DEPTH > 3
+  MOVE(BPL4PTH, 0),                           //               "   "   "     "   "     "        "
+  #if SCREEN_DEPTH > 4
+  MOVE(BPL5PTH, 0),                           //               "   "   "     "   "     "        "
+  #if SCREEN_DEPTH > 5
+  MOVE(BPL6PTH, 0),                           //               "   "   "     "   "     "        "
+  #if SCREEN_DEPTH > 6
+  MOVE(BPL7PTH, 0),                           //               "   "   "     "   "     "        "
+  #if SCREEN_DEPTH > 7
+  MOVE(BPL8PTH, 0),                           //               "   "   "     "   "     "        "
+  #endif // SCREEN_DEPTH > 7
+  #endif // SCREEN_DEPTH > 6
+  #endif // SCREEN_DEPTH > 5
+  #endif // SCREEN_DEPTH > 4
+  #endif // SCREEN_DEPTH > 3
+  #endif // SCREEN_DEPTH > 2
+  #endif // SCREEN_DEPTH > 1
   MOVE(BPL1MOD, BPLXMOD_V),                   //              Reset video split mod
   MOVE(BPL2MOD, BPLXMOD_V),                   //                "     "     "    "
 #endif // !DUALPLAYFIELD
@@ -502,80 +450,60 @@ STATIC ULONG copperList_Instructions[] = {
 #if BOTTOM_PANEL_HEIGHT > 0
   MOVE_PH(COP2LCH, 0),                        // BP_COP2LCH   Reset COP2LCH
   MOVE(COP2LCL, 0),                           //                "      "
-  MOVE(DMACON,  0x100),                       //              Disable Bitplane DMA
+  MOVE(DMACON,  0x120),                       //              Disable Bitplane & Sprite DMAs
   MOVE(DDFSTRT, DEFAULT_DDFSTRT_LORES),       //              Set Data Fetch Start
   MOVE(DDFSTOP, DEFAULT_DDFSTOP_LORES),       //              Set Data Fetch Stop
   MOVE(BPLCON0, BPLCON0_V_BP),                //              Set display properties for bottom panel
   MOVE(BPLCON1, 0),                           //              No scroll
   MOVE(BPLCON2, 0x23F),                       //              Default plane priorities
   MOVE(BPLCON3, BPLCON3_V),                   //              Border blank
-  MOVE(BPLCON4, 0x0),                         //              Default sprite colors
+  MOVE(BPLCON4, 0x11),                        //              Default sprite colors
   MOVE(BPL1MOD, BPLXMOD_BP),                  //              Set bitplane mods for bottom panel
   MOVE(BPL2MOD, BPLXMOD_BP),                  //               "     "       "   "   "    "
-  MOVE_PH(BPL1PTH, 0),                        // BP_BPL1PTH   Set bitplane addresses
-  MOVE(BPL1PTL, 0),                           //               "      "       "
-  MOVE(BPL2PTH, 0),                           //               "      "       "
-  MOVE(BPL2PTL, 0),                           //               "      "       "
-  MOVE(BPL3PTH, 0),                           //               "      "       "
-  MOVE(BPL3PTL, 0),                           //               "      "       "
-  MOVE(BPL4PTH, 0),                           //               "      "       "
-  MOVE(BPL4PTL, 0),                           //               "      "       "
-  MOVE(BPL5PTH, 0),                           //               "      "       "
-  MOVE(BPL5PTL, 0),                           //               "      "       "
-  MOVE(BPL6PTH, 0),                           //               "      "       "
-  MOVE(BPL6PTL, 0),                           //               "      "       "
-  MOVE(BPL7PTH, 0),                           //               "      "       "
-  MOVE(BPL7PTL, 0),                           //               "      "       "
-  MOVE(BPL8PTH, 0),                           //               "      "       "
-  MOVE(BPL8PTL, 0),                           //               "      "       "
-  WAIT(BTM_PNL_STRT_W_X, BTM_PNL_STRT_W_Y),   //              Enable Bitplane DMA back
-  MOVE(DMACON, 0x8100),                       //              Enable Bitplane DMA back
+  #undef BPLI_DEPTH
+  #define BPLI_DEPTH BOTTOM_PANEL_DEPTH
+  #include "bpli.c"                           // BP_BPL1PTH   Set bitplane addresses
+  //YOU CAN ADD BOTTOM PANEL SPRITE INSTRUCTIONS HERE INCLUDING spri.c
+  #undef SPRI_DDFSTRT
+  #define SPRI_DDFSTRT DEFAULT_DDFSTRT_LORES  // BP_SPR0PTH   Set sprite registers for bottom panel
+  #include "spri.c"                           // BP_SPR0POS    "    "        "      "    "     "
+  WAIT(BTM_PNL_STRT_W_X, BTM_PNL_STRT_W_Y),   //              Wait for bottom panel start
+  MOVE(DMACON, 0x8120),                       //              Enable Bitplane and Sprite DMAs back
 #endif // BOTTOM_PANEL_HEIGHT
   END_PH                                      // CL_END       Terminate copperlist
 };
 
-#if BOTTOM_PANEL_HEIGHT > 0
+#if defined DYNAMIC_COPPERLIST && BOTTOM_PANEL_HEIGHT > 0
+//THE FOLLOWING ARRAY IMPLEMENTS A BOTTOM PANEL IN DYNAMIC_COPPERLIST MODE
+//NOTE: This array is to be passed to createRainbow() function
+//NOTE: The access pointers for it are set up by createCopperList()
+STATIC UWORD* BP_BPL1PTH = (UWORD*)0;
+STATIC UWORD* BP_SPR0PTH = (UWORD*)0;
+STATIC UWORD* BP_SPR0POS = (UWORD*)0;
+
 STATIC ULONG end_Instructions[] = {
   WAIT(0, SCREEN_END_WAIT),                   //              Wait for the panel start
-  MOVE(DMACON,  0x120),                       //              Disable Bitplane
+  MOVE(DMACON,  0x120),                       //              Disable Bitplane & Sprite DMAs
   MOVE(DDFSTRT, DEFAULT_DDFSTRT_LORES),       //              Set Data Fetch Start
   MOVE(DDFSTOP, DEFAULT_DDFSTOP_LORES),       //              Set Data Fetch Stop
   MOVE(BPLCON0, BPLCON0_V_BP),                //              Set display properties for bottom panel
   MOVE(BPLCON1, 0),                           //              No scroll
   MOVE(BPLCON2, 0x23F),                       //              Default plane priorities
   MOVE(BPLCON3, BPLCON3_V),                   //              Border blank only
-  MOVE(BPLCON4, 0x0),                         //              Default sprite colors
+  MOVE(BPLCON4, 0x11),                        //              Default sprite colors
   MOVE(BPL1MOD, BPLXMOD_BP),                  //              Set bitplane mods for bottom panel
   MOVE(BPL2MOD, BPLXMOD_BP),                  //               "     "       "   "   "    "
-  MOVE(SPR0CTL, 0),                           //               "     "      "
-  MOVE(SPR1CTL, 0),                           //               "     "      "
-  MOVE(SPR2CTL, 0),                           //               "     "      "
-  MOVE(SPR3CTL, 0),                           //               "     "      "
-  MOVE(SPR4CTL, 0),                           //               "     "      "
-  MOVE(SPR5CTL, 0),                           //               "     "      "
-  MOVE(SPR6CTL, 0),                           //               "     "      "
-  MOVE(SPR7CTL, 0),                           //               "     "      "
-  MOVE(BPL1PTH, 0),                           //              Set bitplane addresses
-  MOVE(BPL1PTL, 0),                           //               "      "       "
-  MOVE(BPL2PTH, 0),                           //               "      "       "
-  MOVE(BPL2PTL, 0),                           //               "      "       "
-  MOVE(BPL3PTH, 0),                           //               "      "       "
-  MOVE(BPL3PTL, 0),                           //               "      "       "
-  MOVE(BPL4PTH, 0),                           //               "      "       "
-  MOVE(BPL4PTL, 0),                           //               "      "       "
-  MOVE(BPL5PTH, 0),                           //               "      "       "
-  MOVE(BPL5PTL, 0),                           //               "      "       "
-  MOVE(BPL6PTH, 0),                           //               "      "       "
-  MOVE(BPL6PTL, 0),                           //               "      "       "
-  MOVE(BPL7PTH, 0),                           //               "      "       "
-  MOVE(BPL7PTL, 0),                           //               "      "       "
-  MOVE(BPL8PTH, 0),                           //               "      "       "
-  MOVE(BPL8PTL, 0),                           //               "      "       "
-  WAIT(BTM_PNL_STRT_W_X, BTM_PNL_STRT_W_Y),   //              Enable Bitplane DMA back
-  MOVE(DMACON, 0x8100),                       //              Enable Bitplane DMA back
+  #undef BPLI_DEPTH
+  #define BPLI_DEPTH BOTTOM_PANEL_DEPTH
+  #include "bpli_no_ph.c"                     // BP_BPL1PTH   Set bitplane addresses
+  #undef SPRI_DDFSTRT
+  #define SPRI_DDFSTRT DEFAULT_DDFSTRT_LORES  // BP_SPR0PTH   Set sprite registers for bottom panel
+  #include "spri_no_ph.c"                     // BP_SPR0POS    "    "        "      "    "     "
+  WAIT(BTM_PNL_STRT_W_X, BTM_PNL_STRT_W_Y),   //              Wait for bottom panel start
+  MOVE(DMACON, 0x8120),                       //              Enable Bitplane & Sprite DMAs back
   END
 };
-#endif // BOTTOM_PANEL_HEIGHT
+#endif // DYNAMIC_COPPERLIST && BOTTOM_PANEL_HEIGHT > 0
 ///
 
 ///openScreen()
@@ -633,7 +561,7 @@ STATIC struct BitMap* openScreen()
           if ((top_panel_rastport = allocRastPort(TOP_PANEL_BITMAP_WIDTH, TOP_PANEL_HEIGHT, TOP_PANEL_DEPTH,
                                                   BMF_STANDARD | BMF_INTERLEAVED | BMF_DISPLAYABLE | BMF_CLEAR,
                                                   bm, RPF_BITMAP, 0))) {
-            //All allocations OK
+            //All allocations OK, we can render stuff
             SetRast(top_panel_rastport, 2);
           }
           else {
@@ -655,29 +583,8 @@ STATIC struct BitMap* openScreen()
               if ((bottom_panel_rastport = allocRastPort(BOTTOM_PANEL_BITMAP_WIDTH, BOTTOM_PANEL_HEIGHT, BOTTOM_PANEL_DEPTH,
                                                          BMF_STANDARD | BMF_INTERLEAVED | BMF_DISPLAYABLE | BMF_CLEAR,
                                                          bm, RPF_BITMAP, 0))) {
-                //All allocations OK
+                //All allocations OK, we can render stuff
                 SetRast(bottom_panel_rastport, 3);
-
-                #ifdef DYNAMIC_COPPERLIST
-                {
-                  UWORD* wp;
-                  ULONG i;
-
-                  //locate the BPL1PTH instruction
-                  for (wp = (UWORD*)end_Instructions; *wp != (UWORD)(MOVE(BPL1PTH, 0) >> 16); wp += 2);
-                  wp++;
-
-                  //set bitplane addresses on end_Instructions
-                  for (i = 0; i < BOTTOM_PANEL_DEPTH; i++)
-                  {
-                    ULONG plane = ((ULONG)bottom_panel_rastport->BitMap->Planes[i]);
-
-                    *wp = (UWORD)(plane >> 16);     wp += 2;
-                    *wp = (UWORD)(plane & 0xFFFF);  wp += 2;
-                  }
-                }
-
-                #endif // DYNAMIC_COPPERLIST
               }
               else {
                 #if TOP_PANEL_HEIGHT > 0
@@ -823,8 +730,8 @@ STATIC VOID fillDisplay(UWORD posX, UWORD posY)
   *mapPosY = mapTileY << TILESIZE_BSMD;
   mapPosX_s = *mapPosX;
   mapPosY_s = *mapPosY;
-  *mapPosX2 = *mapPosX + SCREEN_WIDTH - 1;
-  *mapPosY2 = *mapPosY + SCREEN_HEIGHT - 1;
+  *mapPosX2 = *mapPosX + SCREEN_WIDTH;
+  *mapPosY2 = *mapPosY + SCREEN_HEIGHT;
   vidPosX = *mapPosX % (BITMAP_WIDTH * SCREEN_DEPTH);
   vidPosX_s = vidPosX;
   xStep = *mapPosX / (BITMAP_WIDTH * SCREEN_DEPTH);
@@ -2153,7 +2060,9 @@ VOID LD_unBlitBOB(struct GameObject* go)
  ******************************************************************************/
 STATIC VOID vblankEvents(VOID)
 {
+#ifndef DYNAMIC_COPPERLIST
   updateCopperList();
+#endif // DYNAMIC_COPPERLIST
 #ifndef USE_CLP
   setColorTable_REG(color_table, 1, color_table->colors);
 #endif // !USE_CLP
@@ -2177,13 +2086,19 @@ STATIC UWORD* createCopperList()
     MOVE(BPL1MOD, VSPLTMOD_V),
     WAIT(0, 0),
     MOVE(BPL1PTH, 0),
+    #if SCREEN_DEPTH > 1
     MOVE(BPL3PTH, 0),
+    #if SCREEN_DEPTH > 2
     MOVE(BPL5PTH, 0),
+    #if SCREEN_DEPTH > 3
     MOVE(BPL7PTH, 0),
+    #endif //SCREEN_DEPTH > 3
+    #endif //SCREEN_DEPTH > 2
+    #endif //SCREEN_DEPTH > 1
     MOVE(BPL1MOD, BPLXMOD_V)
   };
   #define VSPLIT_COPOP0_SIZE 2
-  #define VSPLIT_COPOP1_SIZE 6
+  #define VSPLIT_COPOP1_SIZE (SCREEN_DEPTH + 2)
 #else // DUALPLAYFIELD
   ULONG videoSplit_Instructions[] = {
     WAIT(0, 0),
@@ -2191,18 +2106,32 @@ STATIC UWORD* createCopperList()
     MOVE(BPL2MOD, VSPLTMOD_V),
     WAIT(0, 0),
     MOVE(BPL1PTH, 0),
+    #if SCREEN_DEPTH > 1
     MOVE(BPL2PTH, 0),
+    #if SCREEN_DEPTH > 2
     MOVE(BPL3PTH, 0),
+    #if SCREEN_DEPTH > 3
     MOVE(BPL4PTH, 0),
+    #if SCREEN_DEPTH > 4
     MOVE(BPL5PTH, 0),
+    #if SCREEN_DEPTH > 5
     MOVE(BPL6PTH, 0),
+    #if SCREEN_DEPTH > 6
     MOVE(BPL7PTH, 0),
+    #if SCREEN_DEPTH > 7
     MOVE(BPL8PTH, 0),
+    #endif //SCREEN_DEPTH > 7
+    #endif //SCREEN_DEPTH > 6
+    #endif //SCREEN_DEPTH > 5
+    #endif //SCREEN_DEPTH > 4
+    #endif //SCREEN_DEPTH > 3
+    #endif //SCREEN_DEPTH > 2
+    #endif //SCREEN_DEPTH > 1
     MOVE(BPL1MOD, BPLXMOD_V),
     MOVE(BPL2MOD, BPLXMOD_V)
   };
   #define VSPLIT_COPOP0_SIZE 3
-  #define VSPLIT_COPOP1_SIZE 11
+  #define VSPLIT_COPOP1_SIZE (SCREEN_DEPTH + 3)
 #endif // !DUALPLAYFIELD
 
   if (rainbow || (rainbow = empty_rainbow = createEmptyRainbow())) {
@@ -2235,19 +2164,56 @@ STATIC UWORD* createCopperList()
         //Set top panel bitplanes
 #if TOP_PANEL_HEIGHT > 0
         {
-          UWORD* wp = TP_BPL1PTH;
-          PLANEPTR* planes = top_panel_rastport->BitMap->Planes;
+          UWORD* wp;
           ULONG i;
 
-          for (i = 0; i < TOP_PANEL_DEPTH; i++)
+          for (wp = TP_BPL1PTH, i = 0; i < TOP_PANEL_DEPTH; i++)
           {
-            ULONG plane = ((ULONG)planes[i]);
+            ULONG plane = ((ULONG)top_panel_rastport->BitMap->Planes[i]);
 
             *wp = (UWORD)(plane >> 16);     wp += 2;
             *wp = (UWORD)(plane & 0xFFFF);  wp += 2;
           }
+
+          resetSprites(TP_SPR0PTH, TP_SPR0POS);
         }
 #endif // TOP_PANEL_HEIGHT
+
+
+#if BOTTOM_PANEL_HEIGHT > 0
+        {
+          UWORD* wp;
+          ULONG i;
+
+          //Set bottom panel access pointers
+          for (wp = (UWORD*)rainbow->copOps[rainbow->num_ops].pointer; *wp != (UWORD)(MOVE(BPL1PTH, 0) >> 16); wp += 2);
+          BP_BPL1PTH = ++wp;
+
+          //locate the SPR0PTH instruction on end copOp
+          for (wp = (UWORD*)rainbow->copOps[rainbow->num_ops].pointer; *wp != (UWORD)(MOVE(SPR0PTH, 0) >> 16); wp += 2);
+
+          //set the access pointer for bottom panel BP_SPR0PTH
+          BP_SPR0PTH = ++wp;
+
+          //locate the SPR0POS instruction
+          for (wp = (UWORD*)rainbow->copOps[rainbow->num_ops].pointer; *wp != (UWORD)(MOVE(SPR0POS, 0) >> 16); wp += 2);
+
+          //set the access pointer for bottom panel BP_SPR0POS
+          BP_SPR0POS = ++wp;
+
+          //Set bottom panel bitplane pointers
+          for (wp = BP_BPL1PTH, i = 0; i < BOTTOM_PANEL_DEPTH; i++)
+          {
+            ULONG plane = ((ULONG)bottom_panel_rastport->BitMap->Planes[i]);
+
+            *wp = (UWORD)(plane >> 16);     wp += 2;
+            *wp = (UWORD)(plane & 0xFFFF);  wp += 2;
+          }
+
+          //set bottom panel sprite instructions to null sprite
+          resetSprites(BP_SPR0PTH, BP_SPR0POS);
+        }
+#endif // BOTTOM_PANEL_HEIGHT
 
         //Copy header to the double buffer
         CopyMem(CopperList, CopperList2, num_cl_header_instructions * sizeof(CLINST));
@@ -2273,14 +2239,9 @@ STATIC UWORD* createCopperList()
 #endif //USE_CLP
         CL_BPLCON1 = (UWORD*)((ULONG)CL_BPLCON1 - (ULONG)CopperList);
         CL_BPL1PTH = (UWORD*)((ULONG)CL_BPL1PTH - (ULONG)CopperList);
-        CL_BPL1PTL = (UWORD*)((ULONG)CL_BPL1PTL - (ULONG)CopperList);
 
-#ifdef SMART_SPRITES
         CL_SPR0POS = (UWORD*)((ULONG)CL_SPR0POS - (ULONG)CopperList);
         CL_SPR0PTH = (UWORD*)((ULONG)CL_SPR0PTH - (ULONG)CopperList);
-#else // SMART_SPRITES
-        CL_SPR0PTH = (UWORD*)((ULONG)CL_SPR0PTH - (ULONG)CopperList);
-#endif // !SMART_SPRITES
 
         CL_VIDSPLT = (UWORD*)vsplit_list;
         CL_VIDSPLT2 = (UWORD*)(vsplit_list + VSPLIT_COPOP0_SIZE);
@@ -2313,7 +2274,7 @@ STATIC UWORD* createCopperList()
 #endif // DUALPLAYFIELD
 
         CopperList = CopperList1;
-        updateDynamicCopperList();
+        updateCopperList();
 
         return CopperList;
       }
@@ -2367,7 +2328,7 @@ STATIC UWORD* createCopperList()
     #endif // BOTTOM_PANEL_HEIGHT
 
     //Set sprites to null sprite
-    for (sp = CL_SPR0PTH; sp < CL_SPR0PTH + 32; sp += 2) {
+    for (sp = CL_SPR0PTH; sp < CL_SPR0PTH + (AVAIL_HSPRITES * 4); sp += 2) {
       *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
       *sp = NULL_SPRITE_ADDRESS_L;
     }
@@ -2526,7 +2487,9 @@ INLINE VOID blitCopperInstruction(ULONG* dst, ULONG* src, WORD size)
 }
 #endif // DYNAMIC_COPPERLIST
 ///
-///updateDynamicCopperList()
+
+///updateCopperList()
+#ifdef DYNAMIC_COPPERLIST
 /******************************************************************************
  * Creates the next frame's dynamic copperlist, applying new scroll values    *
  * and sorting CopOps from the current rainbow regarding videosplit smart     *
@@ -2534,8 +2497,7 @@ INLINE VOID blitCopperInstruction(ULONG* dst, ULONG* src, WORD size)
  * NOTE: Implement the case where previous CopOp and current CopOp has the    *
  * same wait in which the blit should skip the WAIT() instruction.            *
  ******************************************************************************/
-#ifdef DYNAMIC_COPPERLIST
-STATIC VOID updateDynamicCopperList()
+STATIC VOID updateCopperList()
 {
   ULONG plane;
   LONG  planeAdd;
@@ -2603,79 +2565,83 @@ STATIC VOID updateDynamicCopperList()
 
 #ifdef DUALPLAYFIELD
   #ifdef UNROLL_LOOPS
-  wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTL + (16 * (SCREEN_DEPTH - 1)));
-  plane = ((ULONG)planes[SCREEN_DEPTH - 1]) + planeAdd + planeAddX;
-  switch (SCREEN_DEPTH) {
-    case 4:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 6;
-    plane -= BITMAP_BYTES_PER_ROW;
-    case 3:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 6;
-    plane -= BITMAP_BYTES_PER_ROW;
-    case 2:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 6;
-    plane -= BITMAP_BYTES_PER_ROW;
-    case 1:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);
-  }
-  #else // UNROLL_LOOPS
-  wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH);
-  for (i = 0; i < SCREEN_DEPTH; i++) {
-    plane = ((ULONG)planes[i]) + planeAdd + planeAddX;
-
+    wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH);
+    plane = (ULONG)*planes + planeAdd + planeAddX;
+    #if SCREEN_DEPTH > 1
     *wp = (WORD)(plane >> 16);     wp += 2;
     *wp = (WORD)(plane & 0xFFFF);  wp += 6;
-  }
+    plane += BITMAP_BYTES_PER_ROW;
+    #if SCREEN_DEPTH > 2
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);  wp += 6;
+    plane += BITMAP_BYTES_PER_ROW;
+    #if SCREEN_DEPTH > 3
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);  wp += 6;
+    plane += BITMAP_BYTES_PER_ROW;
+    #endif // SCREEN_DEPTH > 3
+    #endif // SCREEN_DEPTH > 2
+    #endif // SCREEN_DEPTH > 1
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);
+  #else // UNROLL_LOOPS
+    wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH);
+    for (i = 0; i < SCREEN_DEPTH; i++) {
+      plane = ((ULONG)planes[i]) + planeAdd + planeAddX;
+
+      *wp = (WORD)(plane >> 16);     wp += 2;
+      *wp = (WORD)(plane & 0xFFFF);  wp += 6;
+    }
   #endif // !UNROLL_LOOPS
 #else // DUALPLAYFIELD
   #ifdef UNROLL_LOOPS
-  wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTL + (8 * (SCREEN_DEPTH - 1)));
-  plane = ((ULONG)planes[SCREEN_DEPTH - 1]) + planeAdd + planeAddX;
-  switch (SCREEN_DEPTH) {
-    case 8:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW;
-    case 7:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW;
-    case 6:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW;
-    case 5:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW;
-    case 4:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW;
-    case 3:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW;
-    case 2:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW;
-    case 1:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);
-  }
-  #else // UNROLL_LOOPS
-  wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH);
-  for (i = 0; i < SCREEN_DEPTH; i++) {
-    plane = ((ULONG)planes[i]) + planeAdd + planeAddX;
-
+    wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH);
+    plane = (ULONG)*planes + planeAdd + planeAddX;
+    #if SCREEN_DEPTH > 1
     *wp = (WORD)(plane >> 16);     wp += 2;
     *wp = (WORD)(plane & 0xFFFF);  wp += 2;
-  }
+    plane += BITMAP_BYTES_PER_ROW;
+    #if SCREEN_DEPTH > 2
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);  wp += 2;
+    plane += BITMAP_BYTES_PER_ROW;
+    #if SCREEN_DEPTH > 3
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);  wp += 2;
+    plane += BITMAP_BYTES_PER_ROW;
+    #if SCREEN_DEPTH > 4
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);  wp += 2;
+    plane += BITMAP_BYTES_PER_ROW;
+    #if SCREEN_DEPTH > 5
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);  wp += 2;
+    plane += BITMAP_BYTES_PER_ROW;
+    #if SCREEN_DEPTH > 6
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);  wp += 2;
+    plane += BITMAP_BYTES_PER_ROW;
+    #if SCREEN_DEPTH > 7
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);  wp += 2;
+    plane += BITMAP_BYTES_PER_ROW;
+    #endif // SCREEN_DEPTH > 7
+    #endif // SCREEN_DEPTH > 6
+    #endif // SCREEN_DEPTH > 5
+    #endif // SCREEN_DEPTH > 4
+    #endif // SCREEN_DEPTH > 3
+    #endif // SCREEN_DEPTH > 2
+    #endif // SCREEN_DEPTH > 1
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);
+  #else // UNROLL_LOOPS
+    wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH);
+    for (i = 0; i < SCREEN_DEPTH; i++) {
+      plane = ((ULONG)planes[i]) + planeAdd + planeAddX;
+
+      *wp = (WORD)(plane >> 16);     wp += 2;
+      *wp = (WORD)(plane & 0xFFFF);  wp += 2;
+    }
   #endif // !UNROLL_LOOPS
 #endif // !DUALPLAYFIELD
 
@@ -2696,69 +2662,73 @@ STATIC VOID updateDynamicCopperList()
   // set high words of plane pointers after video split
 #ifdef DUALPLAYFIELD
   #ifdef UNROLL_LOOPS
-  plane = (ULONG)*planes + (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH * (SCREEN_DEPTH - 1)) + planeAddX;
-  wp = CL_BPL1PTH_2 + (2 * (SCREEN_DEPTH - 1));
-  switch (SCREEN_DEPTH) {
-    case 4:
-    *wp = (WORD)(plane >> 16); wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-    case 3:
-    *wp = (WORD)(plane >> 16); wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-    case 2:
-    *wp = (WORD)(plane >> 16); wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-    case 1:
-    *wp = (WORD)(plane >> 16);
-  }
-  #else // UNROLL_LOOPS
-  plane = (ULONG)*planes + planeAddX;
-  wp = CL_BPL1PTH_2;
-  for (i = 0; i < SCREEN_DEPTH; i++)
-  {
+    wp = CL_BPL1PTH_2;
+    plane = (ULONG)*planes + planeAddX;
+    #if SCREEN_DEPTH > 1
     *wp = (WORD)(plane >> 16); wp += 2;
-
     plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-  }
+    #if SCREEN_DEPTH > 2
+    *wp = (WORD)(plane >> 16); wp += 2;
+    plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
+    #if SCREEN_DEPTH > 3
+    *wp = (WORD)(plane >> 16); wp += 2;
+    plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
+    #endif // SCREEN_DEPTH > 3
+    #endif // SCREEN_DEPTH > 2
+    #endif // SCREEN_DEPTH > 1
+    *wp = (WORD)(plane >> 16); wp += 2;
+  #else // UNROLL_LOOPS
+    plane = (ULONG)*planes + planeAddX;
+    wp = CL_BPL1PTH_2;
+    for (i = 0; i < SCREEN_DEPTH; i++)
+    {
+      *wp = (WORD)(plane >> 16); wp += 2;
+
+      plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
+    }
   #endif // !UNROLL_LOOPS
 #else // DUALPLAYFIELD
   #ifdef UNROLL_LOOPS
-  plane = (ULONG)*planes + (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH * (SCREEN_DEPTH - 1)) + planeAddX;
-  wp = CL_BPL1PTH_2 + (2 * (SCREEN_DEPTH - 1));
-  switch (SCREEN_DEPTH) {
-    case 8:
-    *wp = (WORD)(plane >> 16); wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-    case 7:
-    *wp = (WORD)(plane >> 16); wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-    case 6:
-    *wp = (WORD)(plane >> 16); wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-    case 5:
-    *wp = (WORD)(plane >> 16); wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-    case 4:
-    *wp = (WORD)(plane >> 16); wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-    case 3:
-    *wp = (WORD)(plane >> 16); wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-    case 2:
-    *wp = (WORD)(plane >> 16); wp -= 2;
-    plane -= BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-    case 1:
-    *wp = (WORD)(plane >> 16);
-  }
-  #else // UNROLL_LOOPS
-  plane = (ULONG)*planes + planeAddX;
-  wp = CL_BPL1PTH_2;
-  for (i = 0; i < SCREEN_DEPTH; i++)
-  {
+    wp = CL_BPL1PTH_2;
+    plane = (ULONG)*planes + planeAddX;
+    #if SCREEN_DEPTH > 1
     *wp = (WORD)(plane >> 16); wp += 2;
-
     plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
-  }
+    #if SCREEN_DEPTH > 2
+    *wp = (WORD)(plane >> 16); wp += 2;
+    plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
+    #if SCREEN_DEPTH > 3
+    *wp = (WORD)(plane >> 16); wp += 2;
+    plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
+    #if SCREEN_DEPTH > 4
+    *wp = (WORD)(plane >> 16); wp += 2;
+    plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
+    #if SCREEN_DEPTH > 5
+    *wp = (WORD)(plane >> 16); wp += 2;
+    plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
+    #if SCREEN_DEPTH > 6
+    *wp = (WORD)(plane >> 16); wp += 2;
+    plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
+    #if SCREEN_DEPTH > 7
+    *wp = (WORD)(plane >> 16); wp += 2;
+    plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
+    #endif // SCREEN_DEPTH > 7
+    #endif // SCREEN_DEPTH > 6
+    #endif // SCREEN_DEPTH > 5
+    #endif // SCREEN_DEPTH > 4
+    #endif // SCREEN_DEPTH > 3
+    #endif // SCREEN_DEPTH > 2
+    #endif // SCREEN_DEPTH > 1
+    *wp = (WORD)(plane >> 16); wp += 2;
+  #else // UNROLL_LOOPS
+    plane = (ULONG)*planes + planeAddX;
+    wp = CL_BPL1PTH_2;
+    for (i = 0; i < SCREEN_DEPTH; i++)
+    {
+      *wp = (WORD)(plane >> 16); wp += 2;
+
+      plane += BITMAP_BYTES_PER_ROW * SCREEN_DEPTH;
+    }
   #endif // !UNROLL_LOOPS
 #endif // !DUALPLAYFIELD
 
@@ -2780,40 +2750,38 @@ STATIC VOID updateDynamicCopperList()
   planeAddX = (xpos / SCROLL_PIXELS) * SCROLL_BYTES - SCROLL_BYTES;
 
   #if defined UNROLL_LOOPS && defined INTERLEAVED_PF2_BITMAP
-  wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTL + 8 + (16 * (BITMAP_DEPTH_PF2 - 1)));
-  plane = ((ULONG)planes_pf2[BITMAP_DEPTH_PF2 - 1]) + planeAdd + planeAddX;
-  switch (BITMAP_DEPTH_PF2) {
-    case 4:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 6;
-    plane -= BITMAP_BYTES_PER_ROW_PF2;
-    case 3:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 6;
-    plane -= BITMAP_BYTES_PER_ROW_PF2 ;
-    case 2:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);     wp -= 6;
-    plane -= BITMAP_BYTES_PER_ROW_PF2;
-    case 1:
-    *wp = (WORD)(plane & 0xFFFF);  wp -= 2;
-    *wp = (WORD)(plane >> 16);
-  }
-  #else // UNROLL_LOOPS
-  wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH + 8); // Start from BPL2PTH...
-  for (i = 0; i < BITMAP_DEPTH_PF2; i++)            // OPTIMIZE Unroll this loop
-  {
-    plane = ((ULONG)planes_pf2[i]) + planeAdd + planeAddX;
-
+    wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH + 8); // Start from BPL2PTH...
+    plane = ((ULONG)*planes_pf2) + planeAdd + planeAddX;
+    #if BITMAP_DEPTH_PF2 > 1
     *wp = (WORD)(plane >> 16);     wp += 2;
     *wp = (WORD)(plane & 0xFFFF);  wp += 6; // ...and traverse even planes
-  }
+    plane += BITMAP_BYTES_PER_ROW_PF2;
+    #if BITMAP_DEPTH_PF2 > 2
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);  wp += 6;
+    plane += BITMAP_BYTES_PER_ROW_PF2;
+    #if BITMAP_DEPTH_PF2 > 3
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);  wp += 6;
+    plane += BITMAP_BYTES_PER_ROW_PF2;
+    #endif // BITMAP_DEPTH_PF2 > 3
+    #endif // BITMAP_DEPTH_PF2 > 2
+    #endif // BITMAP_DEPTH_PF2 > 1
+    *wp = (WORD)(plane >> 16);     wp += 2;
+    *wp = (WORD)(plane & 0xFFFF);
+  #else // UNROLL_LOOPS && INTERLEAVED_PF2_BITMAP
+    wp = (WORD*)((ULONG)CopperList + (ULONG)CL_BPL1PTH + 8); // Start from BPL2PTH...
+    for (i = 0; i < BITMAP_DEPTH_PF2; i++)
+    {
+      plane = ((ULONG)planes_pf2[i]) + planeAdd + planeAddX;
+
+      *wp = (WORD)(plane >> 16);     wp += 2;
+      *wp = (WORD)(plane & 0xFFFF);  wp += 6; // ...and traverse even planes
+    }
   #endif // !UNROLL_LOOPS
 #endif // DUALPLAYFIELD
 
-  #ifdef SMART_SPRITES
   setSprites();
-  #endif // SMART_SPRITES
 
   //Create new copperlist by sorting CopOps
   #ifdef SMART_SPRITES
@@ -2999,22 +2967,12 @@ STATIC VOID updateDynamicCopperList()
   }
   #endif // !SMART_SPRITES
 }
-#endif // DYNAMIC_COPPERLIST
-///
-///updateCopperList()
+#else // DYNAMIC_COPPERLIST
 /******************************************************************************
  * Applies scroll values on to the copperlist regarding top and bottom        *
- * dashboard sizes.                                                           *
+ * panel sizes.                                                               *
  * WARNING: This function gets called from vblank interrupt.                  *
  ******************************************************************************/
-#ifdef DYNAMIC_COPPERLIST
-STATIC VOID updateCopperList()
-{
-  #ifndef SMART_SPRITES
-  setSprites();
-  #endif // !SMART_SPRITES
-}
-#else // DYNAMIC_COPPERLIST
 STATIC VOID updateCopperList()
 {
   ULONG plane;
@@ -3309,10 +3267,12 @@ STATIC VOID setSprites()
 {
   struct GameObject** go_ptr = spriteList;
   struct GameObject* go = *go_ptr;
+  UWORD* sp;
+  #ifndef UNROLL_LOOPS
+  UWORD* sp_end;
+  #endif // !UNROLL_LOOPS
 
   #ifdef SMART_SPRITES
-    UWORD* sp;
-    UWORD* sp_end;
     ULONG i;
     UWORD* paddr = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0POS);
     //reset hardSpriteUsage[]
@@ -3323,23 +3283,105 @@ STATIC VOID setSprites()
     sprite_CopOp_Index = 0;
     sprite_CopOps[sprite_CopOp_Index].wait = 0xFFFF;
     sprite_list_i = sprite_list;
+    sp = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH);
 
-    for (sp = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH), sp_end = sp + 32; sp < sp_end; sp += 2) {
+    #ifdef UNROLL_LOOPS
+      //OPTIMIZE: These resets could also be done using blitter
+      #if AVAIL_HSPRITES > 7
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      #endif // AVAIL_HSPRITES > 7
+      #if AVAIL_HSPRITES > 5
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      #endif // AVAIL_HSPRITES > 5
+      #if AVAIL_HSPRITES > 1
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      #endif // AVAIL_HSPRITES > 1
       *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
       *sp = NULL_SPRITE_ADDRESS_L;
-    }
+    #else // UNROLL_LOOPS
+      for (sp_end = sp + (AVAIL_HSPRITES * 4); sp < sp_end; sp += 2) {
+        *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+        *sp = NULL_SPRITE_ADDRESS_L;
+      }
+    #endif // !UNROLL_LOOPS
   #else // SMART_SPRITES
-    UWORD* sp;
-    UWORD* sp_end;
-    //reset all sprites to dummy sprite
     #ifdef DYNAMIC_COPPERLIST
-    for (sp = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH), sp_end = sp + 32; sp < sp_end; sp += 2) {
+    sp = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH);
     #else // DYNAMIC_COPPERLIST
-    for (sp = CL_SPR0PTH, sp_end = sp + 32; sp < sp_end; sp += 2) {
+    sp = CL_SPR0PTH;
     #endif // !DYNAMIC_COPPERLIST
+
+    #ifdef UNROLL_LOOPS
+      //OPTIMIZE: These resets could also be done using blitter
+      //reset all SPRxPT(H|L) words to null sprite
+      #if AVAIL_HSPRITES > 7
       *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
-      *sp = NULL_SPRITE_ADDRESS_L;
-    }
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      #endif // AVAIL_HSPRITES > 7
+      #if AVAIL_HSPRITES > 5
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      #endif // AVAIL_HSPRITES > 5
+      #if AVAIL_HSPRITES > 1
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      #endif // AVAIL_HSPRITES > 1
+      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+      *sp = NULL_SPRITE_ADDRESS_L; sp += 2;
+      //reset all SPRxCTL SPRxPOS words to 0
+      #if AVAIL_HSPRITES > 7
+      *sp = 0; sp += 2;
+      *sp = 0; sp += 2;
+      #endif // AVAIL_HSPRITES > 7
+      #if AVAIL_HSPRITES > 5
+      *sp = 0; sp += 2;
+      *sp = 0; sp += 2;
+      *sp = 0; sp += 2;
+      *sp = 0; sp += 2;
+      #endif // AVAIL_HSPRITES > 5
+      #if AVAIL_HSPRITES > 1
+      *sp = 0; sp += 2;
+      *sp = 0; sp += 2;
+      *sp = 0; sp += 2;
+      *sp = 0; sp += 2;
+      *sp = 0; sp += 2;
+      *sp = 0; sp += 2;
+      *sp = 0; sp += 2;
+      *sp = 0; sp += 2;
+      #endif // AVAIL_HSPRITES > 1
+      *sp = 0; sp += 2;
+      *sp = 0;
+    #else // UNROLL_LOOPS
+      //reset all SPRxPT(H|L) words to null sprite
+      for (sp_end = sp + (AVAIL_HSPRITES * 4); sp < sp_end; sp += 2) {
+        *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
+        *sp = NULL_SPRITE_ADDRESS_L;
+      }
+      //reset all SPRxCTL SPRxPOS words to 0
+      for (sp_end = sp + (AVAIL_HSPRITES * 4); sp < sp_end; sp += 2) {
+        *sp = 0; sp += 2;
+        *sp = 0;
+      }
+    #endif // !UNROLL_LOOPS
   #endif // !SMART_SPRITES
 
   while (go) {
@@ -3357,7 +3399,7 @@ STATIC VOID setSprites()
       sortSpriteCopOps();
     }
 
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < AVAIL_HSPRITES; i++) {
       if (hardSpriteUsage[i] == 0) {
         *paddr = 0; paddr += 2;
         *paddr = 0; paddr += 2;
@@ -3382,7 +3424,7 @@ STATIC VOID setSprites()
 STATIC INLINE VOID LD_setSprite(struct GameObject* go)
 {
   ULONG hsn = ((struct Sprite*)go->u.medium)->hsn;
-  if (hsn < 8) {
+  if (hsn < AVAIL_HSPRITES) {
     struct SpriteImage* image = (struct SpriteImage*)go->image;
     struct SpriteTable* entry = &image->sprite_bank->table[image->image_num];
 
@@ -3396,29 +3438,35 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
     UWORD height = image->height;
 
     UBYTE* saddr;
-    UWORD*  paddr = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0POS) + hsn * 4;
-    UWORD*  haddr = paddr + 32;
+    UWORD*  haddr = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH) + hsn * 4;
+    UWORD*  paddr = haddr + (AVAIL_HSPRITES * 4);
 
     ULONG x, y, s;
     ULONG ctl_l0, ctl_l1;
+    LONG y_s;
 
-    LONG y_s = go->y1 - *mapPosY;
-    x = go->x1 + (DIWSTART_V & 0xFF) - *mapPosX;
+    //Prevent setting unavailable hardware sprites
+    if (hsn + numSprites > AVAIL_HSPRITES) {
+      numSprites -= ((hsn + numSprites) - AVAIL_HSPRITES);
+    }
+
+    y_s = go->y1 - *mapPosY;
+    x = go->x1 + ((DIWSTART_V & 0xFF) - 1) - *mapPosX;
     //Clip top of sprite if needed
     if (y_s < 0) {
       y = SCREEN_START;
       s = y + height + y_s;
-      saddr = image->sprite_bank->data + offset + (1 - y_s) * (4 * SPR_FMODE);
+      saddr = image->sprite_bank->data + offset + (0 - y_s) * (4 * SPR_FMODE);
     }
     else {
       y = y_s + SCREEN_START;
+      //Prevent setting a sprite on the last rasterline
+      if (y >= ((DIWSTART_V >> 8) + 255)) return;
       s = y + height;
-      saddr = image->sprite_bank->data + offset + (SPR_FMODE * 4);
+      saddr = image->sprite_bank->data + offset;
     }
     //Clip bottom of sprite if needed
-    /*if (s > SCREEN_HEIGHT + DISPLAY_START) {
-      s = SCREEN_HEIGHT + DISPLAY_START;
-    }*/
+    if (s > SCREEN_END) s = SCREEN_END;
 
     //Prepare the two sprite control words (in one long) for the static vertical coords.
     ctl_l0 = (y << 24) | ((s << 8) & 0xFF00) | ((y >> 8) << 2) | ((s >> 8) << 1);
@@ -3485,52 +3533,55 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
 
         //get to the attached sprite
         saddr += ssize;
+        numSprites--;
 
-        if (hardSpriteUsage[hsn]) {
-          UWORD wait = hardSpriteUsage[hsn];
+        if (numSprites) {
+          if (hardSpriteUsage[hsn]) {
+            UWORD wait = hardSpriteUsage[hsn];
 
-          //set this sprite on the sprite copOp
-          if (sprite_CopOp_Index > 0 && sprite_CopOps[sprite_CopOp_Index - 1].wait == wait) {
-            //Do not create new CopOp, append to the previous one
-            sprite_CopOps[sprite_CopOp_Index - 1].size += 4;
+            //set this sprite on the sprite copOp
+            if (sprite_CopOp_Index > 0 && sprite_CopOps[sprite_CopOp_Index - 1].wait == wait) {
+              //Do not create new CopOp, append to the previous one
+              sprite_CopOps[sprite_CopOp_Index - 1].size += 4;
 
-            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(UWORD*)&ctl_l1);               sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((UWORD*)&ctl_l1 + 1));         sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (UWORD)((ULONG)saddr >> 16));    sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (UWORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
+              *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(UWORD*)&ctl_l1);               sprite_list_i++;
+              *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((UWORD*)&ctl_l1 + 1));         sprite_list_i++;
+              *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (UWORD)((ULONG)saddr >> 16));    sprite_list_i++;
+              *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (UWORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
+            }
+            else {
+              //Create new CopOp
+              sprite_CopOps[sprite_CopOp_Index].wait = wait;
+              sprite_CopOps[sprite_CopOp_Index].size = 5;
+              sprite_CopOps[sprite_CopOp_Index].pointer = sprite_list_i;
+
+              *sprite_list_i = WAIT(0, wait > 255 ? wait - 256 : wait);                sprite_list_i++;
+              *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(UWORD*)&ctl_l1);               sprite_list_i++;
+              *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((UWORD*)&ctl_l1 + 1));         sprite_list_i++;
+              *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (UWORD)((ULONG)saddr >> 16));    sprite_list_i++;
+              *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (UWORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
+
+              sprite_CopOps_list[sprite_CopOp_Index] = &sprite_CopOps[sprite_CopOp_Index];
+              sprite_CopOp_Index++;
+            }
+
+            paddr += 4;
+            haddr += 4;
           }
           else {
-            //Create new CopOp
-            sprite_CopOps[sprite_CopOp_Index].wait = wait;
-            sprite_CopOps[sprite_CopOp_Index].size = 5;
-            sprite_CopOps[sprite_CopOp_Index].pointer = sprite_list_i;
-
-            *sprite_list_i = WAIT(0, wait > 255 ? wait - 256 : wait);                sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0POS + hsn * 8, *(UWORD*)&ctl_l1);               sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0CTL + hsn * 8, *((UWORD*)&ctl_l1 + 1));         sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTH + hsn * 4, (UWORD)((ULONG)saddr >> 16));    sprite_list_i++;
-            *sprite_list_i = MOVE(SPR0PTL + hsn * 4, (UWORD)((ULONG)saddr & 0xFFFF)); sprite_list_i++;
-
-            sprite_CopOps_list[sprite_CopOp_Index] = &sprite_CopOps[sprite_CopOp_Index];
-            sprite_CopOp_Index++;
+            //set this sprite on the copperlist header
+            *paddr = *(UWORD*)&ctl_l1; paddr += 2;
+            *paddr = *((UWORD*)&ctl_l1 + 1); paddr += 2;
+            *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
+            *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
           }
 
-          paddr += 4;
-          haddr += 4;
+          //get to the next glued sprite (if there is any)
+          saddr += ssize;
+          x += (16 * SPR_FMODE);
+          numSprites--;
+          hardSpriteUsage[hsn++] = s;
         }
-        else {
-          //set this sprite on the copperlist header
-          *paddr = *(UWORD*)&ctl_l1; paddr += 2;
-          *paddr = *((UWORD*)&ctl_l1 + 1); paddr += 2;
-          *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
-          *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
-        }
-
-        //get to the next glued sprite (if there is any)
-        saddr += ssize;
-        x += (16 * SPR_FMODE);
-        numSprites -= 2;
-        hardSpriteUsage[hsn++] = s;
       }
     }
     else
@@ -3592,7 +3643,7 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
 STATIC INLINE VOID LD_setSprite(struct GameObject* go)
 {
   ULONG hsn = ((struct Sprite*)go->u.medium)->hsn;
-  if (hsn < 8) {
+  if (hsn < AVAIL_HSPRITES) {
     struct SpriteImage* image = (struct SpriteImage*)go->image;
     struct SpriteTable* entry = &image->sprite_bank->table[image->image_num];
 
@@ -3605,58 +3656,73 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
     UWORD ssize = (offsetOfNext - offset) / numSprites;
     UWORD height = image->height; // (ssize / (4 * SPR_FMODE)) - 2;
 
-    ULONG x = go->x1 + (DIWSTART_V & 0xFF) - *mapPosX ;
-    ULONG y = go->y1 + SCREEN_START - *mapPosY;
-    ULONG s = y + height;
+    ULONG x, y, s;
+    ULONG ctl_l0, ctl_l1;
+    LONG y_s;
 
-    UBYTE* saddr = image->sprite_bank->data + offset;
-    #ifdef DYNAMIC_COPPERLIST
-      UWORD* haddr = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH) + hsn * 4;
-    #else // DYNAMIC_COPPERLIST
-      UWORD* haddr = CL_SPR0PTH + hsn * 4;
-    #endif // !DYNAMIC_COPPERLIST
+    UBYTE* saddr;
+  #ifdef DYNAMIC_COPPERLIST
+    UWORD* haddr = (UWORD*)((ULONG)CopperList + (ULONG)CL_SPR0PTH) + hsn * 4;
+  #else // DYNAMIC_COPPERLIST
+    UWORD*  haddr = CL_SPR0PTH + hsn * 4;
+  #endif // !DYNAMIC_COPPERLIST
+    UWORD*  paddr = haddr + (AVAIL_HSPRITES * 4);
+
+    //Prevent setting unavailable hardware sprites
+    if (hsn + numSprites > AVAIL_HSPRITES) {
+      numSprites -= ((hsn + numSprites) - AVAIL_HSPRITES);
+    }
+
+    y_s = go->y1 - *mapPosY;
+    x = go->x1 + ((DIWSTART_V & 0xFF) - 1) - *mapPosX;
+    //Clip top of sprite if needed
+    if (y_s < 0) {
+      y = SCREEN_START;
+      s = y + height + y_s;
+      saddr = image->sprite_bank->data + offset + (0 - y_s) * (4 * SPR_FMODE);
+    }
+    else {
+      y = y_s + SCREEN_START;
+      //Prevent setting a sprite on the last rasterline
+      if (y >= ((DIWSTART_V >> 8) + 255)) return;
+      s = y + height;
+      saddr = image->sprite_bank->data + offset;
+    }
+    //Clip bottom of sprite if needed
+    if (s > SCREEN_END) s = SCREEN_END;
 
     //Prepare the two sprite control words (in one long) for the static vertical coords.
-    ULONG ctl_l0 = (y << 24) | ((s << 8) & 0xFF00) | ((y >> 8) << 2) | ((s >> 8) << 1);
-    ULONG ctl_l1;
-    ULONG ctl_l2;
+    ctl_l0 = (y << 24) | ((s << 8) & 0xFF00) | ((y >> 8) << 2) | ((s >> 8) << 1);
 
     if (type & 0x10) {
       while (numSprites) {
         //finalize the control words with the current x value for this glued sprite
         ctl_l1 = ctl_l0 | ((x >> 1) << 16) | 0x80 | (x & 0x1);
-        ctl_l2 = ctl_l1 << 16;
 
         //Handle the first attached sprite:
-        //set pos & ctl words on the sprite
-        switch (SPR_FMODE) {
-          case 4: *((ULONG*)saddr + 2) = ctl_l2;
-          case 2: *((ULONG*)saddr + 1) = ctl_l2;
-          case 1: *((ULONG*)saddr) = ctl_l1;
-        }
 
         //set the sprite address on CopperList
+        *paddr = *(UWORD*)&ctl_l1; paddr += 2;
+        *paddr = *((UWORD*)&ctl_l1 + 1); paddr += 2;
         *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
         *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
 
         //get to the attached sprite
         saddr += ssize;
+        numSprites--;
 
-        //set pos & ctl words on this sprite structure as well
-        switch (SPR_FMODE) {
-          case 4: *((ULONG*)saddr + 2) = ctl_l2;
-          case 2: *((ULONG*)saddr + 1) = ctl_l2;
-          case 1: *((ULONG*)saddr) = ctl_l1;
+        if (numSprites) {
+          //set this sprite address on CopperList as well
+          *paddr = *(UWORD*)&ctl_l1; paddr += 2;
+          *paddr = *((UWORD*)&ctl_l1 + 1); paddr += 2;
+          *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
+          *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+
+          //get to the next glued sprite (if there is any)
+          saddr += ssize;
+          x += (16 * SPR_FMODE);
+          numSprites--;
         }
-
-        //set this sprite address on CopperList as well
-        *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
-        *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
-
-        //get to the next glued sprite (if there is any)
-        saddr += ssize;
-        x += (16 * SPR_FMODE);
-        numSprites -= 2;
       }
     }
     else
@@ -3664,16 +3730,10 @@ STATIC INLINE VOID LD_setSprite(struct GameObject* go)
       while (numSprites) {
         //finalize the control words with the current x value for this glued sprite
         ctl_l1 = ctl_l0 | ((x >> 1) << 16) | (x & 0x1);
-        ctl_l2 = ctl_l1 << 16;
-
-        //set pos & ctl words on the sprite
-        switch (SPR_FMODE) {
-          case 4: *((ULONG*)saddr + 2) = ctl_l2;
-          case 2: *((ULONG*)saddr + 1) = ctl_l2;
-          case 1: *((ULONG*)saddr) = ctl_l1;
-        }
 
         //set the sprite address on CopperList
+        *paddr = *(UWORD*)&ctl_l1; paddr += 2;
+        *paddr = *((UWORD*)&ctl_l1 + 1); paddr += 2;
         *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
         *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
 

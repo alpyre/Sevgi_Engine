@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.189
+                             Version 0.190
 
                         Developer Documentation
 
@@ -462,6 +462,9 @@ NULL_SPRITE_ADDRESS_L:
 @{"freeRastPort" link "24-freeRastPort"}
 @{"allocCopperList" link "01-allocCopperList"}
 @{"freeCopperList" link "22-freeCopperList"}
+@{"setSprite" link "73-setSprite"}
+@{"resetSprite" link "64-resetSprite"}
+@{"resetSprites" link "64-resetSprites"}
 @{"allocBitMap" link "00-allocBitMap"}
 
 @endnode
@@ -620,6 +623,51 @@ NOOP
 All these macros have their placeholder counterparts which end with _PH, which
 are designed to be identified by @{"allocCopperList()" link "01-allocCopperList"} function to set access
 pointers to the instructions they create.
+
+A proper copperlist compatible with all the engine features (like @{"allocating" link "01-allocCopperList"} it,
+getting access pointers to its specific instructions to change them later, clp,
+etc.) should be declared as below:
+
+#define SCREEN_DEPTH 2
+#define DIWSTRT_V 0x2981
+#define DIWSTOP_V 0x29C1
+#define DDFSTRT_V 0x0038
+#define DDFSTOP_V 0x00D0
+
+STATIC UWORD* CopperList  = (UWORD*) 0;
+
+#ifdef USE_CLP
+STATIC UWORD* CL_PALETTE  = (UWORD*) 0;
+#endif // USE_CLP
+STATIC UWORD* CL_BPL1PTH  = (UWORD*) 0;
+STATIC UWORD* CL_SPR0PTH  = (UWORD*) 0;
+STATIC UWORD* CL_SPR0POS  = (UWORD*) 0;
+
+STATIC ULONG copperList_Instructions[] = {
+                                   // Access Ptr: Action:
+#ifdef USE_CLP
+  #define CLP_DEPTH SCREEN_DEPTH
+  #include "clp.c"                 // CL_PALETTE  @{"CLP" link "Concepts_08CLP"} instructions
+#endif // USE_CLP
+  MOVE(FMODE,   0),                //             Set Sprite/Bitplane FetchModes
+  MOVE(BPLCON0, 2 * BPLCON0_BPU0), //             Set Screen Depth
+  MOVE(BPLCON1, 0),                //             Set h_scroll register
+  MOVE(BPLCON2, 0x264),            //             Set EHB mode off
+  MOVE(BPLCON3, BPLCON3_BRDNBLNK), //             Set AGA bitplane features
+  MOVE(BPLCON4, 0x0),              //              "   "     "        "
+  MOVE(BPL1MOD, 0),                //             Set bitplane mods
+  MOVE(BPL2MOD, 0),                //              "     "       "
+  MOVE(DIWSTRT, DIWSTRT_V),        //             Set Display Window Start
+  MOVE(DIWSTOP, DIWSTOP_V),        //             Set Display Window Stop
+  MOVE(DDFSTRT, DDFSTRT_V),        //             Set Data Fetch Start
+  MOVE(DDFSTOP, DDFSTOP_V),        //             Set Data Fetch Stop
+  #define BPLI_DEPTH SCREEN_DEPTH
+  #include "bpli.c"                // CL_BPL1PTH  Set bitplane addresses
+  WAIT(0, (DIWSTRT_V >> 8) - 1),   //             Wait for top of display
+  #define SPRI_DDFSTRT DDFSTRT_V   // CL_SPR0PTH  Set sprite pointers
+  #include "spri.c"                // CL_SPR0POS  Set sprite pointers
+  END
+};
 
 If you want more information on how to program a copper list please refer to the
 Amiga Hardware Reference Manual. Also for some practical examples please check
@@ -877,6 +925,12 @@ in Amiga Hardware Reference Manual's @{b}SPRITE HARDWARE/Forming A Sprite@{ub} s
 in a container structure called Sprite Banks. This enables each sprite image to
 be directly settable to sprite hardware registers to be displayed without the
 need to move any image data in memory.
+
+The two initial control words are no longer present in sprite images as of
+version 0.190 due to the change in the structure of sprite instructions on
+created copperlists and the implementation of the setSprite() function. This
+also allowed the Sprite Banks to be smaller, freeing up some valuable chip
+memory (especially in higher sprite fetch modes).
 
 Of course on the Amiga 16 colour sprite images has to be split into two sprite
 structures and set on to the registers as attached sprites. Also the higher
@@ -2430,6 +2484,8 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" readMouse                 " link "63-readMouse"}
 @{" removeClip                " link "63-removeClip"}
 @{" removeVBlankEvents        " link "64-removeVBlankEvents"}
+@{" resetSprite               " link "64-resetSprite"}
+@{" resetSprites              " link "64-resetSprites"}
 @{" resetUI                   " link "64-resetUI"}
 @{" resetUILayout             " link "64-resetUILayout"}
 @{" scrollGradientDown        " link "64-scrollGradientDown"}
@@ -5014,6 +5070,69 @@ SEE ALSO
 
 @endnode
 
+@node "64-resetSprite" "Sevgi_Engine.guide/Function Reference/resetSprite"
+NAME
+    resetSprite - Resets a sprite instruction on a copperlist to the NULL sprite
+
+SYNOPSIS
+    resetSprite(cl_spr0pth, cl_spr0pos, hardware_sprite_num)
+
+    VOID resetSprite(UWORD* cl_spr0pth, UWORD* cl_spr0pos,
+        WORD hardware_sprite_num);
+
+FUNCTION
+    Resets the sprite instructions for the given hardware sprite on the
+    copperlist sections pointed by the two given access pointers to the NULL
+    sprite addresses provided by display.o.
+
+INPUTS
+    cl_spr0pth          - access pointer to the sprite pointer instructions
+    cl_spr0pos          - access pointer to the sprite control instructions
+    hardware_sprite_num - hardware sprite to reset (0 - 7)
+
+NOTES
+    The function uses the distance between the cl_spr0pth and cl_spr0pos
+    addresses to determine the number of sprite instructions present on the
+    copperlist section and avoids resetting any instructions that are not
+    present. Therefore, in order to prevent mistakes, it is crucial to create
+    these sections and their access pointers by including the spri.c file and
+    use the allocCopperList() function to create the necessary access pointers.
+
+SEE ALSO
+    @{"Displays" link "Concepts_07Displays"}, @{"setSprite()" link "73-setSprite"}, @{"resetSprites()" link "64-resetSprites"}, @{"loadSpriteBank()" link "36-loadSpriteBank"}, @{"allocCopperList()" link "01-allocCopperList"}
+
+@endnode
+
+@node "64-resetSprites" "Sevgi_Engine.guide/Function Reference/resetSprites"
+NAME
+    resetSprites - Resets sprite instructions on a copperlist to the NULL sprite
+
+SYNOPSIS
+    resetSprites(cl_spr0pth, cl_spr0pos)
+
+    VOID resetSprites(UWORD* cl_spr0pth, UWORD* cl_spr0pos);
+
+FUNCTION
+    Resets the sprite instructions on the copperlist sections pointed by the two
+    given access pointers to the NULL sprite addresses provided by display.o.
+
+INPUTS
+    cl_spr0pth - access pointer to the sprite pointer instructions
+    cl_spr0pos - access pointer to the sprite control instructions
+
+NOTES
+    The function uses the distance between the cl_spr0pth and cl_spr0pos
+    addresses to determine the number of sprite instructions present on the
+    copperlist section and avoids resetting any instructions that are not
+    present. Therefore, in order to prevent mistakes, it is crucial to create
+    these sections and their access pointers by including the spri.c file and
+    use the allocCopperList() function to create the necessary access pointers.
+
+SEE ALSO
+    @{"Displays" link "Concepts_07Displays"}, @{"setSprite()" link "73-setSprite"}, @{"resetSprite()" link "64-resetSprite"}, @{"loadSpriteBank()" link "36-loadSpriteBank"}, @{"allocCopperList()" link "01-allocCopperList"}
+
+@endnode
+
 @node "64-resetUI" "Sevgi_Engine.guide/Function Reference/resetUI"
 NAME
     resetUI - Resets the facilities in ui.o to initial NULL values
@@ -5664,10 +5783,13 @@ NAME
     setSprite - Sets a sprite image to be displayed by a copperlist
 
 SYNOPSIS
-    setSprite(image, x, y, cl_spr0pth, diwstrt, hardware_sprite_num, fetch_mode)
+    setSprite(image, x, y, cl_spr0pth, cl_spr0pos, diwstrt,
+        panel_start, panel_height, hardware_sprite_num, fetch_mode);
 
-    VOID setSprite(struct SpriteImage* image, LONG x, LONG y, UWORD* cl_spr0pth,
-        UWORD diwstrt, WORD hardware_sprite_num, UBYTE fetch_mode)
+    VOID setSprite(struct SpriteImage* image, LONG x, LONG y,
+        UWORD* cl_spr0pth, UWORD* cl_spr0pos, UWORD diwstrt,
+        UWORD panel_start, UWORD panel_height,
+        WORD hardware_sprite_num, UBYTE fetch_mode);
 
 FUNCTION
     Every Sevgi_Engine display requires a function to handle the displaying of
@@ -5679,24 +5801,37 @@ INPUTS
     image               - pointer to a struct SpriteImage to be displayed
     x                   - x coordinate to display the sprite (screen coordinate)
     y                   - y coordinate to display the sprite (screen coordinate)
-    cl_spr0pth          - access pointer to the sprite instructions on the
-                          copperlist
+    cl_spr0pth          - access pointer to the sprite pointer instructions
+    cl_spr0pos          - access pointer to the sprite control instructions
     diwstrt             - DIWSTRT value used on the copperlist to convert screen
                           coordinates to hardware coordinates
+    panel_start         - the vertical "screen coordinate" of the sub section
+                          of the display. This is 0 for the TOP PANEL (or a
+                          custom display), and TOP_PANEL_HEIGHT + SCREEN_HEIGHT
+                          for the bottom panel
+    panel_height        - height of the panel (or screen) this sprite will be
+                          displayed
+                          NOTE: (TOP_PANEL_HEIGHT - 1) for the top panel!
     hardware_sprite_num - hardware sprite to display this sprite image (0 - 7)
     fetch_mode          - sprite fetch mode used on the copperlist
 
 NOTES
     Sprite images can be referenced from SpriteBanks loaded from disk.
-    You should use allocCopperList() to create the access pointer for sprite
-    instructions.
-    Values between 0-7 for hardware_sprite_num are only valid if the copperlist
-    defines instructions for all eight hardware sprites.
+
+    Values between 0-7 for hardware_sprite_num are valid.
+
+    The function uses the distance between the cl_spr0pth and cl_spr0pos
+    addresses to determine the number of sprite instructions present on the
+    copperlist section and avoids setting any images on instructions that are
+    not present. Therefore, in order to prevent mistakes, it is crucial to
+    create these sections by including the spri.c file and use the
+    allocCopperList() function to create the necessary access pointers.
+
     Sprite fetch mode set on the copperlist has to be compatible with the fetch
     mode the sprite image has been created with.
 
 SEE ALSO
-    @{"Displays" link "Concepts_07Displays"}, @{"loadSpriteBank()" link "36-loadSpriteBank"}, @{"allocCopperList()" link "01-allocCopperList"}
+    @{"Displays" link "Concepts_07Displays"}, @{"resetSprite()" link "64-resetSprite"}, @{"resetSprites()" link "64-resetSprites"}, @{"loadSpriteBank()" link "36-loadSpriteBank"}, @{"allocCopperList()" link "01-allocCopperList"}
 
 @endnode
 

@@ -24,8 +24,8 @@ extern UWORD NULL_SPRITE_ADDRESS_L;
 #define DEFAULT_DDFSTRT_LORES 0x0038
 #define DEFAULT_DDFSTRT_HIRES 0x003C
 #define DEFAULT_DDFSTOP_LORES 0x00D0
-#define DEFAULT_DIWSTRT 0x2C81
-#define DEFAULT_DIWSTOP 0x2CC1
+#define DEFAULT_DIWSTRT 0x2981
+#define DEFAULT_DIWSTOP 0x29C1
 
 /******************************
  * EXPORTED UTILITY FUNCTIONS *
@@ -48,7 +48,9 @@ VOID freeRastPort(struct RastPort* rp, ULONG free_flags);
 #define freeCopperList(cl) FreeVec(cl);
 BOOL copperAllocator(ULONG* cl_insts, ULONG num_insts, UWORD** access_ptr, BOOL double_buffer, ULONG extra_insts);
 
-VOID setSprite(struct SpriteImage* image, LONG x, LONG y, UWORD* cl_spr0pth, UWORD diwstrt, WORD hardware_sprite_num, UBYTE fetch_mode);
+VOID setSprite(struct SpriteImage* image, LONG x, LONG y, UWORD* cl_spr0pth, UWORD* cl_spr0pos, UWORD diwstrt, UWORD panel_start, UWORD panel_height, WORD hardware_sprite_num, UBYTE fetch_mode);
+VOID resetSprite(UWORD* cl_spr0pth, UWORD* cl_spr0pos, WORD hardware_sprite_num);
+VOID resetSprites(UWORD* cl_spr0pth, UWORD* cl_spr0pos);
 
 /***************************************************
  * Ensure BitMap allocations meet AGA requirements *

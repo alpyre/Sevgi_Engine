@@ -46,6 +46,7 @@
 
 #include "dosupernew.h"
 #include "utility.h"
+#include "popasl_string.h"
 #include "integer_gadget.h"
 #include "palette_selector.h"
 #include "bitmap_selector.h"
@@ -69,6 +70,7 @@ struct cl_ObjTable
   Object* btn_gamefont_remove;
   Object* btn_gamefont_up;
   Object* btn_gamefont_down;
+  Object* str_mouse_pointers;
   Object* lv_levels;
   Object* str_level_name;
   Object* int_initial_mapPosX;
@@ -191,6 +193,7 @@ extern struct FontRequester* g_FontReq;
 extern Object* App;
 extern struct MUI_CustomClass* MUIC_Integer;
 extern struct MUI_CustomClass* MUIC_ImageDisplay;
+extern struct MUI_CustomClass *MUIC_PopASLString;
 
 extern STRPTR g_Program_Directory;
 extern struct Project {
@@ -236,13 +239,15 @@ STATIC STRPTR save_strings[] = {
 ",\n                                                   ",
 "};\nSTATIC STRPTR gameFontFiles[NUM_GAMEFONTS] = {",
 ",\n                                              ",
-"};\n#endif\n\n",
+"};\n#endif //FONTS_H\n\n",
+"#ifdef DISPLAY_H\nSTATIC STRPTR mouseSpriteBankFile = ",
+"#endif // DISPLAY_H\n\n",
 "#ifdef LEVEL_H\n",
 "\nSTATIC struct LevelData levelData[NUM_LEVELS] = {",
 "                                                  ",
 "                                                 }",
 ",\n                                                 ",
-"\n                                                };\n#endif\n\n",
+"\n                                                };\n#endif // LEVEL_H\n\n",
 "#endif /* ASSETS_H */"
 };
 
@@ -253,6 +258,8 @@ enum {
   SS_GAMEFONTS_HEADER,
   SS_GAMEFONTS_ALIGNER,
   SS_FONTS_FOOTER,
+  SS_MOUSE_HEADER,
+  SS_MOUSE_FOOTER,
   SS_LEVEL_HEADER,
   SS_LEVEL_DATA,
   SS_LEVEL_ALIGNER,
@@ -285,6 +292,54 @@ STATIC STRPTR asset_aligners[] = {
 " ",
 "       "
 };
+
+STATIC struct {
+  STRPTR textattrs;
+  STRPTR textattr_add;
+  STRPTR textattr_remove;
+  STRPTR font_up;
+  STRPTR font_down;
+  STRPTR gamefont;
+  STRPTR gamefont_add;
+  STRPTR gamefont_remove;
+  STRPTR mouse_sprite_bank;
+  STRPTR levels;
+  STRPTR level_name;
+  STRPTR level_add;
+  STRPTR level_remove;
+  STRPTR level_up;
+  STRPTR level_down;
+  STRPTR asset_types;
+  STRPTR map_position;
+  STRPTR files;
+  STRPTR file_add;
+  STRPTR file_remove;
+  STRPTR file_up;
+  STRPTR file_down;
+}help_string = {
+  "List of Amiga Fonts (TextAttrs) to be used in the game.",
+  "Add a new Amiga Font (TextAttr) to the game.",
+  "Remove the selected Amiga Font (TextAttr).",
+  "Move the selected font up in the list.",
+  "Move the selected font down in the list.",
+  "List of GameFonts to be used in the game",
+  "Add a new GameFont to the game",
+  "Remove the selected GameFont.",
+  "Sprite bank to load for the global mouse pointer.",
+  "List of game levels.\n\nAlways use level 0 for the Main Menu.",
+  "Enter a name for the selected level.",
+  "Add a new level to the game.",
+  "Remove the selected level from the game.",
+  "Move the selected level up in the list.",
+  "Move the selected level down in the list.",
+  "Asset types defined on the Level struct.",
+  "Initial map position at level start.",
+  "Asset files to be loaded for the selected asset type\non the selected level.\n\nThese files should be stored in the data drawer of the game.",
+  "Add a new asset.",
+  "Remove the selected asset.",
+  "Move the selected asset up in the list.",
+  "Move the selected asset down in the list.",
+};
 ///
 ///Protos
 STATIC VOID freeTextAttr(struct TextAttr* text_attr);
@@ -294,27 +349,30 @@ STATIC VOID freeLevel(struct Level* level);
 //DISPLAY HOOK FOR struct TextAttr items
 HOOKPROTO(TextAttr_dispfunc, LONG, char **array, struct TextAttr* p)
 {
+  static UBYTE pos[16];
   static UBYTE size[8];
   static UBYTE style[8];
-  strcpy(style, ".....");
 
   if (p) {
-    *array++ = p->ta_Name;
-
+    sprintf(pos, "\33b%ld\33n |", (LONG)array[-1]);
     sprintf(size, "%lu", (ULONG)p->ta_YSize);
-    *array++ = size;
-
+    strcpy(style, ".....");
     if (p->ta_Style & FSF_UNDERLINED) style[0] = 'U';
     if (p->ta_Style & FSF_BOLD)       style[1] = 'B';
     if (p->ta_Style & FSF_ITALIC)     style[2] = 'I';
     if (p->ta_Style & FSF_EXTENDED)   style[3] = 'E';
     if (p->ta_Style & FSF_COLORFONT)  style[4] = 'C';
-    *array++ = style;
+
+    *array++ = pos;
+    *array++ = p->ta_Name;
+    *array++ = size;
+    *array   = style;
   }
   else {
+    *array++ = "\33b\33uNo\33n |";
     *array++ = "\33b\33uName";
     *array++ = "\33b\33uSize";
-    *array++ = "\33b\33uStyle";
+    *array   = "\33b\33uStyle";
   }
 
   return(0);
@@ -335,19 +393,39 @@ HOOKPROTO(Gamefont_destructfunc, VOID, APTR pool, STRPTR p)
 }
 MakeStaticHook(Gamefont_destructhook, Gamefont_destructfunc);
 
+//DISPLAY HOOK FOR gamefont items
+HOOKPROTO(gamefont_dispfunc, LONG, char **array, STRPTR p)
+{
+  static UBYTE pos[16];
+
+  if (p) {
+    sprintf(pos, "\33b%ld\33n |", (LONG)array[-1]); // get line number
+    *array++ = pos;
+    *array   = p;
+  }
+  else {
+    *array++ = "\33b\33uNo\33n |";
+    *array   = "\33b\33uFile";
+  }
+
+  return(0);
+}
+MakeStaticHook(gamefont_disphook, gamefont_dispfunc);
+
 //DISPLAY HOOK FOR Level items
 HOOKPROTO(level_dispfunc, LONG, char **array, struct Level* p)
 {
+  static UBYTE pos[16];
+
   if (p) {
-    static UBYTE pos[8];
-    sprintf(pos, "%ld", (LONG)array[-1]);
+    sprintf(pos, "\33b%ld\33n |", (LONG)array[-1]);
 
     *array++ = pos;
-    *array++ = p->name;
+    *array   = p->name;
   }
   else {
-    *array++ = "\33b\33uNum";
-    *array++ = "\33b\33uName";
+    *array++ = "\33b\33uNo\33n |";
+    *array   = "\33b\33uName";
   }
 
   return(0);
@@ -364,7 +442,17 @@ MakeStaticHook(level_destructhook, level_destructfunc);
 //DISPLAY HOOK FOR StringItems
 HOOKPROTO(string_dispfunc, LONG, char **array, struct StringItem* p)
 {
-  if (p) *array++ = p->string;
+  static UBYTE pos[16];
+
+  if (p) {
+    sprintf(pos, "\33b%ld\33n |", (LONG)array[-1]); // get line number
+    *array++ = pos;
+    *array   = p->string;
+  }
+  else {
+    *array++ = "\33b\33uNo\33n |";
+    *array   = "\33b\33uAsset";
+  }
 
   return(0);
 }
@@ -571,6 +659,13 @@ struct MinList* getAssetList(struct cl_Data *data)
   }
 
   return list;
+}
+///
+///mousePointersStrFunc(file_req, string)
+STATIC VOID mousePointersStrFunc(struct FileRequester* file_req, Object* string)
+{
+  DoMethod(string, MUIM_Set, MUIA_String_Contents, file_req->fr_File);
+  DoMethod(string, MUIM_Set, MUIA_String_Acknowledge, file_req->fr_File);
 }
 ///
 
@@ -1259,6 +1354,22 @@ STATIC ULONG m_LoadAssets(struct IClass* cl, Object* obj, struct cl_Msg* msg)
         }
       }
 
+      // READ MOUSE SPRITE BANK
+      if (locateStrInFile(fh, "mouseSpriteBankFile")) {
+        if (locateStrInFile(fh, "=")) {
+          STRPTR string;
+
+          readString(fh, &string);
+          if (!strcmp(string, "NULL"))
+            DoMethod(data->obj_table.str_mouse_pointers, MUIM_Set, MUIA_String_Contents, "");
+          else
+            DoMethod(data->obj_table.str_mouse_pointers, MUIM_Set, MUIA_String_Contents, string);
+
+          freeString(string);
+        }
+      }
+      else DoMethod(data->obj_table.str_mouse_pointers, MUIM_Set, MUIA_String_Contents, "");
+
       // READ LEVELS
       Seek(fh, 0, OFFSET_BEGINNING);
       if (locateStrInFile(fh, "levelData[")) {
@@ -1403,6 +1514,23 @@ STATIC ULONG m_SaveAssets(struct IClass* cl, Object* obj, struct cl_Msg* msg)
     }
     WriteSaveString(SS_FONTS_FOOTER);
 
+    WriteSaveString(SS_MOUSE_HEADER);
+    { //WRITE MOUSE SPRITE BANK
+      STRPTR string;
+
+      get(data->obj_table.str_mouse_pointers, MUIA_String_Contents, &string);
+
+      if (string && string[0]) {
+        Write(fh, "\"", 1);
+        Write(fh, string, strlen(string));
+        Write(fh, "\";\n", 3);
+      }
+      else {
+        Write(fh, "NULL;\n", 6);
+      }
+    }
+    WriteSaveString(SS_MOUSE_FOOTER);
+
     WriteSaveString(SS_LEVEL_HEADER);
     { //WRITE ASSETS FOR EACH LEVEL
       ULONG levels;
@@ -1523,6 +1651,7 @@ STATIC ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* btn_gamefont_remove;
     Object* btn_gamefont_up;
     Object* btn_gamefont_down;
+    Object* str_mouse_pointers;
     Object* lv_levels;
     Object* str_level_name;
     Object* int_initial_mapPosX;
@@ -1552,41 +1681,65 @@ STATIC ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_Frame, MUIV_Frame_Group,
           MUIA_FrameTitle, "Amiga Fonts",
           MUIA_Group_Child, (objects.lv_fonts = MUI_NewObject(MUIC_Listview,
+            MUIA_ShortHelp, help_string.textattrs,
             MUIA_Listview_List, MUI_NewObject(MUIC_List,
               MUIA_Frame, MUIV_Frame_InputList,
               MUIA_List_AutoVisible, TRUE,
               MUIA_List_Title, TRUE,
-              MUIA_List_Format, "MAW=68,MAW=14,MAW=18",
+              MUIA_List_Format, "P=\33r,MAW=68,MAW=14,MAW=18",
               MUIA_List_DisplayHook, &TextAttr_disphook,
               MUIA_List_DestructHook, &TextAttr_destructhook,
             TAG_END),
           TAG_END)),
           MUIA_Group_Child, MUI_NewObject(MUIC_Group,
             MUIA_Group_Horiz, TRUE,
-            MUIA_Group_Child, (objects.btn_font_add = MUI_NewButton("Add", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_font_remove = MUI_NewButton("Remove", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_font_up = MUI_NewButton("Up", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_font_down = MUI_NewButton("Down", NULL, NULL)),
+            MUIA_Group_Child, (objects.btn_font_add = MUI_NewButton("Add", NULL, help_string.textattr_add)),
+            MUIA_Group_Child, (objects.btn_font_remove = MUI_NewButton("Remove", NULL, help_string.textattr_remove)),
+            MUIA_Group_Child, (objects.btn_font_up = MUI_NewButton("Up", NULL, help_string.font_up)),
+            MUIA_Group_Child, (objects.btn_font_down = MUI_NewButton("Down", NULL, help_string.font_down)),
           TAG_END),
         TAG_END),
         MUIA_Group_Child, MUI_NewObject(MUIC_Group,
           MUIA_Frame, MUIV_Frame_Group,
           MUIA_FrameTitle, "GameFonts",
           MUIA_Group_Child, (objects.lv_gamefonts = MUI_NewObject(MUIC_Listview,
+            MUIA_ShortHelp, help_string.gamefont,
             MUIA_Listview_List, MUI_NewObject(MUIC_List,
               MUIA_Frame, MUIV_Frame_InputList,
               MUIA_List_AutoVisible, TRUE,
+              MUIA_List_Title, TRUE,
+              MUIA_List_Format, "P=\33r,",
+              MUIA_List_DisplayHook, &gamefont_disphook,
               MUIA_List_DestructHook, &Gamefont_destructhook,
             TAG_END),
           TAG_END)),
           MUIA_Group_Child, MUI_NewObject(MUIC_Group,
             MUIA_Group_Horiz, TRUE,
-            MUIA_Group_Child, (objects.btn_gamefont_add = MUI_NewButton("Add", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_gamefont_remove = MUI_NewButton("Remove", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_gamefont_up = MUI_NewButton("Up", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_gamefont_down = MUI_NewButton("Down", NULL, NULL)),
+            MUIA_Group_Child, (objects.btn_gamefont_add = MUI_NewButton("Add", NULL, help_string.gamefont_add)),
+            MUIA_Group_Child, (objects.btn_gamefont_remove = MUI_NewButton("Remove", NULL, help_string.gamefont_remove)),
+            MUIA_Group_Child, (objects.btn_gamefont_up = MUI_NewButton("Up", NULL, help_string.font_up)),
+            MUIA_Group_Child, (objects.btn_gamefont_down = MUI_NewButton("Down", NULL, help_string.font_down)),
           TAG_END),
         TAG_END),
+      TAG_END),
+      MUIA_Group_Child, MUI_NewObject(MUIC_Group,
+        MUIA_Group_Columns, 2,
+        MUIA_Frame, MUIV_Frame_Group,
+        MUIA_FrameTitle, "Mouse Sprites",
+        MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Mouse Sprite Bank:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.mouse_sprite_bank, TAG_END),
+        MUIA_Group_Child, (objects.str_mouse_pointers = NewObject(MUIC_PopASLString->mcc_Class, NULL,
+          MUIA_PopASLString_Requester, g_FileReq,
+          MUIA_PopASLString_StringFunc, mousePointersStrFunc,
+          MUIA_PopASLString_IgnoreContents, TRUE,
+          MUIA_ShortHelp, help_string.mouse_sprite_bank,
+          MUIA_Image_Spec, MUII_PopFile,
+          ASLFR_TitleText, "Select Sprite Bank File",
+          ASLFR_PositiveText, "Select",
+          ASLFR_DrawersOnly, FALSE,
+          ASLFR_DoPatterns, TRUE,
+          ASLFR_InitialPattern, "*.spr",
+          ASLFR_InitialDrawer, g_Project.data_drawer,
+        TAG_END)),
       TAG_END),
       MUIA_Group_Child, MUI_NewObject(MUIC_Group,
         MUIA_Group_Horiz, TRUE,
@@ -1597,24 +1750,26 @@ STATIC ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_Frame, MUIV_Frame_Group,
           MUIA_FrameTitle, "Levels",
           MUIA_Group_Child, (objects.lv_levels = MUI_NewObject(MUIC_Listview,
+            MUIA_ShortHelp, help_string.levels,
             MUIA_Listview_List, MUI_NewObject(MUIC_List,
               MUIA_Frame, MUIV_Frame_InputList,
               MUIA_List_AutoVisible, TRUE,
               MUIA_List_Title, TRUE,
-              MUIA_List_Format, "MAW=10,MAW=90",
+              MUIA_List_Format, "P=\33r MAW=10,MAW=90",
               MUIA_List_DisplayHook, &level_disphook,
               MUIA_List_DestructHook, &level_destructhook,
             TAG_END),
           TAG_END)),
           MUIA_Group_Child, (objects.str_level_name = MUI_NewObject(MUIC_String,
+            MUIA_ShortHelp, help_string.level_name,
             MUIA_Frame, MUIV_Frame_String,
           TAG_END)),
           MUIA_Group_Child, MUI_NewObject(MUIC_Group,
             MUIA_Group_Horiz, TRUE,
-            MUIA_Group_Child, (objects.btn_level_add = MUI_NewButton("Add", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_level_remove = MUI_NewButton("Remove", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_level_up = MUI_NewButton("Up", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_level_down = MUI_NewButton("Down", NULL, NULL)),
+            MUIA_Group_Child, (objects.btn_level_add = MUI_NewButton("Add", NULL, help_string.level_add)),
+            MUIA_Group_Child, (objects.btn_level_remove = MUI_NewButton("Remove", NULL, help_string.level_remove)),
+            MUIA_Group_Child, (objects.btn_level_up = MUI_NewButton("Up", NULL, help_string.level_up)),
+            MUIA_Group_Child, (objects.btn_level_down = MUI_NewButton("Down", NULL, help_string.level_down)),
           TAG_END),
         TAG_END),
         MUIA_Group_Child, MUI_NewObject(MUIC_Group,
@@ -1622,6 +1777,7 @@ STATIC ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
             MUIA_Frame, MUIV_Frame_Group,
             MUIA_FrameTitle, "Assets",
             MUIA_Group_Child, (objects.lv_asset_types = MUI_NewObject(MUIC_Listview,
+              MUIA_ShortHelp, help_string.asset_types,
               MUIA_Listview_List, MUI_NewObject(MUIC_List,
                 MUIA_Frame, MUIV_Frame_InputList,
                 MUIA_List_AutoVisible, TRUE,
@@ -1632,8 +1788,9 @@ STATIC ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_Group_Child, MUI_NewObject(MUIC_Group, MUIA_Group_Columns, 2,
             MUIA_Frame, MUIV_Frame_Group,
             MUIA_FrameTitle, "Initial Map Position",
-            MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "X:", MUIA_HorizWeight, 0, MUIA_ShortHelp, NULL, TAG_END),
+            MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "X:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.map_position, TAG_END),
             MUIA_Group_Child, (objects.int_initial_mapPosX = NewObject(MUIC_Integer->mcc_Class, NULL,
+              MUIA_ShortHelp, help_string.map_position,
               MUIA_Integer_Value, 0,
               MUIA_Integer_Min, 0,
               MUIA_Integer_Buttons, TRUE,
@@ -1641,6 +1798,7 @@ STATIC ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
             TAG_END)),
             MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Y:", MUIA_HorizWeight, 0, MUIA_ShortHelp, NULL, TAG_END),
             MUIA_Group_Child, (objects.int_initial_mapPosY = NewObject(MUIC_Integer->mcc_Class, NULL,
+              MUIA_ShortHelp, help_string.map_position,
               MUIA_Integer_Value, 0,
               MUIA_Integer_Min, 0,
               MUIA_Integer_Buttons, TRUE,
@@ -1652,18 +1810,21 @@ STATIC ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_Frame, MUIV_Frame_Group,
           MUIA_FrameTitle, "Files",
           MUIA_Group_Child, (objects.lv_assets = MUI_NewObject(MUIC_Listview,
+            MUIA_ShortHelp, help_string.files,
             MUIA_Listview_List, MUI_NewObject(MUIC_List,
               MUIA_Frame, MUIV_Frame_InputList,
+              MUIA_List_Title, TRUE,
+              MUIA_List_Format, "P=\33r,",
               MUIA_List_AutoVisible, TRUE,
               MUIA_List_DisplayHook, &string_disphook,
             TAG_END),
           TAG_END)),
           MUIA_Group_Child, MUI_NewObject(MUIC_Group,
             MUIA_Group_Horiz, TRUE,
-            MUIA_Group_Child, (objects.btn_asset_add = MUI_NewButton("Add", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_asset_remove = MUI_NewButton("Remove", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_asset_up = MUI_NewButton("Up", NULL, NULL)),
-            MUIA_Group_Child, (objects.btn_asset_down = MUI_NewButton("Down", NULL, NULL)),
+            MUIA_Group_Child, (objects.btn_asset_add = MUI_NewButton("Add", NULL, help_string.file_add)),
+            MUIA_Group_Child, (objects.btn_asset_remove = MUI_NewButton("Remove", NULL, help_string.file_remove)),
+            MUIA_Group_Child, (objects.btn_asset_up = MUI_NewButton("Up", NULL, help_string.file_up)),
+            MUIA_Group_Child, (objects.btn_asset_down = MUI_NewButton("Down", NULL, help_string.file_down)),
           TAG_END),
         TAG_END),
       TAG_END),
@@ -1797,6 +1958,10 @@ STATIC ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
 
     DoMethod(objects.int_initial_mapPosY, MUIM_Notify, MUIA_Integer_Value, MUIV_EveryTime, obj, 3,
       MUIM_Set, MUIA_AssetsEditor_Edited, TRUE);
+
+    DoMethod(objects.str_mouse_pointers, MUIM_Notify, MUIA_String_Acknowledge, MUIV_EveryTime, obj, 3,
+      MUIM_Set, MUIA_AssetsEditor_Edited, TRUE);
+
     /**************************************************************************/
 
     data->palette_selector = NULL;
@@ -1825,6 +1990,7 @@ STATIC ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     data->obj_table.btn_font_down = objects.btn_font_down;
     data->obj_table.btn_gamefont_up = objects.btn_gamefont_up;
     data->obj_table.btn_gamefont_down = objects.btn_gamefont_down;
+    data->obj_table.str_mouse_pointers = objects.str_mouse_pointers;
     data->obj_table.btn_level_up = objects.btn_level_up;
     data->obj_table.btn_level_down = objects.btn_level_down;
     data->obj_table.btn_asset_up = objects.btn_asset_up;
@@ -1878,6 +2044,9 @@ STATIC ULONG m_Set(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIM_Set, MUIA_Window_Sleep, FALSE);
         DoMethod(data->bitmap_selector, MUIM_Notify, MUIA_BitmapSelector_Selected, MUIV_EveryTime, obj, 2,
           MUIM_AssetsEditor_AddBitmap, MUIV_TriggerValue);
+      break;
+      case MUIA_AssetsEditor_DataDrawer:
+        DoMethod(data->obj_table.str_mouse_pointers, MUIM_Set, ASLFR_InitialDrawer, tag->ti_Data);
       break;
     }
   }

@@ -149,7 +149,6 @@ STATIC UWORD* CL_PALETTE = (UWORD*) 0;
 #endif // USE_CLP
 
 STATIC UWORD* CL_BPL1PTH = (UWORD*) 0;
-STATIC UWORD* CL_SPR0PTH = (UWORD*) 0;
 
 STATIC ULONG copperList_Instructions[] = {
                                               // Access Ptr:  Action:
@@ -167,28 +166,8 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(DIWSTOP, DIWSTOP_V),                   //              Set Display Window Stop
   MOVE(DDFSTRT, DDFSTRT_V),                   //              Set Data Fetch Start to fetch early
   MOVE(DDFSTOP, DDFSTOP_V),                   //              Set Data Fetch Stop
-  MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH   Set bitplane addresses
-  MOVE(BPL1PTL, 0),                           // CL_BPL1PTL    "      "       "
-  MOVE(BPL2PTH, 0),                           // CL_BPL2PTH    "      "       "
-  MOVE(BPL2PTL, 0),                           // CL_BPL2PTL    "      "       "
-  MOVE(BPL3PTH, 0),                           // CL_BPL3PTH    "      "       "
-  MOVE(BPL3PTL, 0),                           // CL_BPL3PTL    "      "       "
-  MOVE_PH(SPR0PTH, 0),                        // CL_SPR0PTH   Set sprite pointers
-  MOVE(SPR0PTL, 0),                           // CL_SPT0PTL    "     "      "
-  MOVE(SPR1PTH, 0),                           // CL_SPT1PTH    "     "      "
-  MOVE(SPR1PTL, 0),                           // CL_SPT1PTL    "     "      "
-  MOVE(SPR2PTH, 0),                           // CL_SPT2PTH    "     "      "
-  MOVE(SPR2PTL, 0),                           // CL_SPT2PTL    "     "      "
-  MOVE(SPR3PTH, 0),                           // CL_SPT3PTH    "     "      "
-  MOVE(SPR3PTL, 0),                           // CL_SPT3PTL    "     "      "
-  MOVE(SPR4PTH, 0),                           // CL_SPT4PTH    "     "      "
-  MOVE(SPR4PTL, 0),                           // CL_SPT4PTL    "     "      "
-  MOVE(SPR5PTH, 0),                           // CL_SPT5PTH    "     "      "
-  MOVE(SPR5PTL, 0),                           // CL_SPT5PTL    "     "      "
-  MOVE(SPR6PTH, 0),                           // CL_SPT6PTH    "     "      "
-  MOVE(SPR6PTL, 0),                           // CL_SPT6PTL    "     "      "
-  MOVE(SPR7PTH, 0),                           // CL_SPT7PTH    "     "      "
-  MOVE(SPR7PTL, 0),                           // CL_SPT7PTL    "     "      "
+  #define BPLI_DEPTH SPLASH_SCREEN_DEPTH
+  #include "bpli.c"                           // CL_BPL1PTH   Set bitplane addresses
   END
 };
 ///
@@ -754,19 +733,12 @@ STATIC UWORD* createCopperList(VOID)
 {
   if (allocCopperList(copperList_Instructions, CopperList, CL_SINGLE)) {
     UWORD* wp;
-    UWORD* sp;
     ULONG i;
 
     //Set copperlist bitmap instruction point to screen bitmap
     for (wp = CL_BPL1PTH, i = 0; i < SPLASH_SCREEN_DEPTH; i++) {
       *wp = (WORD)((ULONG)splash_bitmap->Planes[i] >> 16); wp += 2;
       *wp = (WORD)((ULONG)splash_bitmap->Planes[i] & 0xFFFF); wp += 2;
-    }
-
-    //Set all sprite pointers to null_sprite
-    for (sp = CL_SPR0PTH; sp < CL_SPR0PTH + 32; sp += 2) {
-      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
-      *sp = NULL_SPRITE_ADDRESS_L;
     }
   }
   else

@@ -36,7 +36,7 @@
   #define UI_USE_STRING_GADGETS
 #endif
 
-#define IS_IN_RECT(x, y, x1, y1, x2, y2) ((x) >= (x1) && (x) < (x2) && (y) >= (y1) && (y) < (y2))
+#define IS_IN_RECT(x, y, x1, y1, x2, y2) ((x) >= (x1) && (x) <= (x2) && (y) >= (y1) && (y) <= (y2))
 
 #define	LONG_MAX   0x7FFFFFFFL
 #define	LONG_MIN (-0x7FFFFFFFL - 1)

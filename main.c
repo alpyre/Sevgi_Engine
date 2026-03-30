@@ -7,9 +7,9 @@
 ///defines
 #define PROGRAMNAME     "Sevgi Editor"
 #define VERSION         0
-#define REVISION        157
-#define VERSIONSTRING   "0.157"
-#define AUTHOR          "Ibrahim Alper Sönmez"
+#define REVISION        158
+#define VERSIONSTRING   "0.158"
+#define AUTHOR          "Ibrahim Alper Sï¿½nmez"
 #define COPYRIGHT       "@ 2024 " AUTHOR
 #define CONTACT         "amithlondestek@gmail.com"
 #define DESCRIPTION     "Game Editor for Sevgi Engine"
@@ -1115,6 +1115,7 @@ VOID openProject(STRPTR directory)
       DoMethod(window.bobsheetCreator, MUIM_Set, MUIA_BobsheetCreator_AssetsDrawer, g_Project.assets_drawer);
       DoMethod(window.spritebankCreator, MUIM_Set, MUIA_SpritebankCreator_AssetsDrawer, g_Project.assets_drawer);
       DoMethod(window.bitmapSelector, MUIM_Set, MUIA_BitmapSelector_DataDrawer, g_Project.data_drawer);
+      DoMethod(window.assetsEditor, MUIM_Set, MUIA_AssetsEditor_DataDrawer, g_Project.data_drawer);
     }
   }
   else {

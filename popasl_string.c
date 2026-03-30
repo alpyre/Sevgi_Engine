@@ -152,8 +152,8 @@ ULONG createInitialTags(struct TagItem* passed_tags, struct TagItem** initial_ta
   return num_new_tags;
 }
 ///
-///defaultStringFunc()
-VOID defaultStringFunc(struct FileRequester* file_req, Object* string)
+///pathStringFunc(file_requester, string_object)
+VOID pathStringFunc(struct FileRequester* file_req, Object* string)
 {
   ULONG drawer_len = strlen(file_req->fr_Drawer);
   ULONG str_len = drawer_len + strlen(file_req->fr_File) + 2;
@@ -231,7 +231,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
   struct {
     ULONG image_spec;
     struct FileRequester* file_req;
-    APTR stringFunc;
+    VOID (*stringFunc)(struct FileRequester*, Object*);
   }tags;
 
   if ((tag = FindTagItem(MUIA_Group_Horiz, msg->ops_AttrList))) {
@@ -256,9 +256,9 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
 
   if ((tag = FindTagItem(MUIA_PopASLString_StringFunc, msg->ops_AttrList))) {
     tag->ti_Tag = TAG_IGNORE;
-    tags.stringFunc = (APTR)tag->ti_Tag;
+    tags.stringFunc = (VOID (*)(struct FileRequester*, Object*))tag->ti_Data;
   }
-  else tags.stringFunc = (APTR)defaultStringFunc;
+  else tags.stringFunc = pathStringFunc;
 
   if ((tag = FindTagItem(MUIA_PopASLString_IgnoreContents, msg->ops_AttrList))) {
     ignore_contents = TRUE;
@@ -289,7 +289,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     data->ignore_contents = ignore_contents;
 
     data->file_req = tags.file_req;
-    data->stringFunc = (VOID (*)(struct FileRequester*, Object*))tags.stringFunc;
+    data->stringFunc = tags.stringFunc;
     data->num_initial_tags = createInitialTags(msg->ops_AttrList, &data->initial_tags);
 
     //<SUBCLASS INITIALIZATION HERE>

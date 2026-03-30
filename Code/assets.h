@@ -6,9 +6,13 @@ STATIC struct TextAttr textAttrs[NUM_TEXTFONTS] = {{"Helvetica.font", 9, FS_NORM
 STATIC STRPTR gameFontFiles[NUM_GAMEFONTS] = {"orbitron_15.fnt"};
 #endif // FONTS_H
 
+#ifdef DISPLAY_H
+STATIC STRPTR mouseSpriteBankFile = NULL;
+#endif // DISPLAY_H
+
 #ifdef LEVEL_H
 // LEVEL 0 (Main Menu)
-STATIC STRPTR sprite_banks_0[]  = {"MousePointers1.spr", NULL};
+STATIC STRPTR sprite_banks_0[]  = {NULL};
 STATIC STRPTR music_modules_0[] = {NULL};
 STATIC STRPTR sound_samples_0[] = {"select-granted-05.iff", "select-granted-06.iff", NULL};
 STATIC UBYTE* palettes_0[]      = {palette_0_0, NULL};

@@ -43,6 +43,7 @@ struct ScrollInfo {
   #define SCROLL_MASK   15
   #define SCROLL_BYTES   2
   #define BPL_FMODE_V 0x0
+  #define AVAIL_HSPRITES 7
 
 #elif BPL_FMODE == 2
 
@@ -56,6 +57,7 @@ struct ScrollInfo {
   #define SCROLL_MASK   31
   #define SCROLL_BYTES   4
   #define BPL_FMODE_V FMODE_BLP32
+  #define AVAIL_HSPRITES 5
 
 #elif BPL_FMODE == 4
 
@@ -69,6 +71,7 @@ struct ScrollInfo {
   #define SCROLL_MASK   63
   #define SCROLL_BYTES   8
   #define BPL_FMODE_V FMODE_BLP32 | FMODE_BPAGEM
+  #define AVAIL_HSPRITES 1
 
 #endif
 

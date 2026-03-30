@@ -125,7 +125,7 @@ STATIC VOID levelDisplayLoop()
       setColorTable_GRD(rainbow->gradList[0]->color_table);
       updateRainbow(rainbow);
     }
-    updateDynamicCopperList();
+    updateCopperList();
     #else // DYNAMIC_COPPERLIST
     #ifdef USE_CLP
     waitVBeam(8); //Make sure all color instructions on the copperlist are read

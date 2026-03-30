@@ -864,7 +864,7 @@ BOOL readCStyleDataString(BPTR fh, STRPTR* dest_string)
       *curs = NULL;
       break;
     }
-    if (*curs == '}') {
+    if (*curs == '}' || *curs == ';') {
       *curs = NULL;
       more_elements = 0;
       break;
@@ -937,7 +937,7 @@ ULONG colors2depth(ULONG num_colors)
 ///
 
 //Utility functions for MUI
-///MUI_NewButton(text)
+///MUI_NewButton(text, hi_char, short_help)
 /******************************************************************************
  * Creates a standard text button object.                                     *
  ******************************************************************************/

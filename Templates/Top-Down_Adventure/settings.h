@@ -13,7 +13,7 @@
 //Un-comment to activate per-frame dynamic copperlist generation.
 #define DYNAMIC_COPPERLIST
 //Un-comment to activate smart sprite algorithms.
-#define SMART_SPRITES
+//#define SMART_SPRITES
 //Select bitplane and sprite fetch modes
 #define BPL_FMODE 1   // Bitplane fetch mode (1, 2 or 4)
 #define SPR_FMODE 1   // Sprite fetch mode (1, 2 or 4)

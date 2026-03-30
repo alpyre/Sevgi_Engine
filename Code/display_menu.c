@@ -38,10 +38,10 @@
 #define MENU_BITMAP_HEIGHT MENU_SCREEN_HEIGHT
 #define MENU_BITMAP_DEPTH  MENU_SCREEN_DEPTH
 
-#define DDFSTART_V 0x0038
-#define DDFSTOP_V  0x00D0
-#define DIWSTART_V 0x2C81
-#define DIWSTOP_V  0x2CC1
+#define DDFSTRT_V DEFAULT_DDFSTRT_LORES
+#define DDFSTOP_V DEFAULT_DDFSTOP_LORES
+#define DIWSTRT_V DEFAULT_DIWSTRT
+#define DIWSTOP_V DEFAULT_DIWSTOP
 
 #define BPLXMOD_V (0 & 0xFFFF)
 
@@ -80,6 +80,8 @@ extern volatile LONG new_frame_flag;                   // from system.o
 extern volatile ULONG g_frame_counter;                 // from system.o
 extern UWORD NULL_SPRITE_ADDRESS_H;                    // from display.o
 extern UWORD NULL_SPRITE_ADDRESS_L;                    // from display.o
+extern struct SpriteBank* g_mouse_sprites;             // from display.o
+extern struct GameObject g_mouse_pointer;              // from display.o
 extern struct TextFont* textFonts[NUM_TEXTFONTS];      // from fonts.o
 extern struct GameFont* gameFonts[NUM_GAMEFONTS];      // from fonts.o
 extern struct PT_VolumeTable volume_table;             // from audio.o
@@ -91,7 +93,6 @@ extern struct BitMap* BOBsBackBuffer;                  // from gameobject.o
 
 // private globals
 STATIC struct GameObject* gameobjects;
-STATIC struct GameObject mouse_pointer;
 STATIC struct BitMap* screen_bitmap = NULL; // BitMap for the menu display
 STATIC struct RastPort* rastPort;
 STATIC struct ColorTable* color_table = NULL;
@@ -107,10 +108,11 @@ enum {
 STATIC UWORD* CopperList  = (UWORD*) 0;
 
 #ifdef USE_CLP
-STATIC UWORD* CL_PALETTE    = (UWORD*)0;
+STATIC UWORD* CL_PALETTE  = (UWORD*) 0;
 #endif // USE_CLP
 STATIC UWORD* CL_BPL1PTH  = (UWORD*) 0;
 STATIC UWORD* CL_SPR0PTH  = (UWORD*) 0;
+STATIC UWORD* CL_SPR0POS  = (UWORD*) 0;
 
 STATIC ULONG copperList_Instructions[] = {
                                               // Access Ptr:  Action:
@@ -126,30 +128,15 @@ STATIC ULONG copperList_Instructions[] = {
   MOVE(BPLCON4, 0x10),
   MOVE(BPL1MOD, BPLXMOD_V),                   //              Set bitplane mods to show same raster line
   MOVE(BPL2MOD, BPLXMOD_V),                   //               "     "       "
-  MOVE(DIWSTRT, DIWSTART_V),                  //              Set Display Window Start
+  MOVE(DIWSTRT, DIWSTRT_V),                   //              Set Display Window Start
   MOVE(DIWSTOP, DIWSTOP_V),                   //              Set Display Window Stop
-  MOVE(DDFSTRT, DDFSTART_V),                  //              Set Data Fetch Start to fetch early
+  MOVE(DDFSTRT, DDFSTRT_V),                   //              Set Data Fetch Start to fetch early
   MOVE(DDFSTOP, DDFSTOP_V),                   //              Set Data Fetch Stop
-  MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH   Set bitplane addresses
-  MOVE(BPL1PTL, 0),                           //               "      "       "
-  MOVE(BPL2PTH, 0),                           //               "      "       "
-  MOVE(BPL2PTL, 0),                           //               "      "       "
-  MOVE_PH(SPR0PTH, 0),                        // CL_SPR0PTH   Set sprite pointers
-  MOVE(SPR0PTL, 0),                           //               "     "      "
-  MOVE(SPR1PTH, 0),                           //               "     "      "
-  MOVE(SPR1PTL, 0),                           //               "     "      "
-  MOVE(SPR2PTH, 0),                           //               "     "      "
-  MOVE(SPR2PTL, 0),                           //               "     "      "
-  MOVE(SPR3PTH, 0),                           //               "     "      "
-  MOVE(SPR3PTL, 0),                           //               "     "      "
-  MOVE(SPR4PTH, 0),                           //               "     "      "
-  MOVE(SPR4PTL, 0),                           //               "     "      "
-  MOVE(SPR5PTH, 0),                           //               "     "      "
-  MOVE(SPR5PTL, 0),                           //               "     "      "
-  MOVE(SPR6PTH, 0),                           //               "     "      "
-  MOVE(SPR6PTL, 0),                           //               "     "      "
-  MOVE(SPR7PTH, 0),                           //               "     "      "
-  MOVE(SPR7PTL, 0),                           //               "     "      "
+  #define BPLI_DEPTH MENU_SCREEN_DEPTH
+  #include "bpli.c"                           // CL_BPL1PTH   Set bitplane addresses
+  WAIT(0, (DIWSTRT_V >> 8) - 1),              //              Wait for top of display
+  #define SPRI_DDFSTRT DDFSTRT_V              // CL_SPR0PTH   Set sprite pointers
+  #include "spri.c"                           // CL_SPR0POS   Set sprite pointers
   END
 };
 ///
@@ -162,7 +149,7 @@ STATIC VOID closeScreen(VOID);
 STATIC UWORD* createCopperList(VOID);
 STATIC VOID disposeCopperList(VOID);
 STATIC VOID switchToMenuCopperList(VOID);
-STATIC VOID prepMousePointer(VOID);
+STATIC VOID setMousePointerColors(VOID);
 STATIC VOID drawScreen(VOID);
 STATIC INLINE VOID MD_setSprite(struct GameObject* go);
 STATIC ULONG menuDisplayLoop(VOID);
@@ -218,7 +205,7 @@ STATIC VOID vblankEvents()
   #ifndef USE_CLP
   setColorTable(color_table);
   #endif // !USE_CLP
-  MD_setSprite(&mouse_pointer);
+  MD_setSprite(&g_mouse_pointer);
 }
 ///
 ///openScreen()
@@ -254,7 +241,6 @@ STATIC UWORD* createCopperList()
 {
   if (allocCopperList(copperList_Instructions, CopperList, CL_SINGLE)) {
     UWORD* wp;
-    UWORD* sp;
     ULONG i;
 
     //Set bitplane pointers on the copperlist
@@ -263,10 +249,7 @@ STATIC UWORD* createCopperList()
       *wp = (WORD)((ULONG)screen_bitmap->Planes[i] & 0xFFFF); wp += 2;
     }
 
-    for (sp = CL_SPR0PTH; sp < CL_SPR0PTH + 32; sp += 2) {
-      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;
-      *sp = NULL_SPRITE_ADDRESS_L;
-    }
+    resetSprites(CL_SPR0PTH, CL_SPR0POS);
   }
   else {
     puts("Couldn't allocate Menu CopperList!");
@@ -296,7 +279,7 @@ STATIC BOOL openDisplay()
         gameobjects = current_level.gameobject_bank[0]->gameobjects;
 
         blackOut();
-        prepMousePointer();
+        setMousePointerColors();
         drawScreen();
         return TRUE;
       }
@@ -323,7 +306,7 @@ STATIC VOID switchToMenuCopperList()
   new_frame_flag = 1;
   waitTOF();
   custom.dmacon = 0x8020; // Enable Sprite DMA
-  WaitVBeam((DIWSTART_V >> 8));
+  WaitVBeam((DIWSTRT_V >> 8));
   setVBlankEvents(vblankEvents);
 }
 ///
@@ -345,26 +328,9 @@ ULONG startMenuDisplay()
 }
 ///
 
-///prepMousePointer
-STATIC VOID prepMousePointer()
+///setMousePointerColors
+STATIC VOID setMousePointerColors()
 {
-  struct SpriteImage* mouse_image = &current_level.sprite_bank[0]->image[0];
-
-  //prep the mouse pointer
-  mouse_pointer.x = 0; //NOTE: Maybe we can memorize mouse positions globally?
-  mouse_pointer.y = 0;
-  mouse_pointer.x1 = mouse_pointer.x + mouse_image->h_offs;
-  mouse_pointer.y1 = mouse_pointer.y + mouse_image->v_offs;
-  mouse_pointer.x2 = mouse_pointer.x1 + mouse_image->width;
-  mouse_pointer.y2 = mouse_pointer.y1 + mouse_image->height;
-  mouse_pointer.type = SPRITE_OBJECT;
-  mouse_pointer.state = 0;
-  mouse_pointer.me_mask = 0x00;
-  mouse_pointer.hit_mask = 0x01;
-  mouse_pointer.image = (struct ImageCommon*)mouse_image;
-  mouse_pointer.u.medium = NULL;
-  mouse_pointer.priority = 0;
-
   //Set mouse pointer colors directly to hardware registers:
   //NOTE: This should be better on a palette so colours would fade
   setColor(17, 224,   4,  64);
@@ -401,7 +367,7 @@ STATIC ULONG menuDisplayLoop()
   button_QUIT.onHover = onHoverMenuButton;
 
   SetFont(rastPort, textFonts[1]);
-  initUI(DIWSTART_V >> 8, rastPort, &group_root, root_children);
+  initUI(DIWSTRT_V >> 8, rastPort, &group_root, root_children);
 
   while (TRUE) {
     struct MouseState ms;
@@ -414,7 +380,7 @@ STATIC ULONG menuDisplayLoop()
     UL_VALUE(ms) = readMouse(0);
 
     if (UL_VALUE(ms)) {
-      moveGameObjectClamped(&mouse_pointer, ms.deltaX, ms.deltaY, 0, 0, MENU_SCREEN_WIDTH - 2, MENU_SCREEN_HEIGHT - 2);
+      moveGameObjectClamped(&g_mouse_pointer, ms.deltaX, ms.deltaY, 0, 0, MENU_SCREEN_WIDTH - 1, MENU_SCREEN_HEIGHT - 1);
     }
 
     if (exiting == TRUE && color_table->state == CT_IDLE && volume_table.state == PTVT_IDLE) {
@@ -457,7 +423,7 @@ STATIC ULONG menuDisplayLoop()
         }
       }
 
-      updateUI(&group_root, (WORD)mouse_pointer.x, (WORD)mouse_pointer.y, ms.buttons & LEFT_MOUSE_BUTTON);
+      updateUI(&group_root, (WORD)g_mouse_pointer.x, (WORD)g_mouse_pointer.y, ms.buttons & LEFT_MOUSE_BUTTON);
     }
 
     //updateGameObjects();
@@ -484,7 +450,7 @@ STATIC ULONG menuDisplayLoop()
 ///MD_setSprite(gameobject)
 STATIC INLINE VOID MD_setSprite(struct GameObject* go)
 {
-  setSprite((struct SpriteImage*)go->image, go->x, go->y, CL_SPR0PTH, DIWSTART_V, 0, MENU_SPR_FMODE);
+  setSprite((struct SpriteImage*)go->image, go->x, go->y, CL_SPR0PTH, CL_SPR0POS, DIWSTRT_V, 0, MENU_SCREEN_HEIGHT, 0, MENU_SPR_FMODE);
 }
 ///
 ///MD_blitBOB(gameobject)

@@ -7,7 +7,7 @@
 
                 Asset creator and manager for Sevgi_Engine
 
-                             Version 0.157
+                             Version 0.158
 
                           User Documentation
 
@@ -282,10 +282,18 @@ values for gameobject.c module.
 =============
 
 In this window you can set the Amiga Fonts and Gamefonts to be loaded for the
-game globally.
+game globally. The Amiga Fonts and Gamefonts listed here are loaded at game
+initialization and not freed until the game quits.
+
+You also can set a sprite bank for the global mouse pointer. The sprite bank
+selected here will also be loaded at game initialization and not freed until the
+game quits. You can leave this gadget empty to not load any sprite banks
+dedicated to the global mouse pointer (but first make sure your display
+implementations do not use any images from that bank).
 
 The "Level Data" group let's you manage the initial map position, assets and
-color palette for each game level you designed.
+color palettes for each game level you designed. The assets listed here are
+loaded at each level initialization and freed when the level ends.
 
 You can also put names to your levels here.
 
@@ -343,6 +351,10 @@ allocations will be done.
 To define the color palette this display will use you must select a palette from
 palettes.h which is compatible to the depth selected. You can create an edit
 this palette using the Palette Editor.
+
+Selecting "Implement Mouse" will add the necessary code to display and control
+the global mouse gameobject on this display. This necessitates selecting a
+sprite bank for the global mouse in the @{"Assets Editor" link "03_Editor_AssetsEditor"}.
 
 Your new display will be created as a .c and a .h file ready to be included in
 your source and makefile. They will contain all the boilerplate code required

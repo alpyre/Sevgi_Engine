@@ -57,7 +57,7 @@ STATIC VOID levelDisplayLoop()
     //updateGameObjects();
 
     #ifdef DYNAMIC_COPPERLIST
-    updateDynamicCopperList();
+    updateCopperList();
     #else // DYNAMIC_COPPERLIST
     #ifdef USE_CLP
     waitVBeam(8); //Make sure all color instructions on the copperlist are read

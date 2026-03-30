@@ -442,7 +442,7 @@ struct Sheet* loadSpriteBank(STRPTR fileName)
                       break;
                     }
 
-                    read_start = data + table[i].offset + 2 * sfsize;
+                    read_start = data + table[i].offset;
 
                     if (table[i].type & 0x10) {
                       ULONG current_x = 0;
@@ -568,7 +568,7 @@ struct Sheet* loadSpriteBank(STRPTR fileName)
                       break;
                     }
 
-                    read_start = data + table[i].offset + 2 * sfsize;
+                    read_start = data + table[i].offset;
 
                     if (table[i].type & 0x10) {
                       ULONG current_x = 0;
@@ -694,7 +694,7 @@ struct Sheet* loadSpriteBank(STRPTR fileName)
                       break;
                     }
 
-                    read_start = data + table[i].offset + 2 * sfsize;
+                    read_start = data + table[i].offset;
 
                     if (table[i].type & 0x10) {
                       ULONG current_x = 0;

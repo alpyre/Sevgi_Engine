@@ -5,11 +5,14 @@
 STATIC struct TextAttr textAttrs[NUM_TEXTFONTS] = {{"helvetica.font", 9, FS_NORMAL, FPF_DESIGNED},
                                                    {"diamond.font", 12, FS_NORMAL, FPF_DESIGNED}};
 STATIC STRPTR gameFontFiles[NUM_GAMEFONTS] = {"orbitron_15.fnt"};
-#endif
+#endif // FONTS_H
+
+#ifdef DISPLAY_H
+STATIC STRPTR mouseSpriteBankFile = "MousePointers1.spr";
+#endif // DISPLAY_H
 
 #ifdef LEVEL_H
 // LEVEL 0 (Main Menu)
-STATIC STRPTR sprite_banks_0[]  = {"MousePointers1.spr", NULL};
 STATIC STRPTR sound_samples_0[] = {"select-granted-05.iff", "select-granted-06.iff", NULL};
 STATIC UBYTE* palettes_0[]      = {palette_0_0, NULL};
 STATIC STRPTR gameobj_banks_0[] = {(STRPTR)4, NULL};
@@ -26,7 +29,7 @@ static struct LevelData levelData[NUM_LEVELS] = {{"Main Menu",
                                                   NULL,
                                                   NULL,
                                                   NULL,
-                                                  sprite_banks_0,
+                                                  NULL,
                                                   NULL,
                                                   sound_samples_0,
                                                   palettes_0,
@@ -57,6 +60,6 @@ static struct LevelData levelData[NUM_LEVELS] = {{"Main Menu",
                                                   500
                                                  }
                                                 };
-#endif
+#endif // LEVEL_H
 
 #endif /* ASSETS_H */

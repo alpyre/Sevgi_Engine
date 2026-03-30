@@ -10,6 +10,7 @@
 #define MUIA_AssetsEditor_BitmapSelector  0x80430705 //(.S.)
 #define MUIA_AssetsEditor_Edited          0x80430706 //(.SG)
 #define MUIA_AssetsEditor_NonInterleaved  0x80430707 //(..G)
+#define MUIA_AssetsEditor_DataDrawer      0x80430708 //(.S.)
 
 //Public Methods
 //<SUBCLASS METHODS HERE>    ex: #define MUIM_AssetsEditor_{Method}    0x80430001

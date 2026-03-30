@@ -20,6 +20,8 @@
 #include "system.h"
 #include "color.h"
 #include "cop_inst_macros.h"
+#include "diskio.h"
+#include "gameobject.h"
 
 #include "display.h"
 ///
@@ -48,8 +50,16 @@ extern volatile LONG new_frame_flag;
 UWORD NULL_SPRITE_ADDRESS_H; // Access these via extern to have a null sprite
 UWORD NULL_SPRITE_ADDRESS_L; //   "      "    "    "    "    "  "  "     "
 
+// Access this via extern for a sprite bank of mouse sprites
+// WARNING: Will be NULL if no filename specified in assets.h
+struct SpriteBank* g_mouse_sprites = NULL;
+
+// Access this via extern for a globally stored mouse pointer object
+struct GameObject g_mouse_pointer = {0};
+
 // private globals
 STATIC struct Screen* null_screen = NULL; // We only call an OpenScreen() for null display
+#include "assets.h" // Get mouseSpriteBankFile name
 ///
 ///copperlists
 /******************************************************************************
@@ -101,7 +111,7 @@ STATIC ULONG null_copperlist_instructions[] = {
   MOVE(BPL1MOD, BPLXMOD_V),                   //              Set bitplane mods
   MOVE(BPL2MOD, BPLXMOD_V),                   //               "     "       "
   MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH   Set bitplane addresses
-  MOVE(BPL1PTL, 0),                           // CL_BPL1PTL    "      "       "
+  MOVE(BPL1PTL, 0),                           //               "      "       "
   END
 };
 ///
@@ -262,6 +272,27 @@ STATIC VOID disposeNullCopperList()
 ///openNullDisplay()
 BOOL openNullDisplay()
 {
+  if (mouseSpriteBankFile) {
+    if ((g_mouse_sprites = loadSpriteBank(mouseSpriteBankFile))) {
+      struct SpriteImage* mouse_image = &g_mouse_sprites->image[0];
+
+      g_mouse_pointer.x = 0;
+      g_mouse_pointer.y = 0;
+      g_mouse_pointer.x1 = g_mouse_pointer.x + mouse_image->h_offs;
+      g_mouse_pointer.y1 = g_mouse_pointer.y + mouse_image->v_offs;
+      g_mouse_pointer.x2 = g_mouse_pointer.x1 + mouse_image->width;
+      g_mouse_pointer.y2 = g_mouse_pointer.y1 + mouse_image->height;
+      g_mouse_pointer.type = SPRITE_OBJECT;
+      g_mouse_pointer.state = 0;
+      g_mouse_pointer.me_mask = 0x00;
+      g_mouse_pointer.hit_mask = 0x01;
+      g_mouse_pointer.image = (struct ImageCommon*)mouse_image;
+      g_mouse_pointer.u.medium = NULL;
+      g_mouse_pointer.priority = 0;
+    }
+    else return FALSE;
+  }
+
   if (openNullScreen()) {
     if (createNullCopperList()) {
       return TRUE;
@@ -277,6 +308,7 @@ VOID closeNullDisplay()
 {
   disposeNullCopperList();
   closeNullScreen();
+  freeSpriteBank(g_mouse_sprites);
 }
 ///
 ///switchToNullCopperList()
@@ -295,98 +327,184 @@ VOID switchToNullCopperList()
 }
 ///
 
-///setSprite(image, x, y, cl_spr0pth, diwstrt, hsn, fetch_mode)
+///setSprite(image, x, y, cl_spr0pth, cl_spr0pos, diwstrt, panel_start, panel_height, hsn, fetch_mode)
 /******************************************************************************
- * The modularized all-purpose version of setSprite() function which could be *
- * used on displays that do not demand maximum performance like UI screens.   *
+ * The modularized version of sprite set function which could be used on      *
+ * sprite instructions (defined by "spri.c") which allow sprite images to be  *
+ * clipped at the top and bottom of the screen and also allow them to be      *
+ * displayed on TOP and BOTTOM PANELs of the level display.                   *
+ *                                                                            *
+ * image              : A sprite image from a sprite bank                     *
+ * x, y               : Screen coordinates for the image (y component is      *
+ *                      relative to panel_start you are setting this sprite   *
+ *                      to a panel).                                          *
+ * cl_spr0pth         : the access pointer to the first sprite's SPR0PTH move *
+ * cl_spr0pos         : the access pointer to the first sprite's SPR0POS move *
+ * diwstrt            : DIWSTART_V of the display                             *
+ * panel_start        : the vertical "screen coordinate" of the sub section   *
+ *                      of the display. This is 0 for the TOP PANEL (or a     *
+ *                      custom display), and TOP_PANEL_HEIGHT + SCREEN_HEIGHT *
+ *                      for the bottom panel                                  *
+ * panel_height       : height of the panel (or screen) this sprite will be   *
+ *                      displayed                                             *
+ *                      NOTE: (TOP_PANEL_HEIGHT - 1) for the top panel!       *
+ * hardware_sprite_num: hardware sprite register to begin using               *
+ * fetch_mode         : sprite fetch mode of the sprite bank the image is in  *
  ******************************************************************************/
-VOID setSprite(struct SpriteImage* image, LONG x, LONG y, UWORD* cl_spr0pth, UWORD diwstrt, WORD hardware_sprite_num, UBYTE fetch_mode)
+VOID setSprite(struct SpriteImage* image, LONG x, LONG y, UWORD* cl_spr0pth, UWORD* cl_spr0pos, UWORD diwstrt, UWORD panel_start, UWORD panel_height, WORD hardware_sprite_num, UBYTE fetch_mode)
 {
   struct SpriteTable* entry = &image->sprite_bank->table[image->image_num];
   ULONG hsn = hardware_sprite_num < 0 ? image->hsn : hardware_sprite_num;
+  ULONG avail_hsprites = (cl_spr0pos - cl_spr0pth) >> 2; // (cl_spr0pos - cl_spr0pth) / 4
 
-  UWORD offset = entry->offset;
-  UBYTE type = entry->type;
+  if (hsn < avail_hsprites) {
+    UWORD offset = entry->offset;
+    UBYTE type = entry->type;
 
-  UWORD offsetOfNext = *((UWORD*)((UBYTE*)entry + sizeof(struct SpriteTable)));
-  UWORD numSprites = type & 0xF;
+    UWORD offsetOfNext = *((UWORD*)((UBYTE*)entry + sizeof(struct SpriteTable)));
+    UWORD numSprites = type & 0xF;
 
-  UWORD ssize = (offsetOfNext - offset) / numSprites;
-  UWORD height = image->height; // (ssize / (4 * fetch_mode)) - 2;
+    UWORD ssize = (offsetOfNext - offset) / numSprites;
+    UWORD height = image->height; // (ssize / (4 * fetch_mode)) - 2;
 
-  ULONG X = x + image->h_offs + (diwstrt & 0xFF);
-  ULONG Y = y + image->v_offs + (diwstrt >> 8);
-  ULONG S = Y + height;
-  ULONG glue_offset = fetch_mode << 4; //(16 * fetch_mode)
+    LONG X, Y, S, clipped_height;
+    ULONG glue_offset = fetch_mode << 4; //(16 * fetch_mode)
 
-  UBYTE* saddr = image->sprite_bank->data + offset;
-  WORD* haddr = cl_spr0pth + (hsn << 2); // (hsn * 4)
+    UBYTE* saddr;
+    UWORD* haddr = cl_spr0pth + (hsn << 2); //(hsn * 4)
+    UWORD* paddr = cl_spr0pos + (hsn << 2);
 
-  //Prepare the two sprite control words (in one long) for the static vertical coords.
-  ULONG ctl_l0 = (Y << 24) | ((S << 8) & 0xFF00) | ((Y >> 8) << 2) | ((S >> 8) << 1);
-  ULONG ctl_l1;
-  ULONG ctl_l2;
-  if (type & 0x10) {
-    while (numSprites) {
-      //finalize the control words with the current X value for this glued sprite
-      ctl_l1 = ctl_l0 | ((X >> 1) << 16) | 0x80 | (X & 0x1);
-      ctl_l2 = ctl_l1 << 16;
+    ULONG ctl_l0, ctl_l1;
 
-      //Handle the first attached sprite:
-      //set pos & ctl words on the sprite
-      switch (fetch_mode) {
-        case 4: *((ULONG*)saddr + 2) = ctl_l2;
-        case 2: *((ULONG*)saddr + 1) = ctl_l2;
-        case 1: *((ULONG*)saddr) = ctl_l1;
+    //Prevent setting unavailable hardware sprites
+    if (hsn + numSprites > avail_hsprites) {
+      numSprites -= ((hsn + numSprites) - avail_hsprites);
+    }
+
+    //Apply image hotspot
+    X = x + image->h_offs + ((diwstrt & 0xFF) - 1);
+    y += image->v_offs;
+
+    //Prevent setting sprites out of panel
+    if (y >= panel_height) return;
+
+    //Prevent setting a sprite start on the last rasterline
+    if (y >= 255) {
+      while (numSprites--) resetSprite(cl_spr0pth, cl_spr0pos, hsn++);
+      return;
+    }
+
+    //Clip top of sprite if needed
+    if (y < 0) {
+      Y = (diwstrt >> 8) + panel_start;
+      clipped_height = height + y;
+      if (clipped_height < 1) return;
+      saddr = image->sprite_bank->data + offset + (0 - y) * (fetch_mode << 2); //(fetch_mode * 4)
+      y = 0;
+    }
+    else {
+      Y = y + (diwstrt >> 8) + panel_start;
+      clipped_height = height;
+      saddr = image->sprite_bank->data + offset;
+    }
+    //Clip bottom of sprite if needed
+    if (y + clipped_height > panel_height) clipped_height = panel_height - y;
+    S = Y + clipped_height;
+
+    //Prepare the two sprite control words (in one long) for the static vertical coords.
+    ctl_l0 = (Y << 24) | ((S << 8) & 0xFF00) | ((Y >> 8) << 2) | ((S >> 8) << 1);
+
+    if (type & 0x10) {
+      while (numSprites) {
+        //finalize the control words with the current X value for this glued sprite
+        ctl_l1 = ctl_l0 | ((X >> 1) << 16) | 0x80 | (X & 0x1);
+
+        //Handle the first attached sprite:
+
+        //set the sprite address on CopperList
+        *paddr = *(UWORD*)&ctl_l1; paddr += 2;
+        *paddr = *((UWORD*)&ctl_l1 + 1); paddr += 2;
+        *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
+        *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+
+        //get to the attached sprite
+        if (--numSprites) {
+          saddr += ssize;
+
+          //set this sprite address on CopperList as well
+          *paddr = *(UWORD*)&ctl_l1; paddr += 2;
+          *paddr = *((UWORD*)&ctl_l1 + 1); paddr += 2;
+          *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
+          *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+
+          //get to the next glued sprite (if there is any)
+          saddr += ssize;
+          X += glue_offset;
+          numSprites--;
+        }
       }
+    }
+    else {
+      while (numSprites) {
+        //finalize the control words with the current X value for this glued sprite
+        ctl_l1 = ctl_l0 | ((X >> 1) << 16) | (X & 0x1);
 
-      //set the sprite address on CopperList
-      *haddr = (WORD)((ULONG)saddr >> 16);  haddr += 2;
-      *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+        //set the sprite address on CopperList
+        *paddr = *(UWORD*)&ctl_l1; paddr += 2;
+        *paddr = *((UWORD*)&ctl_l1 + 1); paddr += 2;
+        *haddr = (UWORD)((ULONG)saddr >> 16);  haddr += 2;
+        *haddr = (UWORD)((ULONG)saddr & 0xFFFF); haddr += 2;
 
-      //get to the attached sprite
-      saddr += ssize;
-
-      //set pos & ctl words on this sprite structure as well
-      switch (fetch_mode) {
-        case 4: *((ULONG*)saddr + 2) = ctl_l2;
-        case 2: *((ULONG*)saddr + 1) = ctl_l2;
-        case 1: *((ULONG*)saddr) = ctl_l1;
+        //get to the next glued sprite (if there is any)
+        saddr += ssize;
+        X += glue_offset;
+        numSprites--;
       }
-
-      //set this sprite address on CopperList as well
-      *haddr = (WORD)((ULONG)saddr >> 16);  haddr += 2;
-      *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
-
-      //get to the next glued sprite (if there is any)
-      saddr += ssize;
-      X += glue_offset;
-      numSprites -= 2;
     }
   }
-  else
-  {
-    while (numSprites) {
-      //finalize the control words with the current X value for this glued sprite
-      ctl_l1 = ctl_l0 | ((X >> 1) << 16) | (X & 0x1);
-      ctl_l2 = ctl_l1 << 16;
+}
+///
+///resetSprite(cl_spr0pth, cl_spr0pos, hsn)
+/******************************************************************************
+ * Resets the instructions for a specific hardware sprite on the sprite       *
+ * instructions section of a copperlist (defined by "spri.c") to point to the *
+ * null sprite.                                                               *
+ ******************************************************************************/
+VOID resetSprite(UWORD* cl_spr0pth, UWORD* cl_spr0pos, WORD hardware_sprite_num)
+{
+  UWORD* haddr = cl_spr0pth + (hardware_sprite_num << 2); //(hsn * 4)
+  UWORD* paddr = cl_spr0pos + (hardware_sprite_num << 2);
 
-      //set pos & ctl words on the sprite
-      switch (fetch_mode) {
-        case 4: *((ULONG*)saddr + 2) = ctl_l2;
-        case 2: *((ULONG*)saddr + 1) = ctl_l2;
-        case 1: *((ULONG*)saddr) = ctl_l1;
-      }
+  //prevent resetting unavailable hardware sprites
+  if (haddr >= cl_spr0pos) return;
 
-      //set the sprite address on CopperList
-      *haddr = (WORD)((ULONG)saddr >> 16);  haddr += 2;
-      *haddr = (WORD)((ULONG)saddr & 0xFFFF); haddr += 2;
+  *haddr = NULL_SPRITE_ADDRESS_H; haddr += 2;
+  *haddr = NULL_SPRITE_ADDRESS_L;
+  *paddr = 0; paddr += 2;
+  *paddr = 0;
+}
+///
+///resetSprites(cl_spr0pth, cl_spr0pos)
+/******************************************************************************
+ * Resets the instructions for a all hardware sprites on the sprite           *
+ * instructions section of a copperlist (defined by "spri.c") to point to the *
+ * null sprite.                                                               *
+ ******************************************************************************/
+VOID resetSprites(UWORD* cl_spr0pth, UWORD* cl_spr0pos)
+{
+  ULONG avail_hsprites = (cl_spr0pos - cl_spr0pth) >> 2; // (cl_spr0pth - cl_spr0pos) / 4
+  ULONG i;
 
-      //get to the next glued sprite (if there is any)
-      saddr += ssize;
-      X += glue_offset;
-      numSprites--;
-    }
+  //reset all SPRxPT(H|L) words to null sprite
+  for (i = 0; i < avail_hsprites; i++) {
+    *cl_spr0pth = NULL_SPRITE_ADDRESS_H; cl_spr0pth += 2;
+    *cl_spr0pth = NULL_SPRITE_ADDRESS_L; cl_spr0pth += 2;
+  }
+  //NOTE: At this point cl_spr0pth is equal to cl_spr0pos so let's keep incrementing it
+  //reset all SPRxCTL SPRxPOS words to 0
+  for (i = 0; i < avail_hsprites; i++) {
+    *cl_spr0pth = 0; cl_spr0pth += 2;
+    *cl_spr0pth = 0; cl_spr0pth += 2;
   }
 }
 ///

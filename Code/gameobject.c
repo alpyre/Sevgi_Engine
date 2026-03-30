@@ -818,7 +818,7 @@ VOID moveGameObjectClamped(struct GameObject* go, LONG dx, LONG dy, LONG clampX1
   else go->x = x;
 
   if (y < clampY1) { dy = clampY1 - go->y; go->y = clampY1; }
-  else if (go->y > clampY2) { dy = clampY2 - go->y; go->y = clampY2; }
+  else if (y > clampY2) { dy = clampY2 - go->y; go->y = clampY2; }
   else go->y = y;
 
   go->x1 += dx;

@@ -74,6 +74,7 @@ static struct {
   STRPTR area;
   STRPTR maxvectors;
   STRPTR pltOnCL;
+  STRPTR implMouse;
   STRPTR create;
   STRPTR cancel;
 }help_string = {
@@ -91,6 +92,7 @@ static struct {
   "Allocate an Area struct for your dispay's RastPort.\nThis makes possible using the Area functions\nfrom the API for drawing.",
   "Size of the vector buffer for Area functions.",
   "Creates a section of MOVE instructions for the color registers\non the CopperList created for this display.\nThis mandates the use of color functions named with the \"_CLP\"\ntag for color assignments and fade in/out effects.\nAn access pointer pointing to this section named CL_PALETTE\nwill also be defined.",
+  "Implement the basics for a mouse pointer on this display.\nThe global g_mouse_pointer gameobject and hardware sprite 0 will be used.",
   "Create new display.",
   "Close this window."
 };
@@ -122,6 +124,9 @@ struct {
   STRPTR copperlist_2_laced;
   STRPTR copperlist_3;
   STRPTR colors;
+  STRPTR protos;
+  STRPTR protos_mouse;
+  STRPTR protos_2;
   STRPTR vblank;
   STRPTR vblank_laced;
   STRPTR color_table;
@@ -131,9 +136,16 @@ struct {
   STRPTR copperlist_functions;
   STRPTR copperlist_functions_laced;
   STRPTR display;
+  STRPTR display_loop_1;
+  STRPTR display_loop_1_moused;
+  STRPTR display_loop_2;
   STRPTR switch_functions;
   STRPTR switch_functions_laced;
   STRPTR show;
+  STRPTR set_sprite_1;
+  STRPTR set_sprite_2;
+  STRPTR set_sprite_2_laced;
+  STRPTR convert_hsr;
   STRPTR header_file;
 }code_string = {
   "///includes\n%s"                                                                       // includes
@@ -222,12 +234,14 @@ struct {
   "// imported globals\n"
   "extern struct Custom custom;\n"
   "extern struct CIA ciaa, ciab;\n"
-  "extern volatile LONG new_frame_flag;\n"
-  "extern volatile ULONG g_frame_counter;\n"
-  "extern UWORD NULL_SPRITE_ADDRESS_H;\n"
-  "extern UWORD NULL_SPRITE_ADDRESS_L;\n"
-  "extern struct TextFont* textFonts[NUM_TEXTFONTS];\n"
-  "extern struct GameFont* gameFonts[NUM_GAMEFONTS];\n\n"
+  "extern volatile LONG new_frame_flag;                   // from system.o\n"
+  "extern volatile ULONG g_frame_counter;                 // from system.o\n"
+  "extern UWORD NULL_SPRITE_ADDRESS_H;                    // from display.o\n"
+  "extern UWORD NULL_SPRITE_ADDRESS_L;                    // from display.o\n"
+  "extern struct SpriteBank* g_mouse_sprites;             // from display.o\n"
+  "extern struct GameObject g_mouse_pointer;              // from display.o\n"
+  "extern struct TextFont* textFonts[NUM_TEXTFONTS];      // from fonts.o\n"
+  "extern struct GameFont* gameFonts[NUM_GAMEFONTS];      // from fonts.o\n"
 
   "// private globals\n"
   "STATIC struct RastPort* rastPort = NULL;\n"
@@ -238,7 +252,8 @@ struct {
   "STATIC UWORD* CopperList = (UWORD*) 0;\n\n",
 
   "%sSTATIC UWORD* CL_BPL1PTH = (UWORD*) 0;\n"                                            // copperlist_1
-  "STATIC UWORD* CL_SPR0PTH = (UWORD*) 0;\n\n",
+  "STATIC UWORD* CL_SPR0PTH = (UWORD*) 0;\n"
+  "STATIC UWORD* CL_SPR0POS = (UWORD*) 0;\n\n",
 
   "STATIC UWORD* CopperList1 = (UWORD*) 0;\n"                                             // copperlist_1_laced
   "STATIC UWORD* CopperList2 = (UWORD*) 0;\n\n"
@@ -250,7 +265,9 @@ struct {
   "STATIC UWORD* CL_COP2LCL_1 = (UWORD*) 0;\n"
   "STATIC UWORD* CL_COP2LCL_2 = (UWORD*) 0;\n"
   "STATIC UWORD* CL_SPR0PTH_1 = (UWORD*) 0;\n"
-  "STATIC UWORD* CL_SPR0PTH_2 = (UWORD*) 0;\n\n",
+  "STATIC UWORD* CL_SPR0PTH_2 = (UWORD*) 0;\n"
+  "STATIC UWORD* CL_SPR0POS_1 = (UWORD*) 0;\n"
+  "STATIC UWORD* CL_SPR0POS_2 = (UWORD*) 0;\n\n",
 
   "STATIC UWORD* CL_PALETTE = (UWORD*) 0;\n",                                             // copperlist_CLP
 
@@ -267,49 +284,38 @@ struct {
   "  MOVE(DIWSTRT, DIWSTRT_V),                   //              Set Display Window Start\n"
   "  MOVE(DIWSTOP, DIWSTOP_V),                   //              Set Display Window Stop\n"
   "  MOVE(DDFSTRT, DDFSTRT_V),                   //              Set Data Fetch Start to fetch early\n"
-  "  MOVE(DDFSTOP, DDFSTOP_V),                   //              Set Data Fetch Stop\n"
-  "  MOVE_PH(BPL1PTH, 0),                        // CL_BPL1PTH   Set bitplane addresses\n"
-  "  MOVE(BPL1PTL, 0),                           //               \"      \"       \"\n",
+  "  MOVE(DDFSTOP, DDFSTOP_V),                   //              Set Data Fetch Stop\n",
 
   "  MOVE(FMODE,   FMODE_V),                     //              Set Sprite/Bitplane Fetch Modes\n",
 
-  "  MOVE(BPL%ldPTH, 0),                           //               \"      \"       \"\n"
-  "  MOVE(BPL%ldPTL, 0),                           //               \"      \"       \"\n",
+  "  #define BPLI_DEPTH %s_SCREEN_DEPTH\n"
+  "  #include \"bpli.c\"                           // CL_BPL1PTH   Set bitplane addresses\n",
 
   "  MOVE_PH(COP2LCH, 0),                        // CL_COP2LCH   Points to the other copper...\n"
   "  MOVE_PH(COP2LCL, 0),                        // CL_COP2LCL   ...for auto jump every other frame\n",
 
-  "  MOVE_PH(SPR0PTH, 0),                        // CL_SPR0PTH   Set sprite pointers\n"
-  "  MOVE(SPR0PTL, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR1PTH, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR1PTL, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR2PTH, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR2PTL, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR3PTH, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR3PTL, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR4PTH, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR4PTL, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR5PTH, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR5PTL, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR6PTH, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR6PTL, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR7PTH, 0),                           //               \"     \"      \"\n"
-  "  MOVE(SPR7PTL, 0),                           //               \"     \"      \"\n"
+  "  WAIT(0, (DIWSTRT_V >> 8) - 1),              //              Wait for top of display\n"
+  "  #define SPRI_DDFSTRT DDFSTRT_V              // CL_SPR0PTH   Set sprite pointers\n"
+  "  #include \"spri.c\"                           // CL_SPR0POS   Set sprite pointers\n"
   "  END\n"
   "};\n"
   "///\n",
 
   "///colors\n"                                                                           // colors
   "STATIC struct ColorTable* color_table = NULL;\n"
-  "///\n"
-  "///protos (private)\n"
+  "///\n",
+
+  "///protos (private)\n"                                                                 // protos
   "STATIC VOID closeScreen(VOID);\n"
-  "STATIC VOID closeDisplay(VOID);\n"
-  "///\n\n",
+  "STATIC VOID closeDisplay(VOID);\n",
+
+  "STATIC INLINE VOID %s(struct GameObject* go);\n",                                      // protos_mouse
+
+  "///\n\n",                                                                              // protos_2
 
   "///vblankEvents()\n"                                                                   // vblank
   "STATIC VOID vblankEvents(VOID)\n"
-  "{\n%s"
+  "{\n%s%s"
   "}\n"
   "///\n",
 
@@ -321,7 +327,7 @@ struct {
   "  }\n"
   "  else {\n"
   "    CopperList = CopperList2;\n"
-  "  }\n%s"
+  "  }\n%s%s"
   "}\n"
   "///\n",
 
@@ -373,7 +379,6 @@ struct {
   "{\n"
   "  if (allocCopperList(copperList_Instructions, CopperList, CL_SINGLE)) {\n"
   "    UWORD* wp;\n"
-  "    UWORD* sp;\n"
   "    ULONG i;\n\n"
 
   "    //Set copperlist bitmap instruction point to screen bitmap\n"
@@ -383,10 +388,7 @@ struct {
   "    }\n\n"
 
   "    //Set all sprite pointers to null_sprite\n"
-  "    for (sp = CL_SPR0PTH; sp < CL_SPR0PTH + 32; sp += 2) {\n"
-  "      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;\n"
-  "      *sp = NULL_SPRITE_ADDRESS_L;\n"
-  "    }\n"
+  "    resetSprites(CL_SPR0PTH, CL_SPR0POS);\n"
   "  }\n"
   "  else\n"
   "    puts(\"Couldn't allocate %s CopperList!\");\n\n"
@@ -409,7 +411,6 @@ struct {
   "{\n"
   "  if (allocCopperList(copperList_Instructions, CopperList, CL_DOUBLE)) {\n"
   "    UWORD* wp;\n"
-  "    UWORD* sp;\n"
   "    ULONG i;\n\n"
 
   "    //Set copperlist bitmap instructions point to screen bitmap\n"
@@ -424,15 +425,8 @@ struct {
   "    }\n\n"
 
   "    //Set all sprite pointers to null_sprite\n"
-  "    for (sp = CL_SPR0PTH_1; sp < CL_SPR0PTH_1 + 32; sp += 2) {\n"
-  "      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;\n"
-  "      *sp = NULL_SPRITE_ADDRESS_L;\n"
-  "    }\n\n"
-
-  "    for (sp = CL_SPR0PTH_2; sp < CL_SPR0PTH_2 + 32; sp += 2) {\n"
-  "      *sp = NULL_SPRITE_ADDRESS_H; sp += 2;\n"
-  "      *sp = NULL_SPRITE_ADDRESS_L;\n"
-  "    }\n\n"
+  "    resetSprites(CL_SPR0PTH_1, CL_SPR0POS_1);\n"
+  "    resetSprites(CL_SPR0PTH_2, CL_SPR0POS_2);\n\n"
 
   "    //Set both copperlists to point to each other (interlaced copper)\n"
   "    *CL_COP2LCH_1 = (WORD)((ULONG)CopperList2 >> 16);\n"
@@ -482,19 +476,33 @@ struct {
   "    freeColorTable(color_table); color_table = NULL;\n"
   "  }\n"
   "}\n"
-  "///\n\n"
+  "///\n\n",
 
-  "///displayLoop()\n"
+  "///displayLoop()\n"                                                                    // display_loop_1
   "STATIC VOID displayLoop(VOID)\n"
   "{\n"
-  "  struct MouseState ms;\n"
   "  UWORD exiting = FALSE;\n\n"
 
   "  while(TRUE) {\n"
-  "    new_frame_flag = 1;\n"
-  "    doKeyboardIO();\n\n"
+  "    new_frame_flag = 1;\n\n"
+  "    doKeyboardIO();\n\n",
 
-  "    if (keyState(RAW_ESC) && !exiting) {\n"
+  "///displayLoop()\n"                                                                    // display_loop_1_moused
+  "STATIC VOID displayLoop(VOID)\n"
+  "{\n"
+  "  UWORD exiting = FALSE;\n\n"
+
+  "  while(TRUE) {\n"
+  "    struct MouseState ms;\n"
+  "    new_frame_flag = 1;\n\n"
+  "    doKeyboardIO();\n"
+  "    UL_VALUE(ms) = readMouse(0);\n\n"
+
+  "    if (UL_VALUE(ms)) {\n"
+  "      moveGameObjectClamped(&g_mouse_pointer, ms.deltaX, ms.deltaY, 0, 0, %s_SCREEN_WIDTH - 1, %s_SCREEN_HEIGHT - 1);\n"
+  "    }\n\n",
+
+  "    if (keyState(RAW_ESC) && !exiting) {\n"                                            // display_loop_2
   "      exiting = TRUE;\n"
   "      color_table->state = CT_FADE_OUT;\n"
   "    }\n"
@@ -556,6 +564,25 @@ struct {
   "}\n"
   "///\n",
 
+  "\n///%s(gameobject)\n"                                                                 // set_sprite_1
+  "STATIC INLINE VOID %s(struct GameObject* go)\n"
+  "{\n"
+  "  LONG x = go->x%s\n"
+  "  LONG y = go->y%s\n\n",
+                                                                                          // set_sprite_2
+  "  setSprite((struct SpriteImage*)go->image, x, y, CL_SPR0PTH, CL_SPR0POS, DIWSTRT_V, 0, %s_SCREEN_HEIGHT, 0, SPR_FMODE);\n"
+  "}\n"
+  "///",
+
+  "  if (CopperList == CopperList1)\n"                                                    // set_sprite_2_laced
+  "    setSprite((struct SpriteImage*)go->image, x, y, CL_SPR0PTH_1, CL_SPR0POS_1, DIWSTRT_V, 0, %s_SCREEN_HEIGHT, 0, SPR_FMODE);\n"
+  "  else\n"
+  "    setSprite((struct SpriteImage*)go->image, x, y, CL_SPR0PTH_2, CL_SPR0POS_2, DIWSTRT_V, 0, %s_SCREEN_HEIGHT, 0, SPR_FMODE);\n"
+  "}\n"
+  "///",
+
+  " / 2; // Convert to hardware sprite resolution",                                       // convert_hsr
+
   "#ifndef %s_DISPLAY_H\n"                                                                // header_file
   "#define %s_DISPLAY_H\n\n"
 
@@ -589,6 +616,7 @@ struct cl_ObjTable
   Object* chk_Area;
   Object* int_maxvectors;
   Object* chk_pltOnCL;
+  Object* chk_implMouse;
   Object* btn_create;
   Object* btn_cancel;
 };
@@ -756,7 +784,6 @@ STATIC ULONG m_SetPalette(struct IClass* cl, Object* obj, struct cl_Msg3* msg)
 STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
 {
   struct cl_Data *data = INST_DATA(cl, obj);
-  LONG i;
   STRPTR null = (STRPTR)"";
 
   STRPTR str_name;
@@ -775,6 +802,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
   ULONG area;
   ULONG maxvectors;
   ULONG pltOnCL;
+  ULONG implMouse;
   ULONG project_AGA;
 
   STRPTR name;
@@ -783,6 +811,8 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
   STRPTR filename;
   STRPTR filename_c;
   STRPTR filename_h;
+  STRPTR setSpriteFuncName;
+  STRPTR setSpriteFuncCall;
   BPTR fh;
 
   ULONG file_mode_c = MODE_NEWFILE;
@@ -805,9 +835,12 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
   get(data->obj_table.chk_Area, MUIA_Selected, &area);
   get(data->obj_table.int_maxvectors, MUIA_Integer_Value, &maxvectors);
   get(data->obj_table.chk_pltOnCL, MUIA_Selected, &pltOnCL);
+  get(data->obj_table.chk_implMouse, MUIA_Selected, &implMouse);
   get(data->AGACheck, MUIA_Selected, &project_AGA);
 
   if (str_name) {
+    UBYTE name_initial[2] = {0};
+
     //Prepare name strings
     str_name = makeString(str_name);
     replaceChars(str_name, " ", '_');
@@ -825,9 +858,20 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
       toLower(Name); *Name -= 32;
       toUpper(NAME);
     }
+    *name_initial = *Name;
+
     filename = makeString2("display_", name);
     filename_c = makePath(g_Project.directory, filename, ".c");
     filename_h = makePath(g_Project.directory, filename, ".h");
+
+    if (implMouse) {
+      setSpriteFuncName = makeString2(name_initial, "D_setSprite");
+      setSpriteFuncCall = makeString3("  ", name_initial, "D_setSprite(&g_mouse_pointer);\n");
+    }
+    else {
+      setSpriteFuncName = "";
+      setSpriteFuncCall = "";
+    }
 
     //Open .c file for output
     if (Exists(filename_c)) {
@@ -877,21 +921,23 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
       }
       if (AGA) FPrintf(fh, code_string.copperlist_2_AGA);
       FPrintf(fh, code_string.copperlist_2_disp);
-      for (i = 2; i <= scr_depth; i++) {
-        FPrintf(fh, code_string.copperlist_bitplanes, i, i);
-      }
+      FPrintf(fh, code_string.copperlist_bitplanes, (LONG)NAME);
       if (interlaced) FPrintf(fh, code_string.copperlist_2_laced);
       FPrintf(fh, code_string.copperlist_3);
-      //Write color functions
+      //Write color table
       FPrintf(fh, code_string.colors);
+      //Write protos
+      FPrintf(fh, code_string.protos);
+      if (implMouse) FPrintf(fh, code_string.protos_mouse, (LONG)setSpriteFuncName);
+      FPrintf(fh, code_string.protos_2);
       //Write vblankEvents function
       if (interlaced) {
-        if (pltOnCL) FPrintf(fh, code_string.vblank_laced, (LONG)"");
-        else FPrintf(fh, code_string.vblank_laced, (LONG)code_string.color_table);
+        if (pltOnCL) FPrintf(fh, code_string.vblank_laced, (LONG)"", (LONG)setSpriteFuncCall);
+        else FPrintf(fh, code_string.vblank_laced, (LONG)code_string.color_table, (LONG)setSpriteFuncCall);
       }
       else {
-        if (pltOnCL) FPrintf(fh, code_string.vblank, (LONG)"");
-        else FPrintf(fh, code_string.vblank, (LONG)code_string.color_table);
+        if (pltOnCL) FPrintf(fh, code_string.vblank, (LONG)"", (LONG)setSpriteFuncCall);
+        else FPrintf(fh, code_string.vblank, (LONG)code_string.color_table, (LONG)setSpriteFuncCall);
       }
       //Write screen functions
       FPrintf(fh, code_string.screen, (LONG)NAME, (LONG)NAME, (LONG)NAME,
@@ -912,11 +958,28 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
       else
         FPrintf(fh, code_string.copperlist_functions, (LONG)NAME, (LONG)Name);
       //Write display functions
-      FPrintf(fh, code_string.display, (LONG)palette, pltOnCL ? (interlaced ? (LONG)code_string.color_table_CLP_laced : (LONG)code_string.color_table_CLP) : (LONG)"");
+      FPrintf(fh, code_string.display, (LONG)palette);
+
+      //Write displayLoop() function
+      if (implMouse)
+        FPrintf(fh, code_string.display_loop_1_moused, (LONG)NAME, (LONG)NAME);
+      else
+        FPrintf(fh, code_string.display_loop_1);
+
+      FPrintf(fh, code_string.display_loop_2, pltOnCL ? (interlaced ? (LONG)code_string.color_table_CLP_laced : (LONG)code_string.color_table_CLP) : (LONG)"");
       //Write switch function
       FPrintf(fh, interlaced ? code_string.switch_functions_laced : code_string.switch_functions, (LONG)Name, (LONG)Name);
       //Write show function
       FPrintf(fh, code_string.show, (LONG)Name, (LONG)Name, (LONG)Name);
+
+      if (implMouse) {
+        FPrintf(fh, code_string.set_sprite_1, (LONG)setSpriteFuncName, (LONG)setSpriteFuncName, hires ? (LONG)code_string.convert_hsr : (LONG)";",
+                                                                                                interlaced ? (LONG)code_string.convert_hsr : (LONG)";");
+        if (interlaced)
+          FPrintf(fh, code_string.set_sprite_2_laced, (LONG)NAME, (LONG)NAME);
+        else
+          FPrintf(fh, code_string.set_sprite_2, (LONG)NAME);
+      }
 
       SetFileSize(fh, 0, OFFSET_CURRENT);
       Close(fh);
@@ -950,6 +1013,10 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
     }
 
 cancel:
+    if (implMouse) {
+      freeString(setSpriteFuncName);
+      freeString(setSpriteFuncCall);
+    }
     freeString(filename_h);
     freeString(filename_c);
     freeString(filename);
@@ -1014,6 +1081,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* chk_Area;
     Object* int_maxvectors;
     Object* chk_pltOnCL;
+    Object* chk_implMouse;
     Object* btn_create;
     Object* btn_cancel;
   }objects;
@@ -1151,6 +1219,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
         TAG_END)),
       TAG_END),
       MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_pltOnCL, TRUE, "Palette on copperlist", 'p', help_string.pltOnCL),
+      MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_implMouse, FALSE, "Implement mouse", 'm', help_string.implMouse),
       MUIA_Group_Child, MUI_NewObject(MUIC_Group,
         MUIA_Group_Horiz, TRUE,
         MUIA_Group_Child, (objects.btn_create = MUI_NewButton("Create", 'r', help_string.create)),
@@ -1179,6 +1248,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
                                              objects.chk_Area,
                                              MUI_GetChild(objects.int_maxvectors, 1),
                                              objects.chk_pltOnCL,
+                                             objects.chk_implMouse,
                                              objects.btn_create,
                                              objects.btn_cancel,
                                              NULL);
@@ -1262,6 +1332,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     data->obj_table.chk_Area = objects.chk_Area;
     data->obj_table.int_maxvectors = objects.int_maxvectors;
     data->obj_table.chk_pltOnCL = objects.chk_pltOnCL;
+    data->obj_table.chk_implMouse = objects.chk_implMouse;
     data->obj_table.btn_create = objects.btn_create;
     data->obj_table.btn_cancel = objects.btn_cancel;
 

@@ -19,3 +19,24 @@
 //Public Functions
 struct MUI_CustomClass* MUI_Create_PopASLString(void);
 //<YOUR SUBCLASS FUNCTIONS HERE>
+
+
+/******************************************************************************
+ * StringFunc examples to get the directory or the file part                  *
+ ******************************************************************************
+///drawerStringFunc(file_requester, string_object)
+VOID drawerStringFunc(struct FileRequester* file_req, Object* string)
+{
+  DoMethod(string, MUIM_Set, MUIA_String_Contents, file_req->fr_Drawer);
+  DoMethod(string, MUIM_Set, MUIA_String_Acknowledge, file_req->fr_Drawer);
+}
+///
+
+///fileStringFunc(file_requester, string_object)
+VOID fileStringFunc(struct FileRequester* file_req, Object* string)
+{
+  DoMethod(string, MUIM_Set, MUIA_String_Contents, file_req->fr_File);
+  DoMethod(string, MUIM_Set, MUIA_String_Acknowledge, file_req->fr_File);
+}
+///
+*/

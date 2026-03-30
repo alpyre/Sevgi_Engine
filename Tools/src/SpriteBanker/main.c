@@ -5,12 +5,12 @@
 ///defines
 #define PROGRAMNAME     "SpriteBanker"
 #define VERSION         0
-#define REVISION        18
-#define VERSIONSTRING   "0.18"
+#define REVISION        19
+#define VERSIONSTRING   "0.19"
 
 //define command line syntax and number of options
-#define RDARGS_TEMPLATE "ILBMFILE/A, SPRITEFILE/A, STRTX/N/A, STRTY/N/A, SEPX/N/A, SEPY/N/A, COLUMNS/N/A, ROWS/N/A, WIDTH/N/A, HEIGHT/N/A, COLORS/N, SFMODE/N, HSN/N, HSX/N, HSY/N, X=REVX/S, Y=REVY/S, C=COLFIRST/S, S=SMALL/S, B=BIG/S"
-#define RDARGS_OPTIONS  20
+#define RDARGS_TEMPLATE "ILBMFILE/A, SPRITEFILE/A, STRTX/N/A, STRTY/N/A, SEPX/N/A, SEPY/N/A, COLUMNS/N/A, ROWS/N/A, WIDTH/N/A, HEIGHT/N/A, COLORS/N, SFMODE/N, HSN/N, HSX/N, HSY/N, X=REVX/S, Y=REVY/S, C=COLFIRST/S, S=SMALL/S, B=BIG/S, A=ADDCTLW/S"
+#define RDARGS_OPTIONS  21
 
 enum {
   ILBMFILE,
@@ -32,7 +32,8 @@ enum {
   REVY,
   COLFIRST,
   SMALL,
-  BIG
+  BIG,
+  ADDCTLW
 };
 
 //#define or #undef GENERATEWBMAIN to enable workbench startup
@@ -136,6 +137,7 @@ struct Parameters {
   UBYTE type;
   UBYTE bitmap_width;
   UBYTE bitmap_modulo;
+  UBYTE add_ctl_words;
 };
 
 struct Analyze {
@@ -549,6 +551,7 @@ struct Parameters* checkParameters(struct Config *config) {
   params.columns_first = config->Options[COLFIRST] ? TRUE : FALSE;
   params.small_sizes = config->Options[SMALL] ? TRUE : FALSE;
   params.big_sizes = config->Options[BIG] ? TRUE : FALSE;
+  params.add_ctl_words = config->Options[ADDCTLW] ? TRUE : FALSE;
 
   if (!params.columns) {
     puts("Columns cannot be zero!");
@@ -650,6 +653,10 @@ BOOL checkSpriteLine(UBYTE* ptr, struct Parameters* params)
 }
 ///
 ///analyzeFirstPass(tempBitMap, analyzed, params)
+/******************************************************************************
+ * Analyzes the image copied on tempBitMap for left, right, top and bottom    *
+ * spaces, and fills the Analyze struct passed for the image rectangle.       *
+ ******************************************************************************/
 VOID analyzeFirstPass(struct BitMap* tbm, struct Analyze* analyzed, struct Parameters* params)
 {
   LONG i, d, w, b = 0;
@@ -744,6 +751,10 @@ VOID analyzeFirstPass(struct BitMap* tbm, struct Analyze* analyzed, struct Param
 }
 ///
 ///analyzeImage(workBitMap, analyzed, params)
+/******************************************************************************
+ * Analyzes the image copied on workBitMap for how many glued hardware        *
+ * sprites needed to display this image, and fills the Analyze struct passed. *
+ ******************************************************************************/
 VOID analyzeImage(struct BitMap* wbm, struct Analyze* analyzed, struct Parameters* params)
 {
   LONG g, l;
@@ -804,7 +815,10 @@ VOID analyzeImage(struct BitMap* wbm, struct Analyze* analyzed, struct Parameter
 
   //recalculate some values
   analyzed->height = analyzed->v_end - analyzed->v_start + 1;
-  analyzed->hard_sprite_size = (2 + 2 * analyzed->height + 2) * sizeof(WORD) * params->sfmode;
+  //                          (2plane sprite data + end words) * size of sprite plane line
+  analyzed->hard_sprite_size = (2 * analyzed->height + 2) * sizeof(WORD) * params->sfmode;
+  // add initial control words conditionally
+  if (params->add_ctl_words) analyzed->hard_sprite_size += (2 * sizeof(WORD) * params->sfmode);
   analyzed->image_size = analyzed->hard_sprites_per_image * analyzed->hard_sprite_size;
   analyzed->type = analyzed->num_glued * (params->depth / 2);
   if (params->depth == 4) analyzed->type |= 0x10;
@@ -831,8 +845,11 @@ VOID getSpritePlaneLine(UBYTE* dest, UBYTE* src, UBYTE sfmode)
 VOID getSprite(struct BitMap* wbm, UBYTE* dest, struct Parameters* params, struct Analyze* analyzed)
 {
   LONG g, lr, lw;
-  UBYTE* wa = dest + (2 * sizeof(WORD) * params->sfmode);
+  UBYTE* wa = dest;
   UBYTE* ra = wbm->Planes[0];
+
+  // add initial control words conditionally
+  if (params->add_ctl_words) wa += (2 * sizeof(WORD) * params->sfmode);
 
   for (g = 0; g < analyzed->num_glued; g++) {
     for (lr = analyzed->v_start, lw = 0; lr <= analyzed->v_end; lr++, lw++) {

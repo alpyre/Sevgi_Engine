@@ -13,7 +13,7 @@
 //Un-comment to activate per-frame dynamic copperlist generation.
 #define DYNAMIC_COPPERLIST
 //Un-comment to activate smart sprite algorithms.
-#define SMART_SPRITES
+//#define SMART_SPRITES
 //Un-comment to activate dual-playfield mode.
 #define DUALPLAYFIELD
 //Select bitplane and sprite fetch modes

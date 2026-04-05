@@ -29,10 +29,10 @@ BOOL setKeyboardAccess(VOID)
 {
   struct IOStdReq* ioStdReq = NULL;
 
-  if ((keyMP = CreatePort(NULL, NULL))) {
+  if ((keyMP = CreatePort(NULL, 0L))) {
     if ((ioStdReq = (struct IOStdReq*)CreateExtIO(keyMP, sizeof(struct IOStdReq)))) {
       keyIO = (struct IORequest*)ioStdReq;
-      if (!OpenDevice("keyboard.device", NULL, keyIO, NULL)) {
+      if (!OpenDevice("keyboard.device", 0L, keyIO, 0L)) {
         device_ok = TRUE;
         ioStdReq->io_Command = KBD_READMATRIX;
         ioStdReq->io_Data    = (APTR)keyMatrix;

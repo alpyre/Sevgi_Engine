@@ -4,7 +4,7 @@
 /* Includeheader
 
         Name:           SDI_compiler.h
-        Versionstring:  $VER: SDI_compiler.h 1.38 (27.03.2016)
+        Versionstring:  $VER: SDI_compiler.h 1.39 (01.04.2026)
         Authors:        Dirk Stoecker, Jens Maus
         Distribution:   PD
         Project page:   https://github.com/adtools/SDI
@@ -64,6 +64,7 @@
  1.37  18.02.16 : changed INLINE define to not include "static" but use a separate STATIC
                   define (Jens Maus)
  1.38  27.03.16 : when using GCC4/5 for MorphOS compiles VARARGS68K is not supported (Jens Maus)
+ 1.39  01.04.26 : added FLEXARR definition for flexible array members (Alper Sonmez)
 
 */
 
@@ -74,7 +75,7 @@
 **
 ** To keep confusion level low: When changing this file, please note it in
 ** above history list and indicate that the change was not made by myself
-** (e.g. add your name or nick name).
+** (e.g. add your name or nick name).
 **
 ** Find the latest version of this file at:
 ** https://github.com/adtools/SDI
@@ -103,6 +104,7 @@
 #undef USED
 #undef USED_VAR
 #undef DEPRECATED
+#undef FLEXARR
 
 /* first "exceptions" */
 
@@ -112,6 +114,7 @@
   #define REGARGS
   #define SAVEDS
   #define INLINE inline
+  #define FLEXARR 0
 /*************************************************************************/
 #elif defined(__VBCC__)
   #define STDARGS
@@ -119,6 +122,7 @@
   #define REGARGS
   #define INLINE
   #define OFFSET(p,m) __offsetof(struct p,m)
+  #define FLEXARR
 
   #if defined(__PPC__)
     #define VARARGS68K __linearvarargs
@@ -132,9 +136,11 @@
   #define STACKEXT
   #define REGARGS
   #define INLINE
+  #define FLEXARR 0
 /*************************************************************************/
 #elif defined(__SASC)
   #define ASM __asm
+  #define FLEXARR 0
 /*************************************************************************/
 #elif defined(__GNUC__)
   #define UNUSED __attribute__((unused)) /* for functions, variables and types */
@@ -167,11 +173,13 @@
     #define FAR /* __far NOT supported! */
   #endif
   #define NEAR
+  #define FLEXARR 0
 #elif defined(_DCC)
   #define REG(reg,arg) __##reg arg
   #define STACKEXT __stkcheck
   #define STDARGS __stkargs
   #define INLINE
+  #define FLEXARR
 #endif
 
 /* then "common" ones */
@@ -245,6 +253,9 @@
 #endif
 #if !defined(__AROS__) && !defined(STACKED)
   #define STACKED
+#endif
+#if !defined(FLEXARR)
+  #define FLEXARR
 #endif
 
 /*************************************************************************/

@@ -2,6 +2,10 @@
 
 EXE = sevgi_engine
 ################################################################################
+ifneq ($(OS),Windows_NT)
+OS = $(shell uname -s)
+endif
+################################################################################
 CPU = -m68020
 AS = vasm
 CC = m68k-amigaos-gcc -c
@@ -84,7 +88,23 @@ $(EXE) : $(OBJS)
 
 # target 'clean'
 clean:
+ifeq ($(OS),MorphOS)
+	OS := AmigaOS
+endif
+ifeq ($(OS),AmigaOS)
+	-delete $(EXE)
+	-delete $(OBJS)
+endif
+ifeq ($(OS),Darwin)
+	OS := Linux
+endif
+ifeq ($(OS),Linux)
 	rm -f $(EXE)
 	rm -f $(OBJS)
 	rm -f ./fonts/fontcache
 	find . -name '*.uaem' -delete
+endif
+ifeq ($(OS),Windows_NT)
+	del $(EXE)
+	del *.o
+endif

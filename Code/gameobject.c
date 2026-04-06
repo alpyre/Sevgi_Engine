@@ -105,7 +105,7 @@ STATIC VOID checkGameObjectCollisions(VOID);
  * Initializes the mediums used in gameobject.o to appropriate initial values *
  * determined by loadLevel().                                                 *
  ******************************************************************************/
-VOID initGameObjects(VOID* blitBOBFunc, VOID* unBlitBOBFunc, ULONG max_bob_width, ULONG max_go_height)
+VOID initGameObjects(VOID (*blitBOBFunc)(struct GameObject*), VOID (*unBlitBOBFunc)(struct GameObject*), ULONG max_bob_width, ULONG max_go_height)
 {
   map = current_level.tilemap[current_level.current.tilemap];
   mapPosX = &map->mapPosX;
@@ -119,8 +119,8 @@ VOID initGameObjects(VOID* blitBOBFunc, VOID* unBlitBOBFunc, ULONG max_bob_width
   #endif // NUM_SPRITES
 
   #if NUM_BOBS
-  blitBOB = (VOID (*)(struct GameObject*))blitBOBFunc;
-  unBlitBOB = (VOID (*)(struct GameObject*))unBlitBOBFunc;
+  blitBOB = blitBOBFunc;
+  unBlitBOB = unBlitBOBFunc;
 
   bob_index = 0;
   #ifdef DOUBLE_BUFFER

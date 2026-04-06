@@ -5,6 +5,7 @@
 // extern struct TextFont* textFonts[NUM_TEXTFONTS];
 // extern struct GameFont* gameFonts[NUM_GAMEFONTS];
 
+#include "SDI_headers/SDI_compiler.h"
 #include "settings.h"
 
 #define GF_TYPE_FIXED        0
@@ -22,7 +23,7 @@ struct GameFont {
   UBYTE end;
   struct {
     UWORD offset;
-  }letter[0];
+  }letter[FLEXARR];
 };
 
 BOOL openFonts(VOID);

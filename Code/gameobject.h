@@ -1,6 +1,7 @@
 #ifndef GAMEOBJECT_H
 #define GAMEOBJECT_H
 
+#include "SDI_headers/SDI_compiler.h"
 #include "settings.h"
 #include "physics.h"
 
@@ -97,7 +98,7 @@ struct SpriteBank {
   struct HitBox* hitboxes;
   struct SpriteTable* table;
   UBYTE* data;
-  struct SpriteImage image[0];
+  struct SpriteImage image[FLEXARR];
 };
 
 struct Sprite {
@@ -126,7 +127,7 @@ struct BOBSheet {
 #ifdef USE_NONINTERLEAVED_BOBS
   struct BitMap* mask; // Only valid for NONINTERLEAVED_BOBS
 #endif // USE_NONINTERLEAVED_BOBS
-  struct BOBImage image[0];
+  struct BOBImage image[FLEXARR];
 };
 
 struct BOB {
@@ -207,7 +208,7 @@ struct GameObject {
 struct GameObjectBank {
   ULONG num_gameobjects;
   struct GameObject* gameobjects;
-  struct GameObject* gameobjectList[0];
+  struct GameObject* gameobjectList[FLEXARR];
 };
 
 // This struct is used to load gameobject initial values from disk
@@ -232,7 +233,7 @@ struct GameObjectData {
   //YOU CAN ADD YOUR CUSTOM VARIABLES BELOW
 };
 
-VOID initGameObjects(VOID* blitBOBFunc, VOID* unBlitBOBFunc, ULONG max_bob_width, ULONG max_go_height);
+VOID initGameObjects(VOID (*blitBOBFunc)(struct GameObject*), VOID (*unBlitBOBFunc)(struct GameObject*), ULONG max_bob_width, ULONG max_go_height);
 VOID updateGameObjects(VOID);
 VOID updateBOBs(VOID);
 #ifdef DOUBLE_BUFFER

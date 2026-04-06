@@ -1,6 +1,7 @@
 #ifndef TILEMAP_H
 #define TILEMAP_H
 
+#include "SDI_headers/SDI_compiler.h"
 #include "tiles.h"
 
 typedef UWORD TILEID; // Every tile ID is a 16 bit integer (65535 possible ID's)
@@ -21,7 +22,7 @@ struct TileMap {
   LONG maxMapPosY;                  // ...will restrict over scrolling.
   //struct TileSet *tileset;        // tileset for this map //NOTE: Not yet implemented
   //struct GameObject *gameobjects; //NOTE: Not yet implemented
-  TILEID data[0];                   // an array of UWORDS that holds tile id's
+  TILEID data[FLEXARR];             // an array of UWORDS that holds tile id's
 };
 
 struct TileMap *newTileMap(ULONG width, ULONG height, UWORD scr_width, UWORD scr_height);

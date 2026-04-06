@@ -6,6 +6,7 @@
 #define TEMPLATES_DIR "Templates"
 #define CODE_DIR      "Code"
 #define EXTRAS_DIR    "Extras"
+#define EXTRAS_VBCC_MAKEFILE "makefile_vbcc"
 #define EXTRAS_SASC_MAKEFILE "makefile_sas_c"
 #define EXTRAS_SASC_PTPLAYER "ptplayer_sas_c.o"
 #define DEFAULT_THUMBNAIL "Images/no_image.ilbm"
@@ -234,7 +235,7 @@ VOID setProjectNameInMakefile(STRPTR project_path)
   }
 }
 ///
-///setProjectNameInMakefile(project_path)
+///setProjectNameInVersionFile(project_path, name)
 /******************************************************************************
  * Opens the version.h in the project directory (project_path) and replaces   *
  * GAME_NAME define with game's given name by the user.                       *
@@ -274,19 +275,21 @@ VOID setProjectNameInVersionFile(STRPTR project_path, STRPTR name)
   }
 }
 ///
-///createCubicIDEoptions(project_path)
+///createCubicIDEoptions(project_path, compiler)
 VOID createCubicIDEoptions(STRPTR project_path, ULONG compiler)
 {
   struct {
     STRPTR intro;
     STRPTR alias;
     STRPTR gcc;
+    STRPTR vbcc;
     STRPTR sas_c;
     STRPTR closure;
     STRPTR makefile;
     STRPTR make;
     STRPTR executable;
     STRPTR stack_gcc;
+    STRPTR stack_vbcc;
     STRPTR stack_sas_c;
     STRPTR target;
     STRPTR arguments;
@@ -295,12 +298,14 @@ VOID createCubicIDEoptions(STRPTR project_path, ULONG compiler)
     "; project configuration (do not delete)\n\n(compiler\n\n",
     "\t(alias \"",
     "gcc/classic",
+    "vbcc/classic",
     "sas-c/classic",
     "\")\n\n",
     "\t(makefile \"makefile\")\n\n",
     "\t(make \"make -f %makefile %target\")\n\n",
     "\t(executable \"",
     "\t(stack \"65536\")\n\n",
+    "\t(stack \"262144\")\n\n",
     "\t(stack \"16384\")\n\n",
     "\t(target \"\")\n\n",
     "\t(arguments \"\")\n",
@@ -323,6 +328,9 @@ VOID createCubicIDEoptions(STRPTR project_path, ULONG compiler)
             case COMPILER_GCC:
               Write(fh, optionStrings.gcc, strlen(optionStrings.gcc));
             break;
+            case COMPILER_VBCC:
+              Write(fh, optionStrings.vbcc, strlen(optionStrings.vbcc));
+            break;
             case COMPILER_SAS_C:
               Write(fh, optionStrings.sas_c, strlen(optionStrings.sas_c));
             break;
@@ -336,6 +344,9 @@ VOID createCubicIDEoptions(STRPTR project_path, ULONG compiler)
           switch (compiler) {
             case COMPILER_GCC:
               Write(fh, optionStrings.stack_gcc, strlen(optionStrings.stack_gcc));
+            break;
+            case COMPILER_VBCC:
+              Write(fh, optionStrings.stack_vbcc, strlen(optionStrings.stack_vbcc));
             break;
             case COMPILER_SAS_C:
               Write(fh, optionStrings.stack_sas_c, strlen(optionStrings.stack_sas_c));
@@ -439,22 +450,39 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
               freeString(template_path);
             }
           }
+
           if (!strcmp(FilePart(IDE), "Cubic IDE")) {
             createCubicIDEoptions(project_path, compiler);
           }
-          if (compiler == COMPILER_SAS_C) {
-            STRPTR src_makefile_name = makePath(g_Program_Directory, EXTRAS_DIR "/" EXTRAS_SASC_MAKEFILE, NULL);
-            STRPTR dest_makefile_name = makePath(project_path, "makefile", NULL);
-            STRPTR src_ptplayer_name = makePath(g_Program_Directory, EXTRAS_DIR "/" EXTRAS_SASC_PTPLAYER, NULL);
-            STRPTR dst_ptplayer_name = makePath(project_path, "ptplayer.o", NULL);
 
-            CopyFile(src_makefile_name, dest_makefile_name);
-            CopyFile(src_ptplayer_name, dst_ptplayer_name);
+          switch (compiler) {
+            case COMPILER_VBCC:
+            {
+              STRPTR src_makefile_name = makePath(g_Program_Directory, EXTRAS_DIR "/" EXTRAS_VBCC_MAKEFILE, NULL);
+              STRPTR dest_makefile_name = makePath(project_path, "makefile", NULL);
 
-            freeString(dst_ptplayer_name);
-            freeString(src_ptplayer_name);
-            freeString(dest_makefile_name);
-            freeString(src_makefile_name);
+              CopyFile(src_makefile_name, dest_makefile_name);
+
+              freeString(dest_makefile_name);
+              freeString(src_makefile_name);
+            }
+            break;
+            case COMPILER_SAS_C:
+            {
+              STRPTR src_makefile_name = makePath(g_Program_Directory, EXTRAS_DIR "/" EXTRAS_SASC_MAKEFILE, NULL);
+              STRPTR dest_makefile_name = makePath(project_path, "makefile", NULL);
+              STRPTR src_ptplayer_name = makePath(g_Program_Directory, EXTRAS_DIR "/" EXTRAS_SASC_PTPLAYER, NULL);
+              STRPTR dst_ptplayer_name = makePath(project_path, "ptplayer.o", NULL);
+
+              CopyFile(src_makefile_name, dest_makefile_name);
+              CopyFile(src_ptplayer_name, dst_ptplayer_name);
+
+              freeString(dst_ptplayer_name);
+              freeString(src_ptplayer_name);
+              freeString(dest_makefile_name);
+              freeString(src_makefile_name);
+            }
+            break;
           }
 
           setProjectNameInMakefile(project_path);

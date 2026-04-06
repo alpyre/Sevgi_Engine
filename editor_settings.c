@@ -107,6 +107,7 @@ static struct {
 
 static STRPTR compiler_entries[] = {
   "gcc",
+  "vbcc",
   "SAS/C"
 };
 ///
@@ -234,7 +235,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
   }objects;
 
   BOOL settings_read = getSettings();
-  ULONG compiler_entry = 0;
+  ULONG compiler_entry = COMPILER_GCC;
   ULONG run_stack = 4096;
 
   if (!strcmp(ttprefs[TTPK_COMPILER].data.string, "__FIRST_RUN__")) {
@@ -242,7 +243,10 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
   }
 
   if (!strcmp(ttprefs[TTPK_COMPILER].data.string, "SAS/C")) {
-    compiler_entry = 1;
+    compiler_entry = COMPILER_SAS_C;
+  }
+  else if (!strcmp(ttprefs[TTPK_COMPILER].data.string, "vbcc")) {
+    compiler_entry = COMPILER_VBCC;
   }
 
   if (ttprefs[TTPK_RUNSTACK].data.value) {

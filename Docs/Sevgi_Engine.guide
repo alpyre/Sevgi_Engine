@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.190
+                             Version 0.191
 
                         Developer Documentation
 
@@ -106,8 +106,8 @@ development process to be done on Amiga Workbench. So the editor @{"Sevgi_Editor
 and all the tools needed are coded for the Amiga OS (version 2.0+). The editor
 "Sevgi_Editor" requires MUI 3.8. An Amiga system powerful enough to run MUI
 applications, an IDE application (like CubicIDE or CodeCraft), a compiler (like
-SAS/C or Amiga GCC) and programs like Personal Paint and Protracker will be
-enough. Unfortunately we lack a system friendly map editor we can use on the
+Amiga gcc, vbcc or SAS/C) and programs like Personal Paint and Protracker will
+be enough. Unfortunately we lack a system friendly map editor we can use on the
 AmigaOS (yet), so as of now the developing process relies on @{"Tiled" link "Concepts_00Tiled"} for map
 creation, and that software has no Amiga version (yet).
 
@@ -337,7 +337,11 @@ These two global arrays will hold the pointers to the Amiga Fonts and
 Sevgi_Engine gamefonts available to your game. You can select which fonts to be
 loaded in Sevgi_Editor. They will be saved in assets.h. At run time The fonts
 will be loaded by @{"openFonts()" link "47-openFonts"} function and these two arrays will be filled with
-pointers.
+pointers. Sevgi_Engine games have the ability to access fonts from either the
+FONTS: or the fonts drawer of the project directory. You can use the Amiga fonts
+that are installed in FONTS: during production. But, since they might not be in
+the player's system, think about placing them in the game directory's fonts
+drawer before publishing.
 
 @{u}Functions exported:@{uu}
 @{"openFonts" link "47-openFonts"}
@@ -2303,7 +2307,8 @@ format.
 Then, you should convert the assets that need to be converted to the formats
 required by Sevgi_Engine using the tools provided by @{"Sevgi_Editor" LINK Sevgi_Editor.guide/Editor_Features} and save them
 to the data drawer. Copy the asset files that do not need to be converted
-directly to the data drawer.
+directly to the data drawer. The Amiga fonts can either be stored in FONTS: or
+the fonts drawer in your project directory.
 
 Now, using the @{"Game Settings" LINK Sevgi_Editor.guide/02_Editor_GameSettings} window of Sevgi_Editor, set the properties of the
 game's level_display according to your assets and the game's visual design and
@@ -2313,7 +2318,8 @@ At this stage, you can implement the artistic decoration and functionality of
 your game's main menu. This is achieved by writing code in the display_menu.c
 file. The buttons on the main menu utilizes the UI implementations from ui.c and
 ui.h. You should also consider modifying the draw methods of UI objects to have
-a unique looking @{"UI" link "Concepts_19UI"} for your game.
+a unique looking @{"UI" link "Concepts_19UI"} for your game. You should also
+consider decorating your loading screen by editing display_loading.c as well.
 
 General events such as game start, game end, scoring, etc. in game levels can be
 implemented in the level_display_loop.c file, events based on gameobject
@@ -2353,10 +2359,13 @@ on you can use the file custom_display_settings.h to keep your display defines.
 @{b}Compiling@{ub}
 =========
 
-Sevgi_Engine code is written in mind to be compiled with any Amiga compiler.
-Makefiles for SAS/C and gcc are provided and these compilers are tested to work.
+Sevgi_Engine code is designed to be compatible with with any Amiga compiler.
+Makefiles for gcc, vbcc and SAS/C are provided. The makefiles assume these
+compilers are installed and configured correctly, and their binaries are in the
+system path. Makefiles for gcc and vbcc are designed to allow cross compiling.
+Using SAS/C compiler is recommended for the best runtime performance.
 
-Covering more compiling options and testing them is planned.
+More compiler options are planned to be covered.
 
 The source code for Sevgi_Editor is developed to be compiled with gcc (bebbo's
 cross toolchains).
@@ -3546,7 +3555,7 @@ NAME
     GF_Text - Draws a string to a rastport with the given gamefont
 
 SYNOPSIS
-    GF_Text(rp, gr, str, count)
+    GF_Text(rp, gf, str, count)
 
     VOID GF_Text(struct RastPort* rp, struct GameFont* gf, STRPTR str,
         ULONG count);

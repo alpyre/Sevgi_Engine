@@ -1,26 +1,27 @@
-# Makefile for Sevgi_Engine projects (vbcc, first path)
+# Makefile for Sevgi_Engine projects (vbcc)
 
 EXE = sevgi_engine
-
 ################################################################################
-VBCC = /opt/amiga/vbcc
-NDK  = /opt/amiga/ndk32
-AS = /opt/amiga/vbcc/bin/vasmm68k_mot
-
-CC = $(VBCC)/bin/vc +aos68k
+ifneq ($(OS),Windows_NT)
+OS = $(shell uname -s)
+endif
+################################################################################
+CPU = -m68020
+AS = vasmm68k_mot
+CC = vc +aos68k -c
+LD = vc +aos68k -o
 OPTIONS = -DNO_INLINE_STDARG
-LFLAGS = -L$(VBCC)/targets/m68k-amigaos/lib -lauto -lamiga
+LFLAGS = -lauto -lamiga
 ################################################################################
-
 # Common options
-WARNINGS =
+WARNINGS = -dontwarn=51
 OPTIMIZE =
 DEBUG =
-IDIRS = -I$(NDK)/Include_H -I./SDI_headers
+IDIRS =
 
-CFLAGS = -c $(WARNINGS) $(OPTIMIZE) $(DEBUG) $(OPTIONS) $(IDIRS)
-CFLAGS_NOOPT = -c $(WARNINGS) $(DEBUG) $(OPTIONS) $(IDIRS)
-AFLAGS = -Faout -m68020
+CFLAGS = $(WARNINGS) $(OPTIMIZE) $(DEBUG) $(OPTIONS) $(IDIRS)
+CFLAGS_NOOPT = $(WARNINGS)  $(DEBUG) $(OPTIONS) $(IDIRS)
+AFLAGS = -Faout $(CPU)
 
 DEPS = assets.h palettes.h settings.h version.h
 
@@ -30,8 +31,10 @@ OBJS = main.o system.o keyboard.o input.o display.o diskio.o fonts.o         \
        display_level.o display_loading.o display_menu.o display_splash.o
 ################################################################################
 
+# target 'all' (default target)
 all : $(EXE)
 
+# $@ matches the target; $< matches the first dependent
 main.o : main.c version.h
 	$(CC) $(CFLAGS) $<
 
@@ -81,10 +84,27 @@ ui.o : ui.c ui.h
 	$(CC) $(CFLAGS) $<
 
 $(EXE) : $(OBJS)
-	$(CC) -o $(EXE) $(OBJS) $(LFLAGS)
+	$(LD) $(EXE) $(OBJS) $(LFLAGS)
 
+# target 'clean'
 clean:
+ifeq ($(OS),MorphOS)
+	OS := AmigaOS
+endif
+ifeq ($(OS),AmigaOS)
+	-delete $(EXE)
+	-delete $(OBJS)
+endif
+ifeq ($(OS),Darwin)
+	OS := Linux
+endif
+ifeq ($(OS),Linux)
 	rm -f $(EXE)
 	rm -f $(OBJS)
 	rm -f ./fonts/fontcache
 	find . -name '*.uaem' -delete
+endif
+ifeq ($(OS),Windows_NT)
+	del $(EXE)
+	del *.o
+endif

@@ -1,6 +1,7 @@
 #ifndef RAINBOW_H
 #define RAINBOW_H
 
+#include "SDI_headers/SDI_compiler.h"
 #include "display_level.h"
 #include "color.h"
 
@@ -23,7 +24,7 @@ struct Rainbow {
   ULONG* list;        // In word aligned chipram
   struct Gradient** gradList; // createRainbow fills this as a back pointer
   UBYTE correspondance[SCREEN_HEIGHT];
-  struct CopOp copOps[0];
+  struct CopOp copOps[FLEXARR];
 };
 
 struct Rainbow* newRainbow(UWORD num_ops, UWORD op_size, UWORD num_insts, BOOL blitable, UWORD num_end_insts);

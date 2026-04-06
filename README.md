@@ -46,7 +46,7 @@ To compile for 68k[^4] target:
 
 Compiled binaries can also be acquired from [aminet](https://aminet.net/package/dev/c/Sevgi_Engine).
 
-Sevgi Engine code is suitable to be compiled with any Amiga compiler. Makefiles for SAS/C and gcc are provided and these compilers are tested to work. It includes and uses SDI_headers, so (hopefully) it is compiler agnostic.
+Sevgi Engine code is suitable to be compiled with any Amiga compiler. Makefiles for gcc, vbcc and SAS/C are provided and these compilers are tested to work. It includes and uses SDI_headers, so (hopefully) it is compiler agnostic.
 
 [^3]:These toolchains should be built using MUI and CGX prefixes of course.
 [^4]:Since this source includes and utilizes SDI_headers, it can be compiled also for MorphOS and AmigaOS4 targets, yet these two are not tested.

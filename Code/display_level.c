@@ -133,14 +133,14 @@ STATIC BOOL openDisplay(ULONG level_num);
 STATIC VOID closeDisplay(VOID);
 STATIC VOID initLevelDisplay(VOID);
 STATIC VOID fillDisplay(UWORD, UWORD);
-STATIC UWORD scrollRight(UWORD);
-STATIC VOID scrollRightPixels(UWORD);
-STATIC UWORD scrollLeft(UWORD);
-STATIC VOID scrollLeftPixels(UWORD);
-STATIC UWORD scrollUp(UWORD);
-STATIC VOID scrollUpPixels(UWORD);
-STATIC UWORD scrollDown(UWORD);
-STATIC VOID scrollDownPixels(UWORD);
+STATIC UBYTE scrollRight(UBYTE);
+STATIC VOID scrollRightPixels(UBYTE);
+STATIC UBYTE scrollLeft(UBYTE);
+STATIC VOID scrollLeftPixels(UBYTE);
+STATIC UBYTE scrollUp(UBYTE);
+STATIC VOID scrollUpPixels(UBYTE);
+STATIC UBYTE scrollDown(UBYTE);
+STATIC VOID scrollDownPixels(UBYTE);
 STATIC VOID initTileBlit(VOID);
 STATIC VOID levelDisplayLoop(VOID);
 
@@ -188,9 +188,8 @@ extern LONG* mapPosY;  // map's vertical position in pixels
 extern LONG* mapPosX2; // defines the square that displayed on
 extern LONG* mapPosY2; // ...the screen.
 
-// exported globals
 #ifdef DOUBLE_BUFFER
-  volatile ULONG g_active_buffer = 0;
+  extern volatile ULONG g_active_buffer; // from gameobject.o
 #else // DOUBLE_BUFFER
   #define g_active_buffer 0
 #endif // !DOUBLE_BUFFER
@@ -226,7 +225,7 @@ STATIC WORD stepY = 0;    // step for vertical scrolling.   (*mapPosY % TILESIZE
 
 STATIC WORD *saveWordPtr;     // address of the last planeline backup.
 #ifdef DOUBLE_BUFFER
-STATIC WORD *saveWordPtr2;    // doublebuffered
+STATIC WORD *saveWordPtr2;    // double-buffered
 #endif // DOUBLE_BUFFER
 STATIC WORD  saveWord;        // the planeline backup storage.
 STATIC ULONG lastHDir = NONE; // last horizontal scroll direction
@@ -247,7 +246,7 @@ STATIC struct RastPort* bottom_panel_rastport = NULL;
 #endif // BOTTOM_PANEL_HEIGHT
 STATIC struct BitMap* level_bitmap  = NULL;   // Main game screen opened by openDisplay()
 #ifdef DOUBLE_BUFFER
-STATIC struct BitMap* level_bitmap2 = NULL;   // doublebuffered
+STATIC struct BitMap* level_bitmap2 = NULL;   // double-buffered
 #endif // DOUBLE_BUFFER
 #ifdef DUALPLAYFIELD
 STATIC struct BitMap* level_bitmap_pf2 = NULL; // Parallaxing background image
@@ -258,7 +257,7 @@ STATIC struct TileSet* tileset = NULL;       // The loaded tile set for this map
 
 STATIC PLANEPTR *planes  = NULL;  //quick access pointer for level_bitmap->Planes
 #ifdef DOUBLE_BUFFER
-STATIC PLANEPTR *planes1 = NULL;  //actual doublebuffered plane pointers
+STATIC PLANEPTR *planes1 = NULL;  //actual double-buffered plane pointers
 STATIC PLANEPTR *planes2 = NULL;  //the one above holds the active one
 #endif // DOUBLE_BUFFER
 #ifdef DUALPLAYFIELD
@@ -617,7 +616,7 @@ STATIC struct BitMap* openScreen()
   #ifdef DOUBLE_BUFFER
       }
       else {
-        puts("Not enough memory for double buffering!");
+        puts("Not enough memory for double-buffering!");
         FreeBitMap(bm); bm = NULL;
         #ifdef DUALPLAYFIELD
         FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
@@ -971,11 +970,11 @@ STATIC VOID blitHScrollLine(ULONG pos)
 ///
 
 ///scrollUp()
-STATIC UWORD scrollUp(UWORD pixels)
+STATIC UBYTE scrollUp(UBYTE pixels)
 {
-  UWORD boundary = stepY; //*mapPosY & (TILESIZE - 1);
-  UWORD firstPartPixels;
-  UWORD secondPartPixels;
+  UBYTE boundary = stepY; //*mapPosY & (TILESIZE - 1);
+  UBYTE firstPartPixels;
+  UBYTE secondPartPixels;
 
   if (pixels > *mapPosY) pixels = *mapPosY;
   *mapPosY  -= pixels;
@@ -997,7 +996,7 @@ STATIC UWORD scrollUp(UWORD pixels)
   return secondPartPixels;
 }
 
-STATIC VOID scrollUpPixels(UWORD pixels)
+STATIC VOID scrollUpPixels(UBYTE pixels)
 {
 	while (pixels--) {
 		WORD mapx;
@@ -1099,11 +1098,11 @@ STATIC VOID scrollUpPixels(UWORD pixels)
 }
 ///
 ///scrollDown()
-STATIC UWORD scrollDown(UWORD pixels)
+STATIC UBYTE scrollDown(UBYTE pixels)
 {
-  UWORD boundary = TILESIZE - stepY - 1;
-  UWORD firstPartPixels;
-  UWORD secondPartPixels;
+  UBYTE boundary = TILESIZE - stepY - 1;
+  UBYTE firstPartPixels;
+  UBYTE secondPartPixels;
 
   if (pixels > (*maxMapPosY - *mapPosY)) pixels = *maxMapPosY - *mapPosY;
   *mapPosY  += pixels;
@@ -1125,7 +1124,7 @@ STATIC UWORD scrollDown(UWORD pixels)
   return secondPartPixels;
 }
 
-STATIC VOID scrollDownPixels(UWORD pixels)
+STATIC VOID scrollDownPixels(UBYTE pixels)
 {
 	while (pixels--) {
     WORD mapx;
@@ -1229,11 +1228,11 @@ STATIC VOID scrollDownPixels(UWORD pixels)
 }
 ///
 ///scrollLeft()
-STATIC UWORD scrollLeft(UWORD pixels)
+STATIC UBYTE scrollLeft(UBYTE pixels)
 {
-  UWORD boundary = stepX + 1; // *mapPosX & (TILESIZE - 1) + 1 NOTE: +1 is to keep blitHScrollLine() in firstPartPixels
-  UWORD firstPartPixels;
-  UWORD secondPartPixels;
+  UBYTE boundary = stepX + 1; // *mapPosX & (TILESIZE - 1) + 1 NOTE: +1 is to keep blitHScrollLine() in firstPartPixels
+  UBYTE firstPartPixels;
+  UBYTE secondPartPixels;
 
   if (pixels > *mapPosX) pixels = *mapPosX;
   *mapPosX  -= pixels;
@@ -1264,7 +1263,7 @@ STATIC UWORD scrollLeft(UWORD pixels)
   return secondPartPixels;
 }
 
-STATIC VOID scrollLeftPixels(UWORD pixels)
+STATIC VOID scrollLeftPixels(UBYTE pixels)
 {
 	while (pixels--) {
     WORD mapx;
@@ -1371,11 +1370,11 @@ STATIC VOID scrollLeftPixels(UWORD pixels)
 }
 ///
 ///scrollRight()
-STATIC UWORD scrollRight(UWORD pixels)
+STATIC UBYTE scrollRight(UBYTE pixels)
 {
-  UWORD boundary = TILESIZE - stepX;
-  UWORD firstPartPixels;
-  UWORD secondPartPixels;
+  UBYTE boundary = TILESIZE - stepX;
+  UBYTE firstPartPixels;
+  UBYTE secondPartPixels;
 
   if (pixels > (*maxMapPosX - *mapPosX)) pixels = *maxMapPosX - *mapPosX;
   *mapPosX  += pixels;
@@ -1405,7 +1404,7 @@ STATIC UWORD scrollRight(UWORD pixels)
   return secondPartPixels;
 }
 
-STATIC VOID scrollRightPixels(UWORD pixels)
+STATIC VOID scrollRightPixels(UBYTE pixels)
 {
 	while (pixels--) {
     WORD mapx;
@@ -1521,10 +1520,14 @@ STATIC VOID scrollRightPixels(UWORD pixels)
 ///scroll(scrollInfo)
 STATIC INLINE VOID scroll(struct ScrollInfo* si)
 {
+  // Clamp the scroll to the maximum scroll speed
   if (si->up    > MAX_SCROLL_SPEED) si->up    = MAX_SCROLL_SPEED;
   if (si->down  > MAX_SCROLL_SPEED) si->down  = MAX_SCROLL_SPEED;
   if (si->left  > MAX_SCROLL_SPEED) si->left  = MAX_SCROLL_SPEED;
   if (si->right > MAX_SCROLL_SPEED) si->right = MAX_SCROLL_SPEED;
+
+  // Store the scroll in tilemap
+  *(ULONG*)&map->si = *(ULONG*)si;
 
   initTileBlit();
   si->up    = scrollUp(si->up);
@@ -1542,10 +1545,8 @@ STATIC INLINE VOID scrollRemaining(struct ScrollInfo* si)
   if (si->left)  scrollLeftPixels(si->left);
   if (si->right) scrollRightPixels(si->right);
 
-  si->up    = 0;
-  si->down  = 0;
-  si->left  = 0;
-  si->right = 0;
+  // Clear the scroll info
+  *(ULONG*)si = 0;
 }
 ///
 
@@ -1677,7 +1678,7 @@ VOID LD_blitBOB(struct GameObject* go)
   bob->lastBlt.bltalwm = lwm;
   bob->lastBlt.bltapt  = bltapt;
   bob->lastBlt.bltbpt  = (UBYTE*)bob->background + y_sr * BOBsBackBuffer->BytesPerRow + x_sw;
-  if (!(bob->flags & (BOB_DEAD | BOB_DYING))) bob->flags |= BOB_BLITTED;
+  bob->flags |= BOB_BLITTED;
 
 #ifdef USE_NONINTERLEAVED_BOBS
   if (image->bob_sheet->mask) {
@@ -1914,7 +1915,7 @@ VOID LD_unBlitBOB(struct GameObject* go)
 #if NUM_BOBS
   struct BOB* bob = (struct BOB*)go->u.mediums[g_active_buffer];
 
-  if (bob->flags & BOB_BLITTED) {
+  if ((bob->flags & (BOB_DEAD | BOB_BLITTED)) == BOB_BLITTED) {
     UWORD bx = vidPosX + TILESIZE + bob->lastBlt.x1 - *mapPosX;
     UWORD by = vidPosY + TILESIZE + bob->lastBlt.y1 - *mapPosY;
 
@@ -2151,7 +2152,7 @@ STATIC UWORD* createCopperList()
       num_copperlist_instructions = num_cl_header_instructions + rainbow->num_insts + num_cl_vsplit_instructions + num_cl_smartsprite_instructions;
       freeCopperList(CopperList); // numbers are gotten, get rid of this copperlist
 
-      // Allocate the actual doublebuffered copperlist
+      // Allocate the actual double-buffered copperlist
       if (copperAllocator(copperList_Instructions, CL_NUM_INSTS(copperList_Instructions), &CopperList, CL_SINGLE,
         num_copperlist_instructions * 2
         + num_cl_vsplit_instructions
@@ -2215,7 +2216,7 @@ STATIC UWORD* createCopperList()
         }
 #endif // BOTTOM_PANEL_HEIGHT
 
-        //Copy header to the double buffer
+        //Copy header to the double-buffer
         CopyMem(CopperList, CopperList2, num_cl_header_instructions * sizeof(CLINST));
 
         vsplit_list = (ULONG*)CopperList2 + num_copperlist_instructions;
@@ -2233,7 +2234,7 @@ STATIC UWORD* createCopperList()
         *(CL_COP2LCH_2 + 2) = (UWORD)((ULONG)CopperList1 & 0xFFFF);
 #endif // !DOUBLE_BUFFER
 
-        //In doublebuffered copperlist the access pointers to the header are offsets
+        //In double-buffered copperlist the access pointers to the header are offsets
 #ifdef USE_CLP
         CL_PALETTE = (UWORD*)((ULONG)CL_PALETTE - (ULONG)CopperList);
 #endif //USE_CLP
@@ -2262,8 +2263,8 @@ STATIC UWORD* createCopperList()
 
         // plane pointers
 #ifdef DOUBLE_BUFFER
-        planes1 = level_bitmap->Planes; //doublebuffered
-        planes2 = level_bitmap2->Planes; //doublebuffered
+        planes1 = level_bitmap->Planes; //double-buffered
+        planes2 = level_bitmap2->Planes; //double-buffered
         planes = planes1;
 #else // DOUBLE_BUFFER
         planes = level_bitmap->Planes;
@@ -2487,7 +2488,6 @@ INLINE VOID blitCopperInstruction(ULONG* dst, ULONG* src, WORD size)
 }
 #endif // DYNAMIC_COPPERLIST
 ///
-
 ///updateCopperList()
 #ifdef DYNAMIC_COPPERLIST
 /******************************************************************************

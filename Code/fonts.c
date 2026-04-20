@@ -24,7 +24,9 @@ struct TextFont* textFonts[NUM_TEXTFONTS] = {NULL};
 struct GameFont* gameFonts[NUM_GAMEFONTS] = {NULL};
 
 //private globals
+#undef DISPLAY_H
 #include "assets.h"
+#define DISPLAY_H
 ///
 ///prototypes
 struct GameFont* openGameFont(STRPTR);

@@ -20,7 +20,7 @@ STATIC VOID levelDisplayLoop()
       else
         CopperList = CopperList1;
     }
-    #endif //DYNAMIC_COPPERLIST
+    #endif // !DOUBLE_BUFFER && DYNAMIC_COPPERLIST
     new_frame_flag = 1;
 
     doKeyboardIO();

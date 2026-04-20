@@ -15,7 +15,7 @@ Supports:
 - AGA
 - Top and bottom panel dashboards
 - Multi copper gradients (Dynamic Copperlist)
-- Double buffering (Dynamic Copperlist)
+- Double-buffering (Dynamic Copperlist)
 - Hardware sprite re-use and clipping (Smart Sprites)
 - All AGA fetch modes
 - In game music and sound effects

@@ -26,7 +26,7 @@ Sevgi Engine is a new open-source video game engine designed for classic Amiga c
 * **Documentation**
   <br>The engine code is well-commented and comprehensively documented in AmigaGuide format.</br>
 
-[^1]:Now also supports double buffering.
+[^1]:Now also supports double-buffering.
 [^2]:Except diskfont.library. And even that is avoidable if you do not use any Amiga font asset.
 
 ### Sevgi Editor
@@ -62,7 +62,7 @@ ptplayer is public domain under [The Unlicence](https://opensource.org/license/u
 
 ### Future Plans
 Sevgi Engine is still a work in progress. Some new features planned are:
-* Support for different level display implementations (i.e double buffering, split screen etc.)
+* Support for different level display implementations (i.e double-buffering, split screen etc.)
 * More graphical effects
 * A native tilemap and gameobject editor
 * More templates for different game genres

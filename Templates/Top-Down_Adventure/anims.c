@@ -254,7 +254,6 @@ VOID char_anim(struct GameObject* go)
  ******************************************************************************/
 VOID waterfall_anim(struct GameObject* go)
 {
-  //NOTE: We should be going by the current sprite bank of current level here
   struct BOBSheet* bs = current_level.bob_sheet[0];
   static LONG skip_frames = 1;
 
@@ -265,6 +264,7 @@ VOID waterfall_anim(struct GameObject* go)
     go->image = (struct ImageCommon*)&bs->image[go->anim.frame];
 
     skip_frames = 0;
+    reviveBOB(go);
   }
 
   skip_frames++;

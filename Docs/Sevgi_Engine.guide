@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.191
+                             Version 0.192
 
                         Developer Documentation
 
@@ -144,7 +144,7 @@ tools needed (which is planned).
 - A GUI editor for creating engine code, editing game settings and assets called
   Sevgi_Editor.
 
-(*) With version 0.185 it is now possible to double buffer the level screen and
+(*) With version 0.185 it is now possible to double-buffer the level screen and
     set lower fps rates.
 
 @endnode
@@ -180,7 +180,7 @@ Sevgi_Engine can be looked into by the following concepts:
 Advanced topics:
 @{" Dynamic Copperlist " link "Concepts_20DynamicCopperlist"} Create a new copperlist every frame
 @{" Smart Sprites      " link "Concepts_21SmartSprites"} Auto-select hardware sprites
-@{" Double Buffering   " link "Concepts_22DoubleBuffering"} Prevent video glitches
+@{" Double-Buffering   " link "Concepts_22DoubleBuffering"} Prevent video glitches
 
 @endnode
 
@@ -1187,9 +1187,20 @@ visible but not re-drawn every frame. Which is suitable for images like
 non-animated collectibles, dead enemy bodies, or details to be placed on the map
 rather than using tiles. BOBs of such gameobjects will only revive (start
 re-drawing themselves) when they are partially visible (at the edges of the
-screen) or another non-dead BOB gets behind them. You can also switch this state
-of being dead anywhere (either in your main loop, your anim or collision
-functions).
+screen) and have moved in further with a screen scroll or another (non-dead) BOB
+gets behind them. You can also switch this state of being dead anywhere (either
+in your main loop or your anim/collision functions). Dead BOBs are not expected
+to move or animate. However, there may be situations where this is desirable.
+For example, background BOBs may not need to be redrawn in frames where they
+don't move or animate. If your BOB gameobject rarely moves/animates, it makes
+sense to keep it dead in other frames. To achieve this behavior, leave the
+GOB_DEAD flag on the gameobject as is and remove the BOB_DEAD flag from its
+medium inside your anim function. Since BOB mediums are a little complicated in
+double-buffered mode (explained below), it is recommended to use the provided
+helper function @{"reviveBOB()" link "64-reviveBOB"} to unset the correct flag from the correct BOB
+mediums properly in both single and double-buffered modes.
+The BOB will revive and only move/animate for a single frame and then return to
+the dead state.
 
 You can refer to gameobject.h to for the definitions of struct Sprite and
 struct BOB to get an idea on how complex it can be to animate images on screen
@@ -1197,8 +1208,8 @@ in a manageable way. Fortunately it is all covered for you by Sevgi_Engine. All
 you need to do is to create your gameobjects in @{"Tiled" link "Concepts_00Tiled"} and set their properties
 there.
 
-To be able to support BOB updates in @{"Double Buffering" link "Concepts_22DoubleBuffering"}, the medium member on
-struct GameObject is also double buffered (v0.185). That's why its definition
+To be able to support BOB updates in @{"Double-Buffering" link "Concepts_22DoubleBuffering"}, the medium member on
+struct GameObject is also double-buffered (v0.185). That's why its definition
 looks a little different in gameobject.h. In this mode gameobjects will assign
 two BOB mediums, one for the odd frames and the other for even frames. So you
 have to define twice the value for NUM_BOBS. For example, if you want maximum 10
@@ -1294,41 +1305,41 @@ including the animation function they shall have.
 Loading game objects from disk and managing them in memory is done using
 gameobject banks. Gameobject bank files will be created during the conversion of
 @{"Tiled" link "Concepts_00Tiled"} level map. Objects in each object layer will be saved as separate engine
-compatible gameobject bank files. They can be loaded in to memory with
+compatible gameobject bank files. They can be loaded into memory with
 @{"loadGameObjectBank()" link "33-loadGameObjectBank"}. When the gameobject banks for each level is defined in
 assets.h (or edited in Sevgi_Editor's @{"Assets Editor" LINK Sevgi_Editor.guide/03_Editor_AssetsEditor}), @{"loadLevel()" link "35-loadLevel"} function
 will handle their loading and freeing for you.
 
-Gameobject banks should be used for gameobjects that must be always present
-during the level. For example these can be player sprite, the background (or
+Gameobject banks should be used for gameobjects that must always be present
+during the level. For example, these can be player sprites, the background (or
 even foreground) animations, collision objects (movement blocks or event
-triggers), spawners etc. Collectibles which won't be re-spawned can be defined
-in gameobject banks as well. The memory required to store these gameobjects will
-be handled by the bank.
+triggers), spawners, etc. Collectibles that won't be respawned can be defined in
+gameobject banks as well. The memory required to store these gameobjects will be
+handled by the bank.
 
-But for gameobjects which will spawn, get destroyed/collected, later spawn again
-should be handled differently. These can be enemies, collectibles, bullets etc.
-The define NUM_GAMEOBJECTS in settings.h defines the maximum number of
-gameobjects that can be spawned at the same time during game play. This value
-can also be set in @{"Sevgi_Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings 168}. The value applies to every level.
+But for gameobjects that will spawn, get destroyed/collected, and later spawn
+again should be handled differently. These can be enemies, collectibles,
+bullets, etc. The define NUM_GAMEOBJECTS in settings.h defines the maximum
+number of gameobjects that can be spawned at the same time during gameplay. This
+value can also be set in @{"Sevgi_Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings 168}. The value applies to every level.
 
 The functions @{"spawnGameObject()" link "76-spawnGameObject"} and @{"despawnGameObject()" link "14-despawnGameObject"} handle spawning.
 spawnGameObject() takes a pointer to a reference gameobject to spawn as. You can
 call these functions either from the display loop or from the anim or collision
 functions of other gameobjects.
 
-Of course you may wish to create and edit the properties of the spawning
-gameobjects on @{"Tiled" link "Concepts_00Tiled"}. In that case you may create a separate object layer for
+Of course, you may wish to create and edit the properties of the spawning
+gameobjects on @{"Tiled" link "Concepts_00Tiled"}. In that case, you may create a separate object layer for
 your spawners - which will turn into a separate gameobject bank file - then set
-them to be loaded alongside with the main gameobject bank for the level (every
-level can have multiple gameobject banks loaded) then use gameobjects in that
-bank as reference while spawning them.
+them to be loaded alongside the main gameobject bank for the level (every level
+can have multiple gameobject banks loaded) and then use gameobjects in that bank
+as reference when spawning them.
 
-By the way, you can also use only one big gameobject bank per level which
-contains all the collectibles, spawners etc. and set just their state flag
-GOB_INACTIVE when collected (which will cause them to disappear from display),
-later re-active them removing the flag. But beware, all game objects present on
-the map (even the ones on the out of display sections) will be updated and
+By the way, you can also use one big gameobject bank per level that contains all
+the collectibles, spawners, etc., and set just their state flag GOB_INACTIVE
+when collected (which will cause them to disappear from display); later,
+reactivate them by removing the flag. But beware, all game objects present on
+the map (even the ones in the out-of-display sections) will be updated and
 checked for collisions every single frame. So this approach can cause a drop in
 performance. Spawning/despawning can provide great optimization when designed
 properly.
@@ -1341,6 +1352,8 @@ idea on the implementation methods.
 @{"initGameObjects" link "31-initGameObjects"}
 @{"updateGameObjects" link "84-updateGameObjects"}
 @{"updateBOBs" link "80-updateBOBs"}
+@{"clearBOBs" link "07-clearBOBs"}
+@{"reviveBOB" link "64-reviveBOB"}
 @{"moveGameObject" link "38-moveGameObject"}
 @{"moveGameObjectClamped" link "39-moveGameObjectClamped"}
 @{"setGameObjectPos" link "72-setGameObjectPos"}
@@ -1539,7 +1552,7 @@ onAcknowledge(): This function is called when the gadget is acknowledged by the
 
 (*)  Meaning with every call to @{"updateUI()" link "85-updateUI"} function.
 (**) Being active can mean different things for different objects. For example,
-     if it is a button, it means the button is pressed and hold (so the focus is
+     if it is a button, it means the button is pressed and held (so the focus is
      on the button and this method is checking for release verification every
      frame), if it is a string object, it means the gadget is now in input mode
      listening key strokes until it is acknowledged by the user.
@@ -2145,11 +2158,11 @@ displaying the level screen every frame, depending on the state of the vertical
 scroll of the tilemap, scroll of the rainbow gradient and the positions of Smart
 Sprites (if enabled).
 
-It achieves this by double buffering the copperlist and displaying one while
+It achieves this by double-buffering the copperlist and displaying one while
 working on the other. The algorithm relies on the concept @{"CopOps" link "Concepts_10CopOps"} to optimize
 this copperlist creation.
 
-@{"Smart Sprites" link "Concepts_21SmartSprites"} and @{"Double Buffering" link "Concepts_22DoubleBuffering"} (the bitmap) relies on this.
+@{"Smart Sprites" link "Concepts_21SmartSprites"} and @{"Double-Buffering" link "Concepts_22DoubleBuffering"} (the bitmap) relies on this.
 
 Dynamic Copperlist can be enabled by defining DYNAMIC_COPPERLIST in settings.h
 or using @{"Sevgi Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings}.
@@ -2174,8 +2187,8 @@ this is in the copperlist, Smart Sprites relies on @{"CopOps" link "Concepts_10C
 
 @endnode
 
-@node "Concepts_22DoubleBuffering" "Sevgi_Engine.guide/Concepts/Double Buffering"
-@{b}Double Buffering@{ub}
+@node "Concepts_22DoubleBuffering" "Sevgi_Engine.guide/Concepts/Double-Buffering"
+@{b}Double-Buffering@{ub}
 ================
 
 While Sevgi Engine implements and strongly advocates Single Buffering, in cases
@@ -2183,18 +2196,18 @@ where your game logic is too complex, your BOBs are too large and numerous,
 the actual Amiga hardware may not be able to update the screen in one frame.
 
 This can cause ugly video glitches. In such cases, you can either cut down the
-game features to optimize or activate Double Buffering to trade these video
+game features to optimize or activate Double-Buffering to trade these video
 glitches with occasional frame drops (slowdowns).
 
-Bear in mind that Double Buffering will use twice the Chip RAM to display the
+Bear in mind that Double-Buffering will use twice the Chip RAM to display the
 level bitmap (playfield 1 if in DualPlayfield mode) and double the blitter use
 when scrolling. It will also double the number of required BOB @{"mediums" link "Concepts_15Mediums"} to
 display gameobjects.
 
-Double Buffering can be activated by defining DOUBLE_BUFFER in settings.h or
+Double-Buffering can be activated by defining DOUBLE_BUFFER in settings.h or
 using @{"Sevgi Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings}.
 
-And if you have resorted to use Double Buffering but don't want to have varying
+And if you have resorted to use Double-Buffering but don't want to have varying
 FPS rates (because of the occasional frame drops) when the screen update gets
 busier, you can settle to a steady lower frame rate by setting a value to the
 define FRAME_SKIP in settings.h.
@@ -2206,10 +2219,10 @@ A value of 1 (meaning every other frame will be skipped) setting the FPS to
 2: 16.6 FPS  (probably you need optimizing if you still get slowdowns)
 3: 12.5 FPS
 
-Since Double Buffering also requires the double buffering of the copperlist, it
+Since Double-Buffering also requires the double-buffering of the copperlist, it
 relies on @{"Dynamic Copperlist" link "Concepts_20DynamicCopperlist"}.
 
-Double Buffering also requires double buffering BOB @{"mediums" link "Concepts_15Mediums" 50}.
+Double-Buffering also requires double-buffering BOB @{"mediums" link "Concepts_15Mediums" 50}.
 
 @endnode
 
@@ -2418,6 +2431,7 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" changeVolumeSteps         " link "05-changeVolumeSteps"}
 @{" checkHitBoxCollision      " link "06-checkHitBoxCollision"}
 @{" checkPointHitBoxCollision " link "07-checkPointHitBoxCollision"}
+@{" clearBOBs                 " link "07-clearBOBs"}
 @{" closeFonts                " link "08-closeFonts"}
 @{" createBlitMasks           " link "09-createBlitMasks"}
 @{" createEmptyRainbow        " link "10-createEmptyRainbow"}
@@ -2497,6 +2511,7 @@ debugging. It has a lot of utilities to help you debug your game code.
 @{" resetSprites              " link "64-resetSprites"}
 @{" resetUI                   " link "64-resetUI"}
 @{" resetUILayout             " link "64-resetUILayout"}
+@{" reviveBOB                 " link "64-reviveBOB"}
 @{" scrollGradientDown        " link "64-scrollGradientDown"}
 @{" scrollGradientUp          " link "64-scrollGradientUp"}
 @{" selectObject              " link "64-selectObject"}
@@ -2678,7 +2693,7 @@ NAME
     allocCopperList -- Allocates a copperlist in ChipMem with extra features
 
 SYNOPSIS
-    allocCopperList(list, access, doubleBuf)
+    allocCopperList(list, access, double_buffer)
 
     BOOL allocCopperList(ULONG* list, UWORD* access, BOOL double_buffer);
 
@@ -2706,16 +2721,16 @@ FUNCTION
     };
 
 INPUTS
-    list      - the array of instructions (copperList_Instructions[])
-    access    - declared access pointer for the copperlist (CopperList)
-    doubleBuf - CL_SINGLE for a single copperlist
-                CL_DOUBLE for a double buffered copperlist
+    list          - the array of instructions (copperList_Instructions[])
+    access        - declared access pointer for the copperlist (CopperList)
+    double_buffer - CL_SINGLE for a single copperlist
+                    CL_DOUBLE for a double-buffered copperlist
 
 RESULTS
     Returns TRUE if the allocation is successful. Otherwise returns FALSE.
 
 NOTES
-    When you want to allocate a double buffered copper list all access pointers
+    When you want to allocate a double-buffered copper list all access pointers
     must be declared in pairs. Declarations must be in the form below:
 
     STATIC UWORD* CopperList   = (UWORD*) 0;
@@ -2949,6 +2964,35 @@ NOTES
 
 SEE ALSO
     @{"Hitboxes" link "Concepts_14Hitboxes"}, @{"Gameobjects" link "Concepts_16Gameobjects"}, @{"checkHitBoxCollision()" link "06-checkHitBoxCollision"}
+
+@endnode
+
+@node "07-clearBOBs" "Sevgi_Engine.guide/Function Reference/clearBOBs"
+NAME
+    clearBOBs - Clears all BOBs from level display
+
+SYNOPSIS
+    clearBOBs()
+
+    VOID clearBOBs(VOID);
+
+FUNCTION
+    Clears all the BOBs currently visible which were filled into bobList[] by
+    updateGameObjects(). All BOBs will be removed from the display's bitmap.
+
+    Scheduling of BOB clear events from the level bitmap in double-buffered mode
+    has to be different from single-buffered mode. This function has to be
+    called right after swapping buffers in level_display_loop in double-buffered
+    mode to ensure that all BOBs are removed from the bitmap before another
+    scroll event occurs. This is obligatory because the unBlitBOB() function can
+    only tolerate a single 16-pixel scroll event.
+
+NOTES
+    This function is required, defined and used only when DOUBLE_BUFFER is
+    defined. Meaning it is only available in single-buffered mode.
+
+SEE ALSO
+    @{"Gameobjects" link "Concepts_16Gameobjects"}, @{"updateBOBs" link "80-updateBOBs"}, @{"updateGameObjects()" link "84-updateGameObjects"}
 
 @endnode
 
@@ -3389,7 +3433,7 @@ INPUTS
     cl - declared access pointer for the copperlist (CopperList)
 
 NOTES
-    On double buffered copperlists use the access pointer CopperList1 to free
+    On double-buffered copperlists use the access pointer CopperList1 to free
     the allocation. CopperList1 points to the start of the allocated chip memory
     for the two buffers. The access pointer CopperList will be used to switch
     between the two buffers pointing to the current buffer.
@@ -5256,6 +5300,29 @@ SEE ALSO
 
 @endnode
 
+@node "64-reviveBOB" "Sevgi_Engine.guide/Function Reference/reviveBOB"
+NAME
+    reviveBOB - Temporarily revive a BOB to be redrawn
+
+SYNOPSIS
+    reviveBOB(go)
+
+    VOID reviveBOB(struct GameObject* go);
+
+FUNCTION
+    Revives a "dead" gameobject's BOB medium for a single frame for movement
+    and/or animation by clearing its BOB_DEAD flag(s). You need to call this in
+    your anim functions if you want to move/animate your dead BOB gameobjects.
+
+NOTES
+    This function revives both (even and odd frame) BOB mediums when in
+    double-buffered mode.
+
+SEE ALSO
+    @{"Gameobjects" link "Concepts_16Gameobjects"}, @{"updateBOBs" link "80-updateBOBs"}, @{"updateGameObjects()" link "84-updateGameObjects"}
+
+@endnode
+
 @node "64-scrollGradientDown" "Sevgi_Engine.guide/Function Reference/scrollGradientDown"
 NAME
     scrollGradientDown - Scrolls a gradient down
@@ -6117,7 +6184,7 @@ NOTES
     This function is to be called every frame on your display's display loop.
 
 SEE ALSO
-    @{"Gradients" link "Concepts_11Gradients"}, @{"updateGameObjects()" link "84-updateGameObjects"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"updateVolume()" link "85-updateVolume"}
+    @{"Gameobjects" link "Concepts_16Gameobjects"}, @{"updateGameObjects()" link "84-updateGameObjects"}, @{"updateColorTable()" link "82-updateColorTable"}, @{"updateVolume()" link "85-updateVolume"}
 
 @endnode
 

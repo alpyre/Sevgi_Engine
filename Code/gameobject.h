@@ -186,11 +186,11 @@ struct GameObject {
     VOID (*func)(struct GameObject*);
   }anim;
   struct ImageCommon* image; // A pointer to a BOBImage or SpriteImage depending on type
-  union { //doublebuffered medium
+  union { //double-buffered medium
 #ifdef DOUBLE_BUFFER
     struct {
       APTR medium1; // A pointer to a BOB or to a Sprite depending on type
-      APTR medium2; // doublebuffer
+      APTR medium2; // double-buffer
     }doublebuffered_medium;
     APTR mediums[2]; // Conditional access to above two mediums
 #else // DOUBLE_BUFFER
@@ -239,6 +239,8 @@ VOID updateBOBs(VOID);
 #ifdef DOUBLE_BUFFER
 VOID clearBOBs(VOID);
 #endif // DOUBLE_BUFFER
+VOID reviveBOB(struct GameObject* go);
+
 VOID moveGameObject(struct GameObject* go, LONG dx, LONG dy);
 VOID moveGameObjectClamped(struct GameObject* go, LONG dx, LONG dy, LONG clampX1, LONG clampY1, LONG clampX2, LONG clampY2);
 VOID setGameObjectPos(struct GameObject* go, LONG x, LONG y);

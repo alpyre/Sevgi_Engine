@@ -27,7 +27,7 @@
 #define SCR_HEIGHT_EXTRA 32  // Additional vertical pixels for scroll (2 extra tiles)
 #define SCREEN_DEPTH 5     // How many bitplanes (1-6 on OCS/ECS, 1-8 on AGA)
 
-//Activate double buffering on display_level.c and gameobjects.c
+//Activate double-buffering on display_level.c and gameobjects.c
 //#define DOUBLE_BUFFER
 //#define FRAME_SKIP 0
 

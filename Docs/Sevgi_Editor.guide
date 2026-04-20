@@ -7,7 +7,7 @@
 
                 Asset creator and manager for Sevgi_Engine
 
-                             Version 0.159
+                             Version 0.160
 
                           User Documentation
 
@@ -207,29 +207,29 @@ by ptplayer.
     playing samples with higher priority values.
 ________________________________________________________________________________
 
-Using settings in the "Double Buffering" group you can convert the engine from
-a beam chaser into a double buffered one.
+Using settings in the "Double-Buffering" group you can convert the engine from
+a beam chaser into a double-buffered one.
 
-@{b}Double Buffer:@{ub}
-    Implements double buffering on the level display's frame buffer. This option
+@{b}Double-Buffer:@{ub}
+    Implements double-buffering on the level display's frame buffer. This option
     allocates twice the Chip RAM to display the tile map and BOBs on the level
     display (playfield 1 if it is a dualplayfield display). This is useful if
     your game logic is too busy, the number of gameobjects are too many and/or
     the sizes of your BOBs are too big to be updated in a single frame on real
     hardware. In single buffered mode this condition will cause an ugly video
     glitch. In such a case you can either cut down game features to optimize or
-    activate double buffering and get rid of the video glitches, trading with
+    activate double-buffering and get rid of the video glitches, trading with
     occasional frame drops (slowdowns). Bear in mind that single buffering is
-    slightly heavier on the CPU and double buffering is heavier on the
+    slightly heavier on the CPU and double-buffering is heavier on the
     blitter and Chip RAM usage.
 
-    @{b}IMPORTANT NOTE:@{ub} Double Buffering requires twice the amount of BOB mediums.
+    @{b}IMPORTANT NOTE:@{ub} Double-Buffering requires twice the amount of BOB mediums.
     i.e. if you plan to display maximum 10 BOBs at once, you should set the
     "Max. BOBs" setting to 20. Half of them to be assigned in even frames and
     the other half in odd frames.
 
 @{b}Frame Skip:@{ub}
-    If you have resorted to use double buffering and don't want to have varying
+    If you have resorted to use double-buffering and don't want to have varying
     FPS rates because of the occasional frame drops when the screen update gets
     busier, you can settle to a steady lower frame rate using this value.
     A value of 1 (meaning every other frame will be skipped) setting the FPS to
@@ -239,7 +239,7 @@ a beam chaser into a double buffered one.
     2: 16.6 FPS  (probably you need optimizing if you still get slowdowns)
     3: 12.5 FPS
 
-    As double buffering, this also effects only the level display.
+    As double-buffering, this also effects only the level display.
 ________________________________________________________________________________
 
 The settings in the "Gameobjects" group let's you select some very important
@@ -255,7 +255,7 @@ values for gameobject.c module.
     optimize the value testing your game's performance without glitching.
     This is actually the value of the define NUM_BOBS.
 
-    @{b}IMPORTANT NOTE:@{ub} Double Buffering requires twice the amount of BOB mediums.
+    @{b}IMPORTANT NOTE:@{ub} Double-Buffering requires twice the amount of BOB mediums.
     i.e. if you plan to display maximum 10 BOBs at once, you should set the
     "Max. BOBs" setting to 20. Half of them will be assigned in even frames and
     the other half in odd frames.

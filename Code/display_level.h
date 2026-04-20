@@ -6,16 +6,6 @@
 #include "anims.h"
 #include "settings.h"
 
-// Number of pixels to scroll the map in the corresponding direction.
-// After a call to scroll(), will hold the remaining pixels to scroll...
-// ...after updateCopperList()
-struct ScrollInfo {
-  UWORD up;
-  UWORD down;
-  UWORD left;
-  UWORD right;
-};
-
 #define SCREEN_COLORS (1 << SCREEN_DEPTH)
 #define BITMAP_WIDTH  (SCREEN_WIDTH  + SCR_WIDTH_EXTRA)
 #define BITMAP_HEIGHT (((SCREEN_HEIGHT % TILESIZE) ? SCREEN_HEIGHT - (SCREEN_HEIGHT % TILESIZE) + TILESIZE : SCREEN_HEIGHT) + SCR_HEIGHT_EXTRA)

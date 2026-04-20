@@ -33,7 +33,7 @@
 #define BITMAP_DEPTH_PF2 3
 #define BITMAP_HEIGHT_PF2 320
 
-//Activate double buffering on display_level.c and gameobjects.c
+//Activate double-buffering on display_level.c and gameobjects.c
 //#define DOUBLE_BUFFER
 //#define FRAME_SKIP 0
 

@@ -694,8 +694,8 @@ BOOL copperAllocator(ULONG* cl_insts, ULONG num_insts, UWORD** access_ptr, BOOL 
     ULONG* CopperList2;
 
     if (num_access_ptrs % 2 || !num_access_ptrs) {
-      //WARNING: Every access pointer in a double buffered copperlist must be in duplicate
-      printf("Incorrect number of access pointers in a double buffered copperlist\n");
+      //WARNING: Every access pointer in a double-buffered copperlist must be in duplicate
+      printf("Incorrect number of access pointers in a double-buffered copperlist\n");
       return FALSE;
     }
 
@@ -744,7 +744,7 @@ BOOL copperAllocator(ULONG* cl_insts, ULONG num_insts, UWORD** access_ptr, BOOL 
         }
       }
 
-      //Copy the fixed CopperList1 to its double buffer CopperList2
+      //Copy the fixed CopperList1 to its double-buffer CopperList2
       CopyMem(CopperList, CopperList2, copperlist_size);
     }
     else goto fail_mem;

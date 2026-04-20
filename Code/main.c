@@ -19,7 +19,7 @@
  *  - A UI code capable of creating mouse driven gui objects (buttons, input  *
  *    gadgets, checkboxes etc.) with auto-layout and modern features.         *
  * (*)  Except ptplayer of course. ptplayer is written in 68k Assembly.       *
- * (**) A double buffered display is also possible if one writes their custom *
+ * (**) A double-buffered display is also possible if one writes their custom *
  *      display_level.c, but this is not encouraged for maximum FPS.          *
  ******************************************************************************/
 ///defines

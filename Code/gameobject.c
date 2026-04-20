@@ -31,13 +31,14 @@ extern struct Level current_level;
 extern VOID (*animFunction[NUM_ANIMS])(struct GameObject*);
 extern VOID (*gobjCollisionFunction[NUM_GOBJ_COLL_FUNCS])(struct GameObject*, struct GameObject*);
 extern VOID (*tileCollisionFunction[NUM_TILE_COLL_FUNCS])(struct GameObject*);
-#ifdef DOUBLE_BUFFER
-  extern ULONG g_active_buffer; //from display_level.c
-#else // DOUBLE_BUFFER
-  #define g_active_buffer 0
-#endif // !DOUBLE_BUFFER
 
 //exported globals
+#ifdef DOUBLE_BUFFER
+volatile ULONG g_active_buffer = 0;
+#else // DOUBLE_BUFFER
+#define g_active_buffer 0
+#endif // !DOUBLE_BUFFER
+
 struct GameObject** gameobjectList; // will be set by initGameObjects()
 #if NUM_SPRITES
 struct Sprite sprites[NUM_SPRITES];
@@ -62,11 +63,12 @@ struct BitMap* BOBsBackBuffer = NULL;
 //      have (at least a dummy) tilemap. level.o handles this.
 //      If the game changes tilemap during play, the these 5 variables below have
 //      to be updated here as well
-struct TileMap* map;     // current tilemap on display
-LONG* mapPosX  = NULL;   // map's horizontal position in pixels
-LONG* mapPosY  = NULL;   // map's vertical position in pixels
-LONG* mapPosX2 = NULL;   // defines the square that displayed on
-LONG* mapPosY2 = NULL;   // ...the screen.
+struct TileMap* map;          // current tilemap on display
+LONG* mapPosX  = NULL;        // map's horizontal position in pixels
+LONG* mapPosY  = NULL;        // map's vertical position in pixels
+LONG* mapPosX2 = NULL;        // defines the square that displayed on
+LONG* mapPosY2 = NULL;        // ...the screen.
+struct ScrollInfo* si = NULL; // The direction and amount of the last scroll
 
 #if NUM_SPRITES
 STATIC struct Sprite* avail_sprites[NUM_SPRITES + 1];
@@ -107,11 +109,16 @@ STATIC VOID checkGameObjectCollisions(VOID);
  ******************************************************************************/
 VOID initGameObjects(VOID (*blitBOBFunc)(struct GameObject*), VOID (*unBlitBOBFunc)(struct GameObject*), ULONG max_bob_width, ULONG max_go_height)
 {
+  #ifdef DOUBLE_BUFFER
+  g_active_buffer = 0;
+  #endif // DOUBLE_BUFFER
+
   map = current_level.tilemap[current_level.current.tilemap];
   mapPosX = &map->mapPosX;
   mapPosY = &map->mapPosY;
   mapPosX2 = &map->mapPosX2;
   mapPosY2 = &map->mapPosY2;
+  si = &map->si;
 
   #if NUM_SPRITES
   sprite_index = 0;
@@ -533,6 +540,29 @@ VOID drawBOB(struct GameObject* self)
 }
 #endif // NUM_BOBS
 ///
+///reviveBOB(gameobject)
+/******************************************************************************
+ * Revive a "dead" gameobject's BOB medium(s) for a single frame for movement *
+ * and/or animation.                                                          *
+ * NOTE: Revives both odd and even BOB mediums when in DOUBLE_BUFFER mode.    *
+ ******************************************************************************/
+#if NUM_BOBS
+VOID reviveBOB(struct GameObject* go)
+{
+#ifdef DOUBLE_BUFFER
+  struct BOB* bob1 = (struct BOB*)go->u.mediums[0];
+  struct BOB* bob2 = (struct BOB*)go->u.mediums[1];
+
+  if (bob1) bob1->flags &= ~BOB_DEAD;
+  if (bob2) bob2->flags &= ~BOB_DEAD;
+#else // DOUBLE_BUFFER
+  struct BOB* bob = (struct BOB*)go->u.medium;
+
+  if (bob) bob->flags &= ~BOB_DEAD;
+#endif // !DOUBLE_BUFFER
+}
+#endif // NUM_BOBS
+///
 ///setSpriteHSN(gameobject)
 /******************************************************************************
  * Finds an available hardware sprite number for this sprite. It respects     *
@@ -626,10 +656,10 @@ VOID updateSmartSprites(VOID)
 ///clearBOBs()
 /******************************************************************************
  * We have to change the scheduling of BOB clear events from the level bitmap *
- * in double buffered mode. This function is to be called first thing after   *
+ * in double-buffered mode. This function is to be called first thing after   *
  * swapping buffers in level_display_loop so that all BOBs are removed from   *
  * the bitmap before another scroll event. That's because the unBlitBOB()     *
- * function can only tolarate a single 16-pixel scroll event. Otherwise       *
+ * function can only tolerate a single 16-pixel scroll event. Otherwise,      *
  * graphics glitches will occur.                                              *
  * NOTE: We have to unset the BOB_CLEARED flags and terminate clear lists of  *
  * all bobs of the previous frame before we call clearBOB().                  *
@@ -729,13 +759,19 @@ VOID updateGameObject(struct GameObject* go)
           resignBOB(go);
         }
         else if (go->state & GOB_DEAD) {
-          if (go->x1 >= *mapPosX && go->x2 <= *mapPosX2 && go->y1 >= *mapPosY && go->y2 <= *mapPosY2) {
-            if (!(((struct BOB*)go->u.mediums[g_active_buffer])->flags & BOB_DEAD)) {
-              ((struct BOB*)go->u.mediums[g_active_buffer])->flags |= BOB_DYING;
-            }
-          }
-          else {
+          // Revive the BOB if it was partially visible and has moved in further with the last scroll
+          if ((go->x1 < *mapPosX && si->left) || (go->x2 > *mapPosX2 && si->right) ||
+              (go->y1 < *mapPosY && si->up)   || (go->y2 > *mapPosY2 && si->down)) {
             ((struct BOB*)go->u.mediums[g_active_buffer])->flags &= ~BOB_DEAD;
+            #ifdef DOUBLE_BUFFER
+            // Revive the other BOB medium as well if there is one assigned
+            if (go->u.mediums[g_active_buffer ^ 1])
+              ((struct BOB*)go->u.mediums[g_active_buffer ^ 1])->flags &= ~BOB_DEAD;
+            #endif // DOUBLE_BUFFER
+          }
+          else if (!(((struct BOB*)go->u.mediums[g_active_buffer])->flags & BOB_DEAD)) {
+            // Schedule this BOB to die if it is not already dead
+            ((struct BOB*)go->u.mediums[g_active_buffer])->flags |= BOB_DYING;
           }
         }
       }

@@ -37,14 +37,6 @@
 #endif
 
 #define IS_IN_RECT(x, y, x1, y1, x2, y2) ((x) >= (x1) && (x) <= (x2) && (y) >= (y1) && (y) <= (y2))
-
-#ifndef LONG_MAX
-#define LONG_MAX   0x7FFFFFFFL
-#endif
-
-#ifndef LONG_MIN
-#define LONG_MIN (-0x7FFFFFFFL - 1)
-#endif
 ///
 ///prototypes
 VOID setParents(struct UIO_Group* root);
@@ -2081,7 +2073,7 @@ VOID sizeString(struct UIObject* self)
  ******************************************************************************/
 #ifdef UI_USE_SLIDERS
 STATIC ULONG numPlaces(LONG n) {
-    if (n < 0) n = (n == LONG_MIN) ? LONG_MAX : -n;
+    if (n < 0) n = (n == UI_INT_MIN) ? UI_INT_MAX : -n;
     if (n < 10) return 1;
     if (n < 100) return 2;
     if (n < 1000) return 3;

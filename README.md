@@ -14,7 +14,7 @@ Sevgi Engine is a new open-source video game engine designed for classic Amiga c
 * **UI**
   <br>Code to create customizable mouse driven GUI objects (buttons, input gadgets, checkboxes etc.) with auto-layout and modern features, which can also be accessed by the keyboard or the joysticks.</br>
 * **Controllers**
-  <br>Supports very optimized input from mice, joysticks and CD32 JoyPads ***NEW*** from both joystick ports, as well as the keyboard.</br>
+  <br>Supports very optimized input from mice, joysticks and CD32 JoyPads from both joystick ports, as well as the keyboard.</br>
 * **Easy development**
   <br>A native editor program is provided to generate code, manage game assets, edit color palettes etc. called **Sevgi Editor**. Other elements like game logic, animation and events require programming knowledge in C. The programming and compiling can be made natively (on the Amiga OS - using native compilers) or cross platfrom (on Windows or Linux PCs - using cross development tools). Sevgi Editor can import game maps made in [Tiled](https://www.mapeditor.org/).</br>
 * **Templates**
@@ -26,7 +26,7 @@ Sevgi Engine is a new open-source video game engine designed for classic Amiga c
 * **Documentation**
   <br>The engine code is well-commented and comprehensively documented in AmigaGuide format.</br>
 
-[^1]:Now also supports double-buffering.
+[^1]:Now also supports double and triple-buffering.
 [^2]:Except diskfont.library. And even that is avoidable if you do not use any Amiga font asset.
 
 ### Sevgi Editor
@@ -62,7 +62,7 @@ ptplayer is public domain under [The Unlicence](https://opensource.org/license/u
 
 ### Future Plans
 Sevgi Engine is still a work in progress. Some new features planned are:
-* Support for different level display implementations (i.e double-buffering, split screen etc.)
+* Support for different level display implementations (i.e split screen etc.)
 * More graphical effects
 * A native tilemap and gameobject editor
 * More templates for different game genres

@@ -15,8 +15,9 @@
 #define BST_IRREGULAR   1
 
 //Game Object States
-#define GOB_DEAD     0x01
-#define GOB_INACTIVE 0x02
+#define GOB_INACTIVE 0x01 // Resigns its mediums, goes invisible and ineffective
+#define GOB_DEAD     0x02 // Draws itself only once and never updates (for BOBs)
+#define GOB_OVERDRAW 0x04 // Never clears its background before draw  (for BOBs)
 
 //BOB flags
 #define BOB_ASSIGNED 0x01
@@ -26,6 +27,7 @@
 #define BOB_DYING    0x10
 #define BOB_DEAD     0x20
 #define BOB_BLITTED  0x40
+#define BOB_BLITTED2 0x80 // BOB is also drawn onto the QuickBOBs' buffer
 
 //Anim directions
 #define NONE  0x0
@@ -131,7 +133,9 @@ struct BOBSheet {
 };
 
 struct BOB {
+#ifndef NO_BOBBACKBUFFER
   UBYTE* background;
+#endif // !NO_BOBBACKBUFFER
 #ifndef DOUBLE_BUFFER
   struct GameObject* cl2drList[NUM_BOBS]; //these BOBs have to be cleared before this BOB to be drawn
 #endif // !DOUBLE_BUFFER
@@ -143,10 +147,11 @@ struct BOB {
   struct {
     LONG x1;                  // gameobject->x1 during blitBOB() (but clipped)
     LONG y1;                  // gameobject->y1 during blitBOB() (but clipped)
-#ifndef DOUBLE_BUFFER
     LONG x2;                  // gameobject->x2 during blitBOB() (but clipped)
     LONG y2;                  // gameobject->y2 during blitBOB() (but clipped)
-#endif // !DOUBLE_BUFFER
+#if defined QUICKBOBS || defined NO_BOBBACKBUFFER
+    ULONG right_edge;         // Edge case for images cropped at the left edge of the display
+#endif // QUICKBOBS || NO_BOBBACKBUFFER
     struct BOBSheet* bob_sheet; // Bob sheet of the image used in blitBOB()
     UWORD words;                // Width of the blit in words
     UWORD rows;                 // Height of the blit in pixellines
@@ -252,7 +257,9 @@ ULONG checkPointHitBoxCollision(struct GameObject* go, LONG x, LONG y);
 struct GameObjectBank* newGameObjectBank(ULONG size);
 VOID freeGameObjectBank(struct GameObjectBank* bank);
 struct GameObjectBank* loadGameObjectBank(STRPTR file);
+#ifndef NO_BOBBACKBUFFER
 struct BitMap* allocBOBBackgroundBuffer(UWORD max_bob_width, UWORD max_bob_height, UWORD screen_depth);
+#endif // !NO_BOBBACKBUFFER
 
 #if NUM_GAMEOBJECTS > 0
 struct GameObject* spawnGameObject(struct GameObject* go);

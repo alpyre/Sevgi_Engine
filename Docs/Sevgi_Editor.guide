@@ -7,7 +7,7 @@
 
                 Asset creator and manager for Sevgi_Engine
 
-                             Version 0.160
+                             Version 0.161
 
                           User Documentation
 
@@ -207,8 +207,9 @@ by ptplayer.
     playing samples with higher priority values.
 ________________________________________________________________________________
 
-Using settings in the "Double-Buffering" group you can convert the engine from
-a beam chaser into a double-buffered one.
+Using settings in the "Memory Model" group you can convert the engine from
+a beam chaser into a double-buffered one. You can also determine the methods to
+be used in BOB updates.
 
 @{b}Double-Buffer:@{ub}
     Implements double-buffering on the level display's frame buffer. This option
@@ -240,6 +241,33 @@ a beam chaser into a double-buffered one.
     3: 12.5 FPS
 
     As double-buffering, this also effects only the level display.
+
+@{b}QuickBOBs:@{ub}
+    Implements an alternative way to remove BOBs from level display's frame
+    buffer. The method implemented is also known as "triple-buffering". In this
+    mode BOBs do not store their background before being blit and are removed by
+    blitting from a pristine background buffer.
+
+    When used in single-buffered mode, level display becomes double-buffered.
+    When used in double-buffered mode, level display becomes triple-buffered.
+
+    If you prefer to use this method, it is also wise select the checkbox
+    "Do NOT use BOB background buffer" below.
+
+    For more information refer to @{"QuickBOBs" LINK Sevgi_Engine.guide/Concepts_23QuickBOBs}.
+
+@{b}Do NOT use BOB background buffer:@{ub}
+    Restores BOB backgrounds using the tileset. This renders the preservation of
+    the background to a buffer before each BOB update unnecessary. Despite being
+    less optimal (more computation and more blits issued per BOB update), it
+    eliminates the need to allocate a BOBsBackBuffer, which preserves chip
+    memory. However, depending on the BOB image sizes, this might also use less
+    Blitter DMA.
+
+    It is a good idea to activate this if you've preferred to use QuickBOBs.
+    This is because, in that mode, this less optimal method for background
+    restoration will only be called as @{"Dead BOBs" LINK Sevgi_Engine.guide/Concepts_15Mediums 43} revive.
+
 ________________________________________________________________________________
 
 The settings in the "Gameobjects" group let's you select some very important

@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.192
+                             Version 0.193
 
                         Developer Documentation
 
@@ -181,6 +181,7 @@ Advanced topics:
 @{" Dynamic Copperlist " link "Concepts_20DynamicCopperlist"} Create a new copperlist every frame
 @{" Smart Sprites      " link "Concepts_21SmartSprites"} Auto-select hardware sprites
 @{" Double-Buffering   " link "Concepts_22DoubleBuffering"} Prevent video glitches
+@{" QuickBOBs          " link "Concepts_23QuickBOBs"} A.k.a. triple-buffering
 
 @endnode
 
@@ -2165,7 +2166,7 @@ this copperlist creation.
 @{"Smart Sprites" link "Concepts_21SmartSprites"} and @{"Double-Buffering" link "Concepts_22DoubleBuffering"} (the bitmap) relies on this.
 
 Dynamic Copperlist can be enabled by defining DYNAMIC_COPPERLIST in settings.h
-or using @{"Sevgi Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings}.
+or using @{"Sevgi Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings 13}.
 
 @endnode
 
@@ -2179,11 +2180,12 @@ sprite to use to display sprite images of gameobjects.
 Activating Smart Sprites allows to auto-select the best available hardware
 sprite to display these sprite images at runtime.
 
-Amiga Hardware allows for reusing same hardware sprites for different images
-on different vertical raster positions. Smart Sprites also provides this
-feature. It achieves this by resetting sprite registers for different sprite
-data just as the video beam is at correct position. Since the best place to do
-this is in the copperlist, Smart Sprites relies on @{"CopOps" link "Concepts_10CopOps"} and @{"Dynamic Copperlist" link "Concepts_20DynamicCopperlist"}.
+Amiga Hardware allows for reusing the same hardware sprites for different
+objects on different vertical raster positions @{i}(vertical sprite multiplexing)@{ui}.
+Smart Sprites also provides this feature. It achieves this by resetting sprite
+registers for different sprite data just as the video beam is at correct
+position. Since the best place to do this is in the copperlist, Smart Sprites
+relies on @{"CopOps" link "Concepts_10CopOps"} and @{"Dynamic Copperlist" link "Concepts_20DynamicCopperlist"}.
 
 @endnode
 
@@ -2205,7 +2207,7 @@ when scrolling. It will also double the number of required BOB @{"mediums" link 
 display gameobjects.
 
 Double-Buffering can be activated by defining DOUBLE_BUFFER in settings.h or
-using @{"Sevgi Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings}.
+using @{"Sevgi Editor" LINK Sevgi_Editor.guide/02_Editor_GameSettings 122}.
 
 And if you have resorted to use Double-Buffering but don't want to have varying
 FPS rates (because of the occasional frame drops) when the screen update gets
@@ -2223,6 +2225,91 @@ Since Double-Buffering also requires the double-buffering of the copperlist, it
 relies on @{"Dynamic Copperlist" link "Concepts_20DynamicCopperlist"}.
 
 Double-Buffering also requires double-buffering BOB @{"mediums" link "Concepts_15Mediums" 50}.
+
+@endnode
+
+@node "Concepts_23QuickBOBs" "Sevgi_Engine.guide/Concepts/QuickBOBs"
+@{b}QuickBOBs@{ub}
+=========
+
+BOBs (short for Blitter Objects) are graphical elements used to display moving
+images on the screen when Amiga's hardware sprites are insufficient. Unlike
+hardware sprites, BOBs are drawn directly onto the screen bitmap using the
+Amiga's blitter chip. This allows for greater flexibility in:
+ - Display priority (front/back positioning)
+ - Object size (specifically width)
+ - The total number of on-screen objects
+This flexibility comes at the cost of additional CPU and DMA overhead.
+
+@{b}Background Preservation and Unblitting@{ub}
+Since BOBs are drawn (blitted) onto the bitmap, they overwrite the existing
+background. To maintain visual consistency, the original background must be
+preserved before the initial blit. When a BOB moves or animates, it must first
+restore the background before being redrawn at a new position or with a new
+image. In Sevgi Engine, this process is referred to as "@{b}unblitting@{ub}" (as in
+unBlitBOB() in display_level.c).
+
+To support this, Sevgi Engine allocates a sufficiently large buffer in chip
+memory (BOBsBackBuffer) for each BOB medium. This buffer stores the portions of
+the background that are overwritten. This process is referred to as a
+"@{b}preserve blit@{ub}."
+
+@{b}Standard BOB Rendering@{ub}
+Each BOB update involves three blit operations:
+@{u}Step | Operation     | Description                        | Blit Type       @{uu}
+1    | Unblit        | Restore the previous background    | Cookie-cut blit
+2    | Preserve blit | Store background to BOBsBackBuffer | Direct copy blit
+3    | Blit          | Draw BOB at a new position/image   | Cookie-cut blit
+
+This approach has a few drawbacks:
+ - Increased chip RAM usage when using many BOB mediums with large images (due
+   to increased size of BOBsBackBuffer)
+ - Additional Blitter DMA overhead from the extra preserve blit operations
+
+@{b}QuickBOBs (Triple-Buffering)@{ub}
+QuickBOBs introduces an alternative approach by maintaining a separate bitmap
+buffer that always contains a @{i}pristine@{ui} version of the background (no BOBs drawn
+onto it@{b}@{"*" link "Concepts_23QuickBOBs" 73}@{ub}). This buffer is also updated with the scroll and is used for restoring
+background data.
+
+With QuickBOBs enabled, each BOB update requires only two blits:
+@{u}Step | Operation  | Description                             | Blit Type       @{uu}
+1    | Unblit     | Restore background from pristine buffer | Direct copy blit
+2    | Blit       | Draw the BOB at its new position/image  | Cookie-cut blit
+
+@{b}Trade-offs@{ub}
+QuickBOBs shifts the performance/memory balance with the aspects below:
+@{u}                | @{b}Standard BOBs@{ub}                       | @{b}QuickBOBs@{ub}            @{uu}
+Chip RAM cost   | Depends on Max.BOBs and image sizes | An extra frame buffer
+BOB update cost | 3 blits per update                  | 2 blits per update
+Scroll cost     | Vanilla                             | One extra tile copy
+
+This method is referred to as "Triple-Buffering" in Amiga game and demo
+development because the frame buffer is generally double-buffered and this
+additional pristine background buffer becomes the third one. So similarly in
+Sevgi Engine, when QuickBOBs is selected:
+ - in single-buffered mode, the display becomes double-buffered.
+ - in double-buffered mode, the display becomes triple-buffered.
+
+@{b}In short@{ub}
+This method increases the blitter DMA cost of the screen scroll while decreasing
+the DMA cost for BOB updates, with the trade-off of an extra frame buffer
+(tilemapped playfield planes only) of chip memory being allocated.
+
+QuickBOBs allows you to rebalance memory usage and rendering performance
+depending on your game's needs. One key advantage is that this trade-off can be
+adjusted even after the production stage, making it a flexible optimization
+option.
+
+@{b}(*)@{ub} @{"Dead BOBs" link "Concepts_15Mediums" 43} are an exception to this. BOB images of dead gameobjects are
+blitted to the pristine QuickBOBs buffer just before they go dead and are
+unblitted before they go alive again. This means - because dead BOBs still need
+to preserve their backgrounds - simply turning on QuickBOBs will not prevent the
+BOBsBackBuffer from being allocated and used. To eliminate the allocation and
+its usage entirely, Sevgi Engine offers an alternative method for clearing BOBs
+off frame buffers using the tileset.
+To activate it, either select @{"Do NOT use BOB background buffer" LINK Sevgi_Editor.guide/02_Editor_GameSettings 171} in Sevgi Editor
+or define NO_BOBBACKBUFFER in your settings.h file.
 
 @endnode
 

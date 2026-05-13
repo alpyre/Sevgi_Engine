@@ -85,11 +85,11 @@
         "storageType": "string",
         "type": "enum",
         "values": [
-            "GOB_ALIVE",
+            "GOB_INACTIVE",
             "GOB_DEAD",
-            "GOB_INACTIVE"
+            "GOB_OVERDRAW"
         ],
-        "valuesAsFlags": false
+        "valuesAsFlags": true
     },
     {
         "id": 7,

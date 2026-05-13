@@ -45,6 +45,8 @@ struct cl_ObjTable
   Object* int_pltSize;
   Object* chk_doublebuffer;
   Object* int_frameSkip;
+  Object* chk_quickBOBs;
+  Object* chk_noBackBuffer;
   Object* cyc_videoSystem;
   Object* int_scrWidth;
   Object* int_scrHeight;
@@ -125,6 +127,8 @@ STRPTR save_strings[] = {
 "//Un-comment to activate dual-playfield mode.",
 "//Do color register updates on copperlist",
 "//Activate double-buffering on display_level.c and gameobjects.c",
+"//Activate quick-BOBs (a.k.a. triple-buffering) on display_level.c",
+"//Do not allocate a buffer to preserve bob backgrounds (use tileset instead)",
 "//Select bitplane and sprite fetch modes",
 "   // Bitplane fetch mode (1, 2 or 4)",
 "   // Sprite fetch mode (1, 2 or 4)",
@@ -156,6 +160,8 @@ STRPTR save_strings[] = {
 "USE_CLP ",
 "DOUBLE_BUFFER",
 "FRAME_SKIP ",
+"QUICKBOBS",
+"NO_BOBBACKBUFFER",
 "BPL_FMODE ",
 "SPR_FMODE ",
 "TOP_PANEL_HEIGHT ",
@@ -204,6 +210,8 @@ enum {
   SS_COMMENT_DUALPLAYFIELD,
   SS_COMMENT_USE_CLP,
   SS_COMMENT_DOUBLEBUFFER,
+  SS_COMMENT_QUICKBOBS,
+  SS_COMMENT_NOBACKBUFFER,
   SS_COMMENT_FETCH_MODES,
   SS_COMMENT_BPL_FETCH,
   SS_COMMENT_SPR_FETCH,
@@ -235,6 +243,8 @@ enum {
   SS_DEF_USE_CLP,
   SS_DEF_DOUBLEBUFFER,
   SS_DEF_FRAME_SKIP,
+  SS_DEF_QUICKBOBS,
+  SS_DEF_NOBACKBUFFER,
   SS_DEF_BPL_FMODE,
   SS_DEF_SPR_FMODE,
   SS_DEF_TOP_PANEL_HEIGHT,
@@ -274,6 +284,8 @@ static struct {
   STRPTR pltSize;
   STRPTR doublebuffer;
   STRPTR frameSkip;
+  STRPTR quickBOBs;
+  STRPTR noBackBuffer;
   STRPTR video_system;
   STRPTR scr_width;
   STRPTR scr_height;
@@ -302,10 +314,12 @@ static struct {
   "Activates DYNAMIC_COPPERLIST mode in the level display.",
   "Activates SMART_SPRITES mode in the level display.",
   "Activates DUALPLAYFIELD mode in the level display.",
-  "Creates a section of MOVE instructions (CLP) on the copperlist of the level display\nwhich set the color registers. When this is set, color updates (like fade in/out)\nwill be done modifying the copperlist. When this is disabled color updates are\ndone on color registers directly (this has been reported to cause glitches on\nsome accelerated systems). This is why this is set by default.",
+  "Creates a section of MOVE instructions (CLP) on the copperlist of the level display\nwhich set the color registers. When this is set, color updates (like fade in/out)\nwill be done modifying the copperlist. When this is disabled color updates are\ndone on color registers directly (this has been reported to cause glitches on\nsome accelerated systems so this is set by default).",
   "Size of the palette to be used in the level display.\nMUST match the sizes of palettes you set for levels in Assets Editor.",
   "Activates DOUBLE_BUFFER mode in the level display.\n\nDouble-buffering will require twice the number of BOB mediums.\nDon't forget to tweak the \"Max. BOBs\" setting below accordingly.",
   "Determines the maximum FPS in double-buffered mode.\n0 means 50 FPS\n1 means 25 FPS\n2 means 16.6 FPS\n3 means 12.5 FPS",
+  "Activates QUICKBOBS (a.k.a. triple-buffering) in the level display.\nIn this mode, BOBs are removed by blitting from a pristine background buffer.\n\nWhen used in single-buffered mode, your display becomes double-buffered.\nWhen used in double-buffered mode, your display becomes triple-buffered.",
+  "Defines NO_BOBBACKBUFFER.\n\nRestores BOB backgrounds using the tileset. Despite being less optimal,\nthis method eliminates the need to allocate the BOBsBackBuffer and blit\nto it in order to store the background at each BOB update.\n\nIf you prefer to use QuickBOBs, activating this also is wise.",
   "Select video system.\nNTSC is NOT IMPLEMENTED YET!",
   "Screen width for the level display in pixels.\nValues other than 320 is NOT IMPLEMENTED YET!",
   "Screen height for the level display in pixels.\nThis value is the height of the tile map display.\nDoes not include top and bottom panels heights.",
@@ -523,6 +537,8 @@ STATIC ULONG m_Load(struct IClass* cl, Object* obj, struct cl_Msg* msg)
           DoMethod(data->obj_table.int_pltSize, MUIM_NoNotifySet, MUIA_Integer_Value, 1 << readSetting(buffer, SS_DEF_USE_CLP, IS_VALUE));
           DoMethod(data->obj_table.chk_doublebuffer, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_DOUBLEBUFFER, IS_BOOL));
           DoMethod(data->obj_table.int_frameSkip, MUIM_NoNotifySet, MUIA_Integer_Value, readSetting(buffer, SS_DEF_FRAME_SKIP, IS_VALUE));
+          DoMethod(data->obj_table.chk_quickBOBs, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_QUICKBOBS, IS_BOOL));
+          DoMethod(data->obj_table.chk_noBackBuffer, MUIM_NoNotifySet, MUIA_Selected, readSetting(buffer, SS_DEF_NOBACKBUFFER, IS_BOOL));
           m_SetDepthLimits(cl, obj, (Msg) msg);
           m_SetPF2DepthLimits(cl, obj, (Msg) msg);
           DoMethod(data->obj_table.int_scrWidth, MUIM_NoNotifySet, MUIA_Integer_Value, readSetting(buffer, SS_DEF_SCREEN_WIDTH, IS_VALUE));
@@ -603,6 +619,8 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
     ULONG pltSize;
     ULONG doublebuffer;
     ULONG frame_skip;
+    ULONG quickBOBs;
+    ULONG noBackBuffer;
     ULONG video_system;
     ULONG screen_width;
     ULONG screen_height;
@@ -636,6 +654,8 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
     get(data->obj_table.chk_smartSprites, MUIA_Selected, &settings.smart_spr);
     get(data->obj_table.chk_dualplayfield, MUIA_Selected, &settings.dualplayfield);
     get(data->obj_table.chk_doublebuffer, MUIA_Selected, &settings.doublebuffer);
+    get(data->obj_table.chk_quickBOBs, MUIA_Selected, &settings.quickBOBs);
+    get(data->obj_table.chk_noBackBuffer, MUIA_Selected, &settings.noBackBuffer);
     get(data->obj_table.chk_pltOnCL, MUIA_Selected, &settings.pltOnCL);
     get(data->obj_table.int_pltSize, MUIA_Integer_Value, &settings.pltSize);
     get(data->obj_table.int_frameSkip, MUIA_Integer_Value, &settings.frame_skip);
@@ -698,6 +718,10 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
 
     writeSetting(fh, SS_COMMENT_DOUBLEBUFFER, SS_DEF_DOUBLEBUFFER, NULL, NO_VALUE, NULL, !settings.doublebuffer, FALSE);
     writeSetting(fh, NULL, SS_DEF_FRAME_SKIP, NULL, settings.frame_skip, NULL, !settings.doublebuffer, TRUE);
+
+    writeSetting(fh, SS_COMMENT_QUICKBOBS, SS_DEF_QUICKBOBS, NULL, NO_VALUE, NULL, !settings.quickBOBs, TRUE);
+
+    writeSetting(fh, SS_COMMENT_NOBACKBUFFER, SS_DEF_NOBACKBUFFER, NULL, NO_VALUE, NULL, !settings.noBackBuffer, TRUE);
 
     writeSetting(fh, SS_COMMENT_USE_CLP, SS_DEF_USE_CLP, NULL, colors2depth(settings.pltSize), NULL, !settings.pltOnCL, TRUE);
 
@@ -768,6 +792,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* int_pltSize;
     Object* chk_doublebuffer;
     Object* int_frameSkip;
+    Object* chk_quickBOBs;
+    Object* chk_noBackBuffer;
     Object* cyc_videoSystem;
     Object* int_scrWidth;
     Object* int_scrHeight;
@@ -1060,26 +1086,31 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
         TAG_END),
         MUIA_Group_Child, MUI_NewObject(MUIC_Group,
           MUIA_Frame, MUIV_Frame_Group,
-          MUIA_FrameTitle, "Double-Buffering",
-          MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_doublebuffer, FALSE, "Double-Buffer", 'b', help_string.doublebuffer),
+          MUIA_FrameTitle, "Memory Model",
           MUIA_Group_Child, MUI_NewObject(MUIC_Group,
             MUIA_Group_Columns, 2,
-            MUIA_Group_Child, MUI_NewObject(MUIC_Text,
-              MUIA_Text_Contents, "Frame Skip:",
-              MUIA_ShortHelp, help_string.frameSkip,
+            MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_doublebuffer, FALSE, "Double-Buffer", 'b', help_string.doublebuffer),
+            MUIA_Group_Child, MUI_NewObject(MUIC_Group,
+              MUIA_Group_Horiz, TRUE,
+              MUIA_Group_Child, MUI_NewObject(MUIC_Text,
+                MUIA_Text_Contents, "Frame Skip:",
+                MUIA_ShortHelp, help_string.frameSkip,
+              TAG_END),
+              MUIA_Group_Child, (objects.int_frameSkip = NewObject(MUIC_Integer->mcc_Class, NULL,
+                MUIA_Integer_Input, TRUE,
+                MUIA_Integer_Value, 0,
+                MUIA_Integer_Incr, 1,
+                MUIA_Integer_Buttons, TRUE,
+                MUIA_Integer_Min, 0,
+                MUIA_Integer_Max, 3,
+                MUIA_String_MaxLen, 2,
+                MUIA_ShortHelp, help_string.frameSkip,
+                MUIA_Disabled, TRUE,
+              TAG_END)),
             TAG_END),
-            MUIA_Group_Child, (objects.int_frameSkip = NewObject(MUIC_Integer->mcc_Class, NULL,
-              MUIA_Integer_Input, TRUE,
-              MUIA_Integer_Value, 0,
-              MUIA_Integer_Incr, 1,
-              MUIA_Integer_Buttons, TRUE,
-              MUIA_Integer_Min, 0,
-              MUIA_Integer_Max, 3,
-              MUIA_String_MaxLen, 2,
-              MUIA_ShortHelp, help_string.frameSkip,
-              MUIA_Disabled, TRUE,
-            TAG_END)),
           TAG_END),
+          MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_quickBOBs, FALSE, "QuickBOBs", 'q', help_string.quickBOBs),
+          MUIA_Group_Child, MUI_NewCheckMark(&objects.chk_noBackBuffer, FALSE, "Do NOT use BOB background buffer", 'N', help_string.noBackBuffer),
         TAG_END),
         MUIA_Group_Child, MUI_NewObject(MUIC_Group,
           MUIA_Frame, MUIV_Frame_Group,
@@ -1242,6 +1273,12 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     DoMethod(objects.chk_doublebuffer, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, obj, 3,
     	MUIM_Set, MUIA_GameSettings_Edited, TRUE);
 
+    DoMethod(objects.chk_quickBOBs, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, obj, 3,
+      MUIM_Set, MUIA_GameSettings_Edited, TRUE);
+
+    DoMethod(objects.chk_noBackBuffer, MUIM_Notify, MUIA_Selected, MUIV_EveryTime, obj, 3,
+      MUIM_Set, MUIA_GameSettings_Edited, TRUE);
+
     DoMethod(objects.int_frameSkip, MUIM_Notify, MUIA_Integer_Value, MUIV_EveryTime, obj, 3,
     	MUIM_Set, MUIA_GameSettings_Edited, TRUE);
 
@@ -1319,6 +1356,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     data->obj_table.int_pltSize = objects.int_pltSize;
     data->obj_table.chk_doublebuffer = objects.chk_doublebuffer;
     data->obj_table.int_frameSkip = objects.int_frameSkip;
+    data->obj_table.chk_quickBOBs = objects.chk_quickBOBs;
+    data->obj_table.chk_noBackBuffer = objects.chk_noBackBuffer;
     data->obj_table.int_scrWidth = objects.int_scrWidth;
     data->obj_table.int_scrHeight = objects.int_scrHeight;
     data->obj_table.int_scrDepth = objects.int_scrDepth;

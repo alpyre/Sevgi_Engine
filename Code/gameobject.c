@@ -46,12 +46,14 @@ struct GameObject* spriteList[NUM_SPRITES + 1];
 #endif // NUM_SPRITES
 #if NUM_BOBS
 struct BOB bobs[NUM_BOBS];
-#ifdef DOUBLE_BUFFER
+  #ifdef DOUBLE_BUFFER
 struct GameObject* bobList[2][NUM_BOBS + 1];
-#else // DOUBLE_BUFFER
+  #else // DOUBLE_BUFFER
 struct GameObject* bobList[NUM_BOBS + 1];
-#endif // DOUBLE_BUFFER
+  #endif // DOUBLE_BUFFER
+  #ifndef NO_BOBBACKBUFFER
 struct BitMap* BOBsBackBuffer = NULL;
+  #endif // !NO_BOBBACKBUFFER
 #endif // NUM_BOBS
 
 //local globals
@@ -109,9 +111,9 @@ STATIC VOID checkGameObjectCollisions(VOID);
  ******************************************************************************/
 VOID initGameObjects(VOID (*blitBOBFunc)(struct GameObject*), VOID (*unBlitBOBFunc)(struct GameObject*), ULONG max_bob_width, ULONG max_go_height)
 {
-  #ifdef DOUBLE_BUFFER
+#ifdef DOUBLE_BUFFER
   g_active_buffer = 0;
-  #endif // DOUBLE_BUFFER
+#endif // DOUBLE_BUFFER
 
   map = current_level.tilemap[current_level.current.tilemap];
   mapPosX = &map->mapPosX;
@@ -120,12 +122,12 @@ VOID initGameObjects(VOID (*blitBOBFunc)(struct GameObject*), VOID (*unBlitBOBFu
   mapPosY2 = &map->mapPosY2;
   si = &map->si;
 
-  #if NUM_SPRITES
+#if NUM_SPRITES
   sprite_index = 0;
   spriteList[0] = NULL;
-  #endif // NUM_SPRITES
+#endif // NUM_SPRITES
 
-  #if NUM_BOBS
+#if NUM_BOBS
   blitBOB = blitBOBFunc;
   unBlitBOB = unBlitBOBFunc;
 
@@ -136,7 +138,7 @@ VOID initGameObjects(VOID (*blitBOBFunc)(struct GameObject*), VOID (*unBlitBOBFu
   #else // DOUBLE_BUFFER
   bobList[0] = NULL;
   #endif // !DOUBLE_BUFFER
-  #endif // NUM_BOBS
+#endif // NUM_BOBS
 
   if (current_level.gameobject_bank) {
     gameobjectList = current_level.gameobject_bank[current_level.current.gameobject_bank]->gameobjectList;
@@ -144,7 +146,7 @@ VOID initGameObjects(VOID (*blitBOBFunc)(struct GameObject*), VOID (*unBlitBOBFu
     num_gameobjects = current_level.gameobject_bank[current_level.current.gameobject_bank]->num_gameobjects;
 
     //Spawnable / de-spawnable gameobjects
-    #if NUM_GAMEOBJECTS
+#if NUM_GAMEOBJECTS
     {
       ULONG i;
       for (i = 0; i < NUM_GAMEOBJECTS; i++) {
@@ -153,9 +155,9 @@ VOID initGameObjects(VOID (*blitBOBFunc)(struct GameObject*), VOID (*unBlitBOBFu
       avail_gameobjects[NUM_GAMEOBJECTS] = NULL;
       avail_gameobject = &avail_gameobjects[0];
     }
-    #endif // NUM_GAMEOBJECTS
+#endif // NUM_GAMEOBJECTS
 
-    #if NUM_BOBS
+#if NUM_BOBS
     {
       LONG i;
       ULONG bob_width = ((max_bob_width + 15) / 16) * 16;
@@ -165,7 +167,9 @@ VOID initGameObjects(VOID (*blitBOBFunc)(struct GameObject*), VOID (*unBlitBOBFu
       //Initialize bobs
       for (i = 0; i < NUM_BOBS; i++) {
         bobs[i].flags = BOB_CLEARED;
+  #ifndef NO_BOBBACKBUFFER
         bobs[i].background = (UBYTE*)(BOBsBackBuffer->Planes[0] + i * (bob_width / 8)); //WARNING: This depends on BOBsBackBuffer being interleaved!
+  #endif // !NO_BOBBACKBUFFER
       }
       //Initialize available bob list and pointer
       for (i = 0; i < NUM_BOBS; i++) {
@@ -174,9 +178,9 @@ VOID initGameObjects(VOID (*blitBOBFunc)(struct GameObject*), VOID (*unBlitBOBFu
       avail_bobs[NUM_BOBS] = NULL;
       avail_bob = &avail_bobs[0];
     }
-    #endif // NUM_BOBS
+#endif // NUM_BOBS
 
-    #if NUM_SPRITES
+#if NUM_SPRITES
     {
       LONG i;
 
@@ -189,17 +193,16 @@ VOID initGameObjects(VOID (*blitBOBFunc)(struct GameObject*), VOID (*unBlitBOBFu
       avail_sprites[NUM_SPRITES] = NULL;
       avail_sprite = &avail_sprites[0];
     }
-    #endif // NUM_SPRITES
+#endif // NUM_SPRITES
   }
 }
 ///
-
 ///allocBOBBackgroundBuffer()
 /******************************************************************************
  * Allocates the chipmemory required to store bob backgrounds that will be    *
  * used by unBlitBOB().                                                       *
  ******************************************************************************/
-#if NUM_BOBS
+#if NUM_BOBS && !defined NO_BOBBACKBUFFER
 struct BitMap* allocBOBBackgroundBuffer(UWORD max_bob_width, UWORD max_bob_height, UWORD screen_depth)
 {
   struct BitMap* bm = AllocBitMap((((max_bob_width + 15) / 16) * 16) * NUM_BOBS,
@@ -217,7 +220,7 @@ struct BitMap* allocBOBBackgroundBuffer(UWORD max_bob_width, UWORD max_bob_heigh
 
   return bm;
 }
-#endif // NUM_BOBS
+#endif // NUM_BOBS && !NO_BOBBACKBUFFER
 ///
 
 ///SpriteListFunctions
@@ -256,10 +259,16 @@ INLINE STATIC VOID addToBOBDrawList(struct GameObject* go1, struct GameObject* g
   if (go1->priority > go2->priority) {
     struct BOB* bob1 = (struct BOB*)go1->u.mediums[g_active_buffer];
     bob1->drawList[bob1->drawList_index++] = go2;
+    #ifdef NO_BOBBACKBUFFER
+    ((struct BOB*)go2->u.mediums[g_active_buffer])->flags &= ~(BOB_DEAD | BOB_DYING);
+    #endif // NO_BOBBACKBUFFER
   }
   else {
     struct BOB* bob2 = (struct BOB*)go2->u.mediums[g_active_buffer];
     bob2->drawList[bob2->drawList_index++] = go1;
+    #ifdef NO_BOBBACKBUFFER
+    ((struct BOB*)go1->u.mediums[g_active_buffer])->flags &= ~(BOB_DEAD | BOB_DYING);
+    #endif // NO_BOBBACKBUFFER
   }
 }
 

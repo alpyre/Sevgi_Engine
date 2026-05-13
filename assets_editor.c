@@ -1215,55 +1215,63 @@ BOOL checkNonInterleavedSheet(STRPTR filename, ULONG depth)
   STRPTR sheet_file = makePath(g_Project.data_drawer, filename, NULL);
 
   if (sheet_file) {
-    BPTR fh = Open(sheet_file, MODE_OLDFILE);
+    // sheet_path will not be the same as g_Project.data_drawer when filename
+    // passed is a relative path to a sub drawer!
+    STRPTR sheet_path = pathPart(sheet_file);
 
-    if (fh) {
-      UBYTE id[8];
-      UBYTE ilbm_filename[32];
+    if (sheet_path) {
+      BPTR fh = Open(sheet_file, MODE_OLDFILE);
 
-      Read(fh, id, 8);
-      if (strncmp(id, "BOBSHEET", 8) == 0) {
-        ULONG i = 0;
-        Read(fh, &ilbm_filename[i], 1);
-        while (ilbm_filename[i]) Read(fh, &ilbm_filename[++i], 1);
-        if (i) {
-          STRPTR ilbm_file = makePath(g_Project.data_drawer, ilbm_filename, NULL);
-          if (ilbm_file) {
-            UBYTE type;
+      if (fh) {
+        UBYTE id[8];
+        UBYTE ilbm_filename[32];
 
-            Read(fh, &type, 1);
-            if (type & FORCE_NONINTERLEAVED) {
-              result = TRUE;
-            }
-            else {
-              BPTR fh2 = Open(ilbm_file, MODE_OLDFILE);
+        Read(fh, id, 8);
+        if (strncmp(id, "BOBSHEET", 8) == 0) {
+          ULONG i = 0;
+          Read(fh, &ilbm_filename[i], 1);
+          while (ilbm_filename[i]) Read(fh, &ilbm_filename[++i], 1);
+          if (i) {
+            STRPTR ilbm_file = makePath(sheet_path, ilbm_filename, NULL);
+            if (ilbm_file) {
+              UBYTE type;
 
-              if (fh2) {
-                struct BitMapHeader bmhd;
+              Read(fh, &type, 1);
+              if (type & FORCE_NONINTERLEAVED) {
+                result = TRUE;
+              }
+              else {
+                BPTR fh2 = Open(ilbm_file, MODE_OLDFILE);
 
-                if (locateStrInFile(fh2, "FORM")) {
-                  if (locateStrInFile(fh2, "ILBM")) {
-                    if (locateStrInFile(fh2, "BMHD")) {
-                      Seek(fh2, 4, OFFSET_CURRENT);
-                      if (sizeof(struct BitMapHeader) == Read(fh2, &bmhd, sizeof(struct BitMapHeader))) {
-                        if (bmhd.bmh_Depth != depth) {
-                          result = TRUE;
+                if (fh2) {
+                  struct BitMapHeader bmhd;
+
+                  if (locateStrInFile(fh2, "FORM")) {
+                    if (locateStrInFile(fh2, "ILBM")) {
+                      if (locateStrInFile(fh2, "BMHD")) {
+                        Seek(fh2, 4, OFFSET_CURRENT);
+                        if (sizeof(struct BitMapHeader) == Read(fh2, &bmhd, sizeof(struct BitMapHeader))) {
+                          if (bmhd.bmh_Depth != depth) {
+                            result = TRUE;
+                          }
                         }
                       }
                     }
                   }
+
+                  Close(fh2);
                 }
-
-                Close(fh2);
               }
-            }
 
-            freeString(ilbm_file);
+              freeString(ilbm_file);
+            }
           }
         }
+
+        Close(fh);
       }
 
-      Close(fh);
+      freeString(sheet_path);
     }
 
     freeString(sheet_file);

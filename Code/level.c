@@ -22,9 +22,9 @@
 extern volatile ULONG loading_gauge_total;       // from loading_display.o
 extern volatile ULONG loading_gauge_current;     // from loading_display.o
 
-#if NUM_BOBS
+#if NUM_BOBS && !defined NO_BOBBACKBUFFER
 extern struct BitMap* BOBsBackBuffer;            // from gameobject.o
-#endif // NUM_BOBS
+#endif // NUM_BOBS && !NO_BOBBACKBUFFER
 
 // exported globals
 struct Level current_level = {0}; //current_level is a singleton...
@@ -137,6 +137,7 @@ struct Level* loadLevel(ULONG num)
       }
     }
 
+    #ifndef NO_BOBBACKBUFFER
     if (level->num.bob_sheets) {
       BOBsBackBuffer = allocBOBBackgroundBuffer(max_bob_width, max_bob_height, SCREEN_DEPTH);
       if (!BOBsBackBuffer) {
@@ -145,6 +146,7 @@ struct Level* loadLevel(ULONG num)
       }
     }
     else BOBsBackBuffer = NULL;
+    #endif // !NO_BOBBACKBUFFER
   }
   #endif // NUM_BOBS
 
@@ -354,7 +356,7 @@ VOID unloadLevel()
   }
 
   //free all bob_sheets in this level
-  #if NUM_BOBS
+#if NUM_BOBS
   if (level->bob_sheet) {
     for (i = level->num.bob_sheets - 1; i >= 0; i--) {
       struct BOBSheet* bs = level->bob_sheet[i];
@@ -365,11 +367,13 @@ VOID unloadLevel()
     level->num.bob_sheets = 0;
   }
 
+  #ifndef NO_BOBBACKBUFFER
   if (BOBsBackBuffer) {
     FreeBitMap(BOBsBackBuffer);
     BOBsBackBuffer = NULL;
   }
-  #endif // NUM_BOBS
+  #endif // !NO_BOBBACKBUFFER
+#endif // NUM_BOBS
 
   //free all tilemaps in this level
   if (level->tilemap) {

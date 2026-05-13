@@ -37,7 +37,7 @@ struct TileMap {
   LONG maxMapPosX;            // The maximum values for map positions which...
   LONG maxMapPosY;            // ...will restrict over scrolling.
   struct ScrollInfo si;       // The direction and amount of the last scroll
-  TILEID data[FLEXARR];       // An array of UWORDS that holds tile id's
+  TILEID data[FLEXARR];       // An array of UWORDs that holds tile IDs
 };
 
 struct TileMap *newTileMap(ULONG width, ULONG height, UWORD scr_width, UWORD scr_height);

@@ -37,6 +37,12 @@
 //#define DOUBLE_BUFFER
 //#define FRAME_SKIP 0
 
+//Activate quick-BOBs (a.k.a. triple-buffering) on display_level.c
+//#define QUICKBOBS
+
+//Do not allocate a buffer to preserve bob backgrounds (use tileset instead)
+//#define NO_BOBBACKBUFFER
+
 //Do color register updates on copperlist
 #define USE_CLP 5
 

@@ -163,6 +163,9 @@ STATIC VOID sortSpriteCopOps(VOID);
 
 STATIC VOID setSprites(VOID);
 STATIC INLINE VOID LD_setSprite(struct GameObject* go);
+#if defined NO_BOBBACKBUFFER && TILESIZE == 16
+STATIC INLINE VOID LD_unBlitBOBUsingTiles(struct BOB* bob, UWORD bx, UWORD by, UBYTE* BITMAPTOP);
+#endif
 ///
 ///globals
 // imported globals
@@ -180,7 +183,9 @@ extern struct GameObject* spriteList[NUM_SPRITES + 1];
 #endif // NUM_SPRITES
 #if NUM_BOBS
 extern struct GameObject* bobList[NUM_BOBS + 1];
+  #ifndef NO_BOBBACKBUFFER
 extern struct BitMap* BOBsBackBuffer;
+  #endif // !NO_BOBBACKBUFFER
 #endif // NUM_BOBS
 
 extern LONG* mapPosX;  // map's horizontal position in pixels
@@ -212,11 +217,15 @@ STATIC WORD vidPosX_s = 0; // Same with vidPosX, though this one is used only in
 STATIC UBYTE *bitmapTop     = NULL; // Address to first visible pixel of the bitmap
 STATIC UBYTE *bitmapBottom  = NULL; // Address to the horizontal scroll buffer line
 #ifdef DOUBLE_BUFFER
-STATIC UBYTE *bitmapTop1    = NULL; // These are the actual pointers for both of
-STATIC UBYTE *bitmapBottom1 = NULL; // the buffers
-STATIC UBYTE *bitmapTop2    = NULL; // Above two will hold the active ones to
-STATIC UBYTE *bitmapBottom2 = NULL; // be used in rendering
+STATIC UBYTE *bitmapTop1    = NULL; // These are the actual pointers for both...
+STATIC UBYTE *bitmapBottom1 = NULL; // ...buffers
+STATIC UBYTE *bitmapTop2    = NULL; // Above two will hold the active ones to...
+STATIC UBYTE *bitmapBottom2 = NULL; // ...be used in rendering
 #endif // DOUBLE_BUFFER
+#ifdef QUICKBOBS
+STATIC UBYTE *bitmapTop3    = NULL; // The relevant addresses above for the...
+STATIC UBYTE *bitmapBottom3 = NULL; // ...triple-buffer
+#endif // QUICKBOBS
 STATIC WORD fillUpRowPos = 0; // Y position of the vertical scroll fill-up row (in pixels).
 STATIC WORD mapTileX;
 STATIC WORD mapTileY;
@@ -248,6 +257,9 @@ STATIC struct BitMap* level_bitmap  = NULL;   // Main game screen opened by open
 #ifdef DOUBLE_BUFFER
 STATIC struct BitMap* level_bitmap2 = NULL;   // double-buffered
 #endif // DOUBLE_BUFFER
+#ifdef QUICKBOBS
+STATIC struct BitMap* level_bitmap3 = NULL;   // pristine level background for BOBs (a.k.a. triple-buffered)
+#endif // QUICKBOBS
 #ifdef DUALPLAYFIELD
 STATIC struct BitMap* level_bitmap_pf2 = NULL; // Parallaxing background image
 #endif // DUALPLAYFIELD
@@ -263,9 +275,9 @@ STATIC PLANEPTR *planes2 = NULL;  //the one above holds the active one
 #ifdef DUALPLAYFIELD
 STATIC PLANEPTR *planes_pf2 = NULL; //access pointer for playfield 2's bitmap
 #endif // DUALPLAYFIELD
-#if NUM_BOBS
+#if NUM_BOBS && !defined NO_BOBBACKBUFFER
 STATIC ULONG bobs_back_buffer_mod;
-#endif // NUM_BOBS
+#endif // NUM_BOBS && !NO_BOBBACKBUFFER
 
 #ifdef DYNAMIC_COPPERLIST
   ULONG num_cl_header_instructions = 0;
@@ -512,6 +524,9 @@ STATIC struct BitMap* openScreen()
   #ifdef DOUBLE_BUFFER
   struct BitMap* bm2 = NULL;
   #endif // DOUBLE_BUFFER
+  #ifdef QUICKBOBS
+  struct BitMap* bm3 = NULL;
+  #endif // QUICKBOBS
 
   #ifdef DUALPLAYFIELD
   level_bitmap_pf2 = allocBitMap(BITMAP_WIDTH_PF2,
@@ -556,39 +571,30 @@ STATIC struct BitMap* openScreen()
           bitmapBottom = bitmapTop + (BITMAP_HEIGHT * SCREEN_DEPTH) * BITMAP_BYTES_PER_ROW;
   #endif // !DOUBLE_BUFFER
 
-          #if TOP_PANEL_HEIGHT > 0
-          if ((top_panel_rastport = allocRastPort(TOP_PANEL_BITMAP_WIDTH, TOP_PANEL_HEIGHT, TOP_PANEL_DEPTH,
-                                                  BMF_STANDARD | BMF_INTERLEAVED | BMF_DISPLAYABLE | BMF_CLEAR,
-                                                  bm, RPF_BITMAP, 0))) {
-            //All allocations OK, we can render stuff
-            SetRast(top_panel_rastport, 2);
-          }
-          else {
-            #ifdef DOUBLE_BUFFER
-            FreeBitMap(bm2); bm2 = NULL;
-            #endif // DOUBLE_BUFFER
-            FreeBitMap(bm); bm = NULL;
-            #ifdef DUALPLAYFIELD
-            FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
-            #endif // DUALPLAYFIELD
-            puts("Couldn't allocate top_panel_rastport!");
-          }
-          #endif // TOP_PANEL_HEIGHT
+  #ifdef QUICKBOBS
+          bm3 = allocBitMap(BITMAP_WIDTH,
+                            BITMAP_HEIGHT + 1,
+                            SCREEN_DEPTH,
+                            BMF_STANDARD | BMF_INTERLEAVED | BMF_DISPLAYABLE | BMF_CLEAR,
+                            bm);
+          if (bm3) {
+            if ((TypeOfMem(bm3->Planes[0]) & MEMF_CHIP) && (GetBitMapAttr(bm3, BMA_FLAGS) & BMF_INTERLEAVED)) {
+              level_bitmap3 = bm3;
+              bitmapTop3 = bm3->Planes[0] + DISPLAY_BUFFER_OFFSET_BYTES;
+              bitmapBottom3 = bitmapTop3 + (BITMAP_HEIGHT * SCREEN_DEPTH) * BITMAP_BYTES_PER_ROW;
+  #endif // QUICKBOBS
 
-          #if BOTTOM_PANEL_HEIGHT > 0
-            #if TOP_PANEL_HEIGHT > 0
-            if (top_panel_rastport) {
-            #endif // TOP_PANEL_HEIGHT
-              if ((bottom_panel_rastport = allocRastPort(BOTTOM_PANEL_BITMAP_WIDTH, BOTTOM_PANEL_HEIGHT, BOTTOM_PANEL_DEPTH,
-                                                         BMF_STANDARD | BMF_INTERLEAVED | BMF_DISPLAYABLE | BMF_CLEAR,
-                                                         bm, RPF_BITMAP, 0))) {
+              #if TOP_PANEL_HEIGHT > 0
+              if ((top_panel_rastport = allocRastPort(TOP_PANEL_BITMAP_WIDTH, TOP_PANEL_HEIGHT, TOP_PANEL_DEPTH,
+                                                      BMF_STANDARD | BMF_INTERLEAVED | BMF_DISPLAYABLE | BMF_CLEAR,
+                                                      bm, RPF_BITMAP, 0))) {
                 //All allocations OK, we can render stuff
-                SetRast(bottom_panel_rastport, 3);
+                SetRast(top_panel_rastport, 2);
               }
               else {
-                #if TOP_PANEL_HEIGHT > 0
-                freeRastPort(top_panel_rastport, RPF_BITMAP); top_panel_rastport = NULL;
-                #endif // TOP_PANEL_HEIGHT
+                #ifdef QUICKBOBS
+                FreeBitMap(bm3); bm3 = NULL;
+                #endif // QUICKBOBS
                 #ifdef DOUBLE_BUFFER
                 FreeBitMap(bm2); bm2 = NULL;
                 #endif // DOUBLE_BUFFER
@@ -596,12 +602,66 @@ STATIC struct BitMap* openScreen()
                 #ifdef DUALPLAYFIELD
                 FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
                 #endif // DUALPLAYFIELD
-                puts("Couldn't allocate bottom_panel_rastport!");
+                puts("Couldn't allocate top_panel_rastport!");
               }
-            #if TOP_PANEL_HEIGHT > 0
+              #endif // TOP_PANEL_HEIGHT
+
+              #if BOTTOM_PANEL_HEIGHT > 0
+                #if TOP_PANEL_HEIGHT > 0
+                if (top_panel_rastport) {
+                #endif // TOP_PANEL_HEIGHT
+                  if ((bottom_panel_rastport = allocRastPort(BOTTOM_PANEL_BITMAP_WIDTH, BOTTOM_PANEL_HEIGHT, BOTTOM_PANEL_DEPTH,
+                                                             BMF_STANDARD | BMF_INTERLEAVED | BMF_DISPLAYABLE | BMF_CLEAR,
+                                                             bm, RPF_BITMAP, 0))) {
+                    //All allocations OK, we can render stuff
+                    SetRast(bottom_panel_rastport, 3);
+                  }
+                  else {
+                    #if TOP_PANEL_HEIGHT > 0
+                    freeRastPort(top_panel_rastport, RPF_BITMAP); top_panel_rastport = NULL;
+                    #endif // TOP_PANEL_HEIGHT
+                    #ifdef QUICKBOBS
+                    FreeBitMap(bm3); bm3 = NULL;
+                    #endif // QUICKBOBS
+                    #ifdef DOUBLE_BUFFER
+                    FreeBitMap(bm2); bm2 = NULL;
+                    #endif // DOUBLE_BUFFER
+                    FreeBitMap(bm); bm = NULL;
+                    #ifdef DUALPLAYFIELD
+                    FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
+                    #endif // DUALPLAYFIELD
+                    puts("Couldn't allocate bottom_panel_rastport!");
+                  }
+                #if TOP_PANEL_HEIGHT > 0
+                }
+                #endif // TOP_PANEL_HEIGHT
+              #endif // BOTTOM_PANEL_HEIGHT
+
+  #ifdef QUICKBOBS
             }
-            #endif // TOP_PANEL_HEIGHT
-          #endif // BOTTOM_PANEL_HEIGHT
+            else {
+              puts("Couldn't allocate an interleaved screen bitmap for triple-buffering!");
+              FreeBitMap(bm3); bm3 = NULL;
+              #ifdef DOUBLE_BUFFER
+              FreeBitMap(bm2); bm2 = NULL;
+              #endif // DOUBLE_BUFFER
+              FreeBitMap(bm); bm = NULL;
+              #ifdef DUALPLAYFIELD
+              FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
+              #endif // DUALPLAYFIELD
+            }
+          }
+          else {
+            puts("Not enough memory for triple-buffering!");
+            #ifdef DOUBLE_BUFFER
+            FreeBitMap(bm2); bm2 = NULL;
+            #endif // DOUBLE_BUFFER
+            FreeBitMap(bm); bm = NULL;
+            #ifdef DUALPLAYFIELD
+            FreeBitMap(level_bitmap_pf2); level_bitmap_pf2 = NULL;
+            #endif // DUALPLAYFIELD
+          }
+  #endif // QUICKBOBS
         }
         else {
           puts("Couldn't allocate an interleaved screen bitmap!");
@@ -810,9 +870,9 @@ VOID calcTileOffsets(UBYTE* tilesPerStep, UBYTE* posPerStep, UWORD num_steps, UW
 
 STATIC VOID initLevelDisplay()
 {
-#if NUM_BOBS
+#if NUM_BOBS && !defined NO_BOBBACKBUFFER
   if (BOBsBackBuffer) bobs_back_buffer_mod = BOBsBackBuffer->BytesPerRow / BOBsBackBuffer->Depth;
-#endif // NUM_BOBS
+#endif // NUM_BOBS && !NO_BOBBACKBUFFER
   color_table = current_level.color_table[current_level.current.color_table];
   tileset = current_level.tileset[current_level.current.tileset];
   map = current_level.tilemap[current_level.current.tilemap];
@@ -875,6 +935,12 @@ STATIC VOID blitTile(ULONG x, ULONG y, ULONG mapX, ULONG mapY)
     custom.bltdpt  = bitmapTop + offs;
     custom.bltsize = ((TILESIZE * TILEDEPTH) << 6) + (TILESIZE / 16);
   #endif // !DOUBLE_BUFFER
+  #ifdef QUICKBOBS
+    busyWaitBlit();
+    custom.bltapt  = tile;
+    custom.bltdpt  = bitmapTop3 + offs;
+    custom.bltsize = ((TILESIZE * TILEDEPTH) << 6) + (TILESIZE / 16);
+  #endif // QUICKBOBS
   }
   else {
     // blit DOES collide with video split
@@ -907,7 +973,7 @@ STATIC VOID blitTile(ULONG x, ULONG y, ULONG mapX, ULONG mapY)
     custom.bltdpt  = bitmapTop2 + x;
     custom.bltsize = size2;
   #else // DOUBLE_BUFFER
-  busyWaitBlit();
+    busyWaitBlit();
     custom.bltapt = tile;
     custom.bltdpt = bitmapTop + offs;
     custom.bltsize = size1;
@@ -915,6 +981,15 @@ STATIC VOID blitTile(ULONG x, ULONG y, ULONG mapX, ULONG mapY)
     custom.bltdpt  = bitmapTop + x;
     custom.bltsize = size2;
   #endif // !DOUBLE_BUFFER
+  #ifdef QUICKBOBS
+    busyWaitBlit();
+    custom.bltapt = tile;
+    custom.bltdpt = bitmapTop3 + offs;
+    custom.bltsize = size1;
+    busyWaitBlit();
+    custom.bltdpt  = bitmapTop3 + x;
+    custom.bltsize = size2;
+  #endif // QUICKBOBS
   }
 }
 ///
@@ -927,6 +1002,10 @@ STATIC VOID blitHScrollLine(ULONG pos)
     APTR bltapt2;
     APTR bltdpt2;
   #endif // DOUBLE_BUFFER
+  #ifdef QUICKBOBS
+    APTR bltapt3;
+    APTR bltdpt3;
+  #endif // QUICKBOBS
 
   if (pos == UP) {
     #ifdef DOUBLE_BUFFER
@@ -938,6 +1017,10 @@ STATIC VOID blitHScrollLine(ULONG pos)
       bltapt1 = bitmapBottom;
       bltdpt1 = bitmapTop;
     #endif // !DOUBLE_BUFFER
+    #ifdef QUICKBOBS
+      bltapt3 = bitmapBottom3;
+      bltdpt3 = bitmapTop3;
+    #endif // QUICKBOBS
   }
   else {
     #ifdef DOUBLE_BUFFER
@@ -949,6 +1032,10 @@ STATIC VOID blitHScrollLine(ULONG pos)
       bltapt1 = bitmapTop;
       bltdpt1 = bitmapBottom;
     #endif // !DOUBLE_BUFFER
+    #ifdef QUICKBOBS
+      bltapt3 = bitmapTop3;
+      bltdpt3 = bitmapBottom3;
+    #endif // QUICKBOBS
   }
 
   busyWaitBlit();
@@ -963,6 +1050,12 @@ STATIC VOID blitHScrollLine(ULONG pos)
     custom.bltdpt  = bltdpt2;
     custom.bltsize = ((1 * SCREEN_DEPTH) << 6) + (BITMAP_BYTES_PER_ROW / 2);
   #endif // DOUBLE_BUFFER
+  #ifdef QUICKBOBS
+    busyWaitBlit();
+    custom.bltapt  = bltapt3;
+    custom.bltdpt  = bltdpt3;
+    custom.bltsize = ((1 * SCREEN_DEPTH) << 6) + (BITMAP_BYTES_PER_ROW / 2);
+  #endif // QUICKBOBS
 
   busyWaitBlit();
   custom.bltdmod = BITMAP_BYTES_PER_ROW - (TILESIZE / 8);
@@ -1579,9 +1672,10 @@ VOID LD_blitBOB(struct GameObject* go)
   UWORD by;     //   "         "
   UWORD amod;   // moduli for bob image (to go in to bltamod and bltbmod)
   UWORD dmod;   // moduli for the bitmap(to go in to bltcmod and bltdmod)
-  ULONG image_skip_prec; // to precalculate the skipped bytes for image an mask clipping
+  ULONG image_skip_prec; // to precalculate the skipped bytes for image and mask clipping
   UBYTE* bltapt;
   UBYTE* bltbpt;
+  UBYTE* BITMAPTOP;
 
   words  = image->bytesPerRow + 2;
   wordsB = words;
@@ -1610,10 +1704,14 @@ VOID LD_blitBOB(struct GameObject* go)
       wordsB = wordsC + 2;
     }
     words = wordsC;
-  #ifndef DOUBLE_BUFFER
     x2 = SCREEN_WIDTH;
-  #endif // !DOUBLE_BUFFER
+  #if defined QUICKBOBS || defined NO_BOBBACKBUFFER
+    bob->lastBlt.right_edge = TRUE;
+  #endif // QUICKBOBS || NO_BOBBACKBUFFER
   }
+  #if defined QUICKBOBS || defined NO_BOBBACKBUFFER
+  else bob->lastBlt.right_edge = FALSE;
+  #endif // QUICKBOBS || NO_BOBBACKBUFFER
   if (y2 > SCREEN_HEIGHT) {
     rows -= y2 - SCREEN_HEIGHT; // clip pixellines from the bottom of the bob image
     y2 = SCREEN_HEIGHT;
@@ -1626,40 +1724,56 @@ VOID LD_blitBOB(struct GameObject* go)
   /*************************************************************
    * Preserve underlying background to bob's background buffer *
    ************************************************************/
-  {
-    UBYTE* bltdpt = (UBYTE*)bob->background - 2 + y_sr * bobs_back_buffer_mod * SCREEN_DEPTH + x_sw;
-
-    busyWaitBlit();
-    custom.bltcon0 = (x_sB << 12) | 0x09F0; // use A = Source, D = Destination (vanilla copy)
-    custom.bltafwm = 0xFFFF;
-    custom.bltalwm = 0xFFFF;
-    custom.bltamod = BITMAP_BYTES_PER_ROW - wordsB;
-    custom.bltdmod = bobs_back_buffer_mod - wordsB;
-    custom.bltdpt  = bltdpt;
-
-    wordsB >>= 1;
-    if ((by + rows) <= BITMAP_HEIGHT) {
-      custom.bltapt  = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + (((bx - 1) >> 3) & 0xFFFE);
-      custom.bltsize = ((rows * SCREEN_DEPTH) << 6) | wordsB;
-    }
-    else if (by >= BITMAP_HEIGHT) {
-      custom.bltapt  = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + (((bx - 1) >> 3) & 0xFFFE);
-      custom.bltsize = ((rows * SCREEN_DEPTH) << 6) | wordsB;
-    }
-    else { // blit it in two parts because of the videosplit!
-      UWORD firstPartRows = BITMAP_HEIGHT - by;
-      UWORD skipRows = firstPartRows * bobs_back_buffer_mod * SCREEN_DEPTH;
-
-      custom.bltapt  = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + (((bx - 1) >> 3) & 0xFFFE);
-      custom.bltsize = ((firstPartRows * SCREEN_DEPTH) << 6) | wordsB;
+#ifdef NO_BOBBACKBUFFER
+  BITMAPTOP = bitmapTop;
+#else // NO_BOBBACKBUFFER
+  if (!(go->state & GOB_OVERDRAW)) {
+  #ifdef QUICKBOBS
+    BITMAPTOP = bitmapTop3;
+    #ifdef DOUBLE_BUFFER
+    if (g_active_buffer == 0 && bob->flags & (BOB_DYING | BOB_BLITTED2) == BOB_DYING)
+    #else // DOUBLE_BUFFER
+    if (bob->flags & (BOB_DYING | BOB_BLITTED2) == BOB_DYING)
+    #endif // !DOUBLE_BUFFER
+  #else // QUICKBOBS
+    BITMAPTOP = bitmapTop;
+  #endif // !QUICKBOBS
+    {
+      UBYTE* bltdpt = (UBYTE*)bob->background - 2 + y_sr * bobs_back_buffer_mod * SCREEN_DEPTH + x_sw;
 
       busyWaitBlit();
+      custom.bltcon0 = (x_sB << 12) | 0x09F0; // use A = Source, D = Destination (vanilla copy)
+      custom.bltafwm = 0xFFFF;
+      custom.bltalwm = 0xFFFF;
+      custom.bltamod = BITMAP_BYTES_PER_ROW - wordsB;
+      custom.bltdmod = bobs_back_buffer_mod - wordsB;
+      custom.bltdpt  = bltdpt;
 
-      custom.bltapt  = bitmapTop + (((bx - 1) >> 3) & 0xFFFE);
-      custom.bltdpt  = bltdpt + skipRows;
-      custom.bltsize = (((rows - firstPartRows) * SCREEN_DEPTH) << 6) | wordsB;
+      wordsB >>= 1;
+      if ((by + rows) <= BITMAP_HEIGHT) {
+        custom.bltapt  = BITMAPTOP + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + (((bx - 1) >> 3) & 0xFFFE);
+        custom.bltsize = ((rows * SCREEN_DEPTH) << 6) | wordsB;
+      }
+      else if (by >= BITMAP_HEIGHT) {
+        custom.bltapt  = BITMAPTOP + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + (((bx - 1) >> 3) & 0xFFFE);
+        custom.bltsize = ((rows * SCREEN_DEPTH) << 6) | wordsB;
+      }
+      else { // blit it in two parts because of the videosplit!
+        UWORD firstPartRows = BITMAP_HEIGHT - by;
+        UWORD skipRows = firstPartRows * bobs_back_buffer_mod * SCREEN_DEPTH;
+
+        custom.bltapt  = BITMAPTOP + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + (((bx - 1) >> 3) & 0xFFFE);
+        custom.bltsize = ((firstPartRows * SCREEN_DEPTH) << 6) | wordsB;
+
+        busyWaitBlit();
+
+        custom.bltapt  = BITMAPTOP + (((bx - 1) >> 3) & 0xFFFE);
+        custom.bltdpt  = bltdpt + skipRows;
+        custom.bltsize = (((rows - firstPartRows) * SCREEN_DEPTH) << 6) | wordsB;
+      }
     }
   }
+#endif // !NO_BOBBACKBUFFER
 
   image_skip_prec = y_sr * sheet_bitmap->BytesPerRow + x_sw;
   bltapt = (UBYTE*)mask + image_skip_prec;
@@ -1668,16 +1782,16 @@ VOID LD_blitBOB(struct GameObject* go)
   x_s <<= 12;
   bob->lastBlt.x1 = x + *mapPosX;
   bob->lastBlt.y1 = y + *mapPosY;
-  #ifndef DOUBLE_BUFFER
   bob->lastBlt.x2 = x2 + *mapPosX;
   bob->lastBlt.y2 = y2 + *mapPosY;
-  #endif // !DOUBLE_BUFFER
+#ifndef NO_BOBBACKBUFFER
   bob->lastBlt.bob_sheet = image->bob_sheet;
   bob->lastBlt.x_s = x_s;
   bob->lastBlt.bltafwm = fwm;
   bob->lastBlt.bltalwm = lwm;
   bob->lastBlt.bltapt  = bltapt;
   bob->lastBlt.bltbpt  = (UBYTE*)bob->background + y_sr * BOBsBackBuffer->BytesPerRow + x_sw;
+#endif // !NO_BOBBACKBUFFER
   bob->flags |= BOB_BLITTED;
 
 #ifdef USE_NONINTERLEAVED_BOBS
@@ -1693,9 +1807,11 @@ VOID LD_blitBOB(struct GameObject* go)
     dmod = (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) - words;
     source_offset = (ULONG)bltbpt - (ULONG)sheet_bitmap->Planes[0];
 
+#ifndef NO_BOBBACKBUFFER
     bob->lastBlt.bltamod = amod;
     bob->lastBlt.bltbmod = BOBsBackBuffer->BytesPerRow - words;
     bob->lastBlt.bltdmod = dmod;
+#endif // !NO_BOBBACKBUFFER
 
     words >>= 1;
     bob->lastBlt.words = words;
@@ -1704,6 +1820,12 @@ VOID LD_blitBOB(struct GameObject* go)
   #ifndef DOUBLE_BUFFER
     waitVBeam(y2 + SCREEN_START);
   #endif // !DOUBLE_BUFFER
+
+  #ifdef QUICKBOBS
+    BITMAPTOP = bitmapTop;
+  #endif // QUICKBOBS
+
+ni_blit_start:
     busyWaitBlit();
 
     custom.bltcon0 = 0x0FCA | x_s; // use A = Mask, B = Source, C, D = Destination (cookie-cut)
@@ -1716,7 +1838,7 @@ VOID LD_blitBOB(struct GameObject* go)
     custom.bltdmod = dmod;
 
     if ((by + rows) <= BITMAP_HEIGHT) {
-      UBYTE* bltdpt = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
+      UBYTE* bltdpt = BITMAPTOP + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
       UWORD bltsize = (rows << 6) | words;
 
       for (p = 0; p < p_max;) {
@@ -1745,7 +1867,7 @@ VOID LD_blitBOB(struct GameObject* go)
       }
     }
     else if (by >= BITMAP_HEIGHT) {
-      UBYTE* bltdpt = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+      UBYTE* bltdpt = BITMAPTOP + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
       UWORD bltsize = (rows << 6) | words;
 
       for (p = 0; p < p_max;) {
@@ -1776,7 +1898,7 @@ VOID LD_blitBOB(struct GameObject* go)
     else { // blit it in two parts because of the videosplit!
       UWORD firstPartRows = BITMAP_HEIGHT - by;
       UWORD skipRows = firstPartRows * sheet_bitmap->BytesPerRow;
-      UBYTE* bltdpt = bitmapTop + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+      UBYTE* bltdpt = BITMAPTOP + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
       UWORD bltsize = (firstPartRows << 6) | words;
 
       for (p = 0; p < p_max;) {
@@ -1807,7 +1929,7 @@ VOID LD_blitBOB(struct GameObject* go)
       // blit the second part
       bltapt = bltapt + skipRows;
       bltbpt = bltbpt + skipRows;
-      bltdpt = bitmapTop + ((bx >> 3) & 0xFFFE);
+      bltdpt = BITMAPTOP + ((bx >> 3) & 0xFFFE);
       bltsize = ((rows - firstPartRows) << 6) | words;
       busyWaitBlit();
       custom.bltcon0 = 0x0FCA | x_s;
@@ -1837,6 +1959,19 @@ VOID LD_blitBOB(struct GameObject* go)
         bltdpt += BITMAP_BYTES_PER_ROW;
       }
     }
+  #ifdef QUICKBOBS
+    #ifdef DOUBLE_BUFFER
+    if (g_active_buffer == 0 && BITMAPTOP == bitmapTop && bob->flags & BOB_DYING)
+    #else // DOUBLE_BUFFER
+    if (BITMAPTOP == bitmapTop && bob->flags & BOB_DYING)
+    #endif // !DOUBLE_BUFFER
+    {
+      bob->flags |= BOB_BLITTED2;
+      BITMAPTOP = bitmapTop3;
+      goto ni_blit_start;
+    }
+  #endif // QUICKBOBS
+
   }
   else {
 #endif // USE_NONINTERLEAVED_BOBS
@@ -1846,9 +1981,11 @@ VOID LD_blitBOB(struct GameObject* go)
     amod = sheet_bitmap->BytesPerRow / sheet_bitmap->Depth - words; //OPTIMIZE: division should be precalculated into BOBImage struct
     dmod = BITMAP_BYTES_PER_ROW - words;
 
+#ifndef NO_BOBBACKBUFFER
     bob->lastBlt.bltamod = amod;
     bob->lastBlt.bltbmod = bobs_back_buffer_mod - words;
     bob->lastBlt.bltdmod = dmod;
+#endif // !NO_BOBBACKBUFFER
 
     words >>= 1;
     bob->lastBlt.words = words;
@@ -1857,6 +1994,12 @@ VOID LD_blitBOB(struct GameObject* go)
   #ifndef DOUBLE_BUFFER
     waitVBeam(y2 + SCREEN_START);
   #endif // !DOUBLE_BUFFER
+
+  #ifdef QUICKBOBS
+    BITMAPTOP = bitmapTop;
+  #endif // QUICKBOBS
+
+blit_start:
     busyWaitBlit();
 
     custom.bltcon0 = 0x0FCA | x_s; // use A = Mask, B = Source, C, D = Destination (cookie-cut)
@@ -1872,14 +2015,14 @@ VOID LD_blitBOB(struct GameObject* go)
 
     // We are now ready to actually blit the image to the bitmap
     if ((by + rows) <= BITMAP_HEIGHT) {
-      UBYTE* bltdpt = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
+      UBYTE* bltdpt = BITMAPTOP + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
 
       custom.bltcpt  = bltdpt;
       custom.bltdpt  = bltdpt;
       custom.bltsize = ((rows * sheet_bitmap->Depth) << 6) | words;
     }
     else if (by >= BITMAP_HEIGHT) {
-      UBYTE* bltdpt = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+      UBYTE* bltdpt = BITMAPTOP + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
 
       custom.bltcpt  = bltdpt;
       custom.bltdpt  = bltdpt;
@@ -1888,13 +2031,13 @@ VOID LD_blitBOB(struct GameObject* go)
     else { // blit it in two parts because of the videosplit!
       UWORD firstPartRows = BITMAP_HEIGHT - by;
       UWORD skipRows = firstPartRows * sheet_bitmap->BytesPerRow;
-      UBYTE* bltdpt = bitmapTop + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+      UBYTE* bltdpt = BITMAPTOP + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
 
       custom.bltcpt  = bltdpt;
       custom.bltdpt  = bltdpt;
       custom.bltsize = ((firstPartRows * sheet_bitmap->Depth) << 6) | words;
 
-      bltdpt = bitmapTop + ((bx >> 3) & 0xFFFE);
+      bltdpt = BITMAPTOP + ((bx >> 3) & 0xFFFE);
       busyWaitBlit();
 
       custom.bltapt  = bltapt + skipRows;
@@ -1903,6 +2046,20 @@ VOID LD_blitBOB(struct GameObject* go)
       custom.bltdpt  = bltdpt;
       custom.bltsize = (((rows - firstPartRows) * sheet_bitmap->Depth) << 6) | words;
     }
+
+  #ifdef QUICKBOBS
+    #ifdef DOUBLE_BUFFER
+    if (g_active_buffer == 0 && BITMAPTOP == bitmapTop && bob->flags & BOB_DYING)
+    #else // DOUBLE_BUFFER
+    if (BITMAPTOP == bitmapTop && bob->flags & BOB_DYING)
+    #endif // !DOUBLE_BUFFER
+    {
+      bob->flags |= BOB_BLITTED2;
+      BITMAPTOP = bitmapTop3;
+      goto blit_start;
+    }
+  #endif // QUICKBOBS
+
 #ifdef USE_NONINTERLEAVED_BOBS
   }
 #endif // USE_NONINTERLEAVED_BOBS
@@ -1915,14 +2072,25 @@ VOID LD_unBlitBOB(struct GameObject* go)
 #if NUM_BOBS
   struct BOB* bob = (struct BOB*)go->u.mediums[g_active_buffer];
 
-  if ((bob->flags & (BOB_DEAD | BOB_BLITTED)) == BOB_BLITTED) {
+  if (!(go->state & GOB_OVERDRAW) && (bob->flags & (BOB_DEAD | BOB_BLITTED)) == BOB_BLITTED) {
     UWORD bx = vidPosX + TILESIZE + bob->lastBlt.x1 - *mapPosX;
     UWORD by = vidPosY + TILESIZE + bob->lastBlt.y1 - *mapPosY;
+    UBYTE* BITMAPTOP;
 
   #ifndef DOUBLE_BUFFER
     waitVBeam(bob->lastBlt.y2 - *mapPosY + SCREEN_START);
   #endif // !DOUBLE_BUFFER
 
+  #ifdef QUICKBOBS
+    BITMAPTOP = bitmapTop3;
+    if (bob->flags & BOB_BLITTED2) {
+  #else
+    BITMAPTOP = bitmapTop;
+  #endif // !QUICKBOBS
+
+  #ifdef NO_BOBBACKBUFFER
+    LD_unBlitBOBUsingTiles(bob, bx, by, BITMAPTOP);
+  #else // NO_BOBBACKBUFFER
     busyWaitBlit();
     custom.bltcon0 = 0x0FCA | bob->lastBlt.x_s; // use A = Mask, B = Source, C, D = Destination (cookie-cut)
     custom.bltcon1 = bob->lastBlt.x_s;
@@ -1944,7 +2112,7 @@ VOID LD_unBlitBOB(struct GameObject* go)
       UWORD bltsize = (bob->lastBlt.rows << 6) | bob->lastBlt.words;
 
       if ((by + bob->lastBlt.rows) <= BITMAP_HEIGHT) {
-        UBYTE* bltdpt = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
+        UBYTE* bltdpt = BITMAPTOP + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
 
         for (p = 0; p < SCREEN_DEPTH; p++) {
           busyWaitBlit();
@@ -1958,7 +2126,7 @@ VOID LD_unBlitBOB(struct GameObject* go)
         }
       }
       else if (by >= BITMAP_HEIGHT) {
-        UBYTE* bltdpt = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+        UBYTE* bltdpt = BITMAPTOP + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
 
         for (p = 0; p < SCREEN_DEPTH; p++) {
           busyWaitBlit();
@@ -1974,7 +2142,7 @@ VOID LD_unBlitBOB(struct GameObject* go)
       else { // blit it in two parts because of the videosplit!
         UWORD firstPartRows = BITMAP_HEIGHT - by;
         UWORD skipRows = firstPartRows * bob->lastBlt.bob_sheet->bitmap->BytesPerRow;
-        UBYTE* bltdpt = bitmapTop + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+        UBYTE* bltdpt = BITMAPTOP + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
         UWORD bltsize = (firstPartRows << 6) | bob->lastBlt.words;
 
         for (p = 0; p < SCREEN_DEPTH; p++) {
@@ -1990,7 +2158,7 @@ VOID LD_unBlitBOB(struct GameObject* go)
 
         bltapt += skipRows;
         bltbpt = bob->lastBlt.bltbpt + firstPartRows * bobs_back_buffer_mod * SCREEN_DEPTH;
-        bltdpt = bitmapTop + ((bx >> 3) & 0xFFFE);
+        bltdpt = BITMAPTOP + ((bx >> 3) & 0xFFFE);
         bltsize = ((bob->lastBlt.rows - firstPartRows) << 6) | bob->lastBlt.words;
 
         for (p = 0; p < SCREEN_DEPTH; p++) {
@@ -2014,14 +2182,14 @@ VOID LD_unBlitBOB(struct GameObject* go)
       custom.bltbpt  = bob->lastBlt.bltbpt;
 
       if ((by + bob->lastBlt.rows) <= BITMAP_HEIGHT) {
-        UBYTE* bltdpt = bitmapTop + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
+        UBYTE* bltdpt = BITMAPTOP + by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
 
         custom.bltcpt  = bltdpt;
         custom.bltdpt  = bltdpt;
         custom.bltsize = ((bob->lastBlt.rows * SCREEN_DEPTH) << 6) | bob->lastBlt.words;
       }
       else if (by >= BITMAP_HEIGHT) {
-        UBYTE* bltdpt = bitmapTop + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+        UBYTE* bltdpt = BITMAPTOP + (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
 
         custom.bltcpt  = bltdpt;
         custom.bltdpt  = bltdpt;
@@ -2030,13 +2198,13 @@ VOID LD_unBlitBOB(struct GameObject* go)
       else { // blit it in two parts because of the videosplit!
         UWORD firstPartRows = BITMAP_HEIGHT - by;
         UWORD skipRows = firstPartRows * bob->lastBlt.bob_sheet->bitmap->BytesPerRow;
-        UBYTE* bltdpt = bitmapTop + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+        UBYTE* bltdpt = BITMAPTOP + by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
 
         custom.bltcpt  = bltdpt;
         custom.bltdpt  = bltdpt;
         custom.bltsize = ((firstPartRows * SCREEN_DEPTH) << 6) | bob->lastBlt.words;
 
-        bltdpt = bitmapTop + ((bx >> 3) & 0xFFFE);
+        bltdpt = BITMAPTOP + ((bx >> 3) & 0xFFFE);
         busyWaitBlit();
         custom.bltapt  = bob->lastBlt.bltapt + skipRows;
         custom.bltbpt  = bob->lastBlt.bltbpt + firstPartRows * bobs_back_buffer_mod * SCREEN_DEPTH;
@@ -2048,10 +2216,287 @@ VOID LD_unBlitBOB(struct GameObject* go)
     }
   #endif // USE_NONINTERLEAVED_BOBS
 
+  #endif // !NO_BOBBACKBUFFER
+
+  #ifdef QUICKBOBS
+      bob->flags &= ~BOB_BLITTED2;
+    }
+
+  /****************************************************************************
+   * Restore background "quick" using triple-buffering (ultra optimized) :D   *
+   ****************************************************************************/
+  {
+    UWORD words = ((bob->lastBlt.x2 & 0xFFFFFFF0) - (bob->lastBlt.x1 & 0xFFFFFFF0) + 16) >> 3;
+    UWORD dmod;
+
+    if (bob->lastBlt.right_edge) words += 2;
+    dmod = BITMAP_BYTES_PER_ROW - words;
+    words >>= 1;
+
+  #if defined DOUBLE_BUFFER && !defined USE_NONINTERLEAVED_BOBS
+    busyWaitBlit();
+    custom.bltcon0 = 0x09F0; // use A = Source, D = Destination (vanilla copy)
+    custom.bltafwm = 0xFFFF;
+    custom.bltalwm = 0xFFFF;
+    custom.bltamod = dmod;
+    custom.bltdmod = dmod;
+
+    if ((by + bob->lastBlt.rows) <= BITMAP_HEIGHT) {
+      ULONG offset = by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
+
+      custom.bltapt  = bitmapTop3 + offset;
+      custom.bltdpt  = bitmapTop + offset;
+      custom.bltsize = ((bob->lastBlt.rows * SCREEN_DEPTH) << 6) | words;
+    }
+    else if (by >= BITMAP_HEIGHT) {
+      ULONG offset = (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+
+      custom.bltapt  = bitmapTop3 + offset;
+      custom.bltdpt  = bitmapTop + offset;
+      custom.bltsize = ((bob->lastBlt.rows * SCREEN_DEPTH) << 6) | words;
+    }
+    else { // blit it in two parts because of the videosplit!
+      UWORD firstPartRows = BITMAP_HEIGHT - by;
+      ULONG offset = by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+
+      custom.bltapt  = bitmapTop3 + offset;
+      custom.bltdpt  = bitmapTop + offset;
+      custom.bltsize = ((firstPartRows * SCREEN_DEPTH) << 6) | words;
+
+      offset = (bx >> 3) & 0xFFFE;
+      busyWaitBlit();
+      custom.bltapt  = bitmapTop3 + offset;
+      custom.bltdpt  = bitmapTop + offset;
+      custom.bltsize = (((bob->lastBlt.rows - firstPartRows) * SCREEN_DEPTH) << 6) | words;
+    }
+  #else // DOUBLE_BUFFER && !USE_NONINTERLEAVED_BOBS
+    busyWaitBlit();
+    custom.bltcon0 = 0x07CA; // use B = Source, C, D = Destination (rectangular cut)
+    custom.bltcon1 = 0x0000;
+    custom.bltadat = 0xFFFF;
+    custom.bltafwm = 0xFFFF >> (bob->lastBlt.x1 & 0xF);
+    custom.bltalwm = 0xFFFF << (15 - (bob->lastBlt.x2 & 0xF));
+    custom.bltbmod = dmod;
+    custom.bltcmod = dmod;
+    custom.bltdmod = dmod;
+
+    if ((by + bob->lastBlt.rows) <= BITMAP_HEIGHT) {
+      ULONG offset = by * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + ((bx >> 3) & 0xFFFE);
+      UBYTE* bltdpt = bitmapTop + offset;
+
+      custom.bltbpt  = bitmapTop3 + offset;
+      custom.bltcpt  = bltdpt;
+      custom.bltdpt  = bltdpt;
+      custom.bltsize = ((bob->lastBlt.rows * SCREEN_DEPTH) << 6) | words;
+    }
+    else if (by >= BITMAP_HEIGHT) {
+      ULONG offset = (by - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+      UBYTE* bltdpt = bitmapTop + offset;
+
+      custom.bltbpt  = bitmapTop3 + offset;
+      custom.bltcpt  = bltdpt;
+      custom.bltdpt  = bltdpt;
+      custom.bltsize = ((bob->lastBlt.rows * SCREEN_DEPTH) << 6) | words;
+    }
+    else { // blit it in two parts because of the videosplit!
+      UWORD firstPartRows = BITMAP_HEIGHT - by;
+      ULONG offset = by * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + ((bx >> 3) & 0xFFFE);
+      UBYTE* bltdpt = bitmapTop + offset;
+
+      custom.bltbpt  = bitmapTop3 + offset;
+      custom.bltcpt  = bltdpt;
+      custom.bltdpt  = bltdpt;
+      custom.bltsize = ((firstPartRows * SCREEN_DEPTH) << 6) | words;
+
+      offset = (bx >> 3) & 0xFFFE;
+      bltdpt = bitmapTop + offset;
+      busyWaitBlit();
+      custom.bltbpt  = bitmapTop3 + offset;
+      custom.bltcpt  = bltdpt;
+      custom.bltdpt  = bltdpt;
+      custom.bltsize = (((bob->lastBlt.rows - firstPartRows) * SCREEN_DEPTH) << 6) | words;
+    }
+  #endif // !(DOUBLE_BUFFER && !USE_NONINTERLEAVED_BOBS)
+  }
+  #endif // QUICKBOBS
+
     bob->flags &= ~BOB_BLITTED;
   }
 #endif // NUM_BOBS
 }
+///
+///LD_unBlitBOBUsingTiles(bob, bx, by, BITMAPTOP)
+/****************************************************************************
+ * Restores BOB backgrounds using the tileset (least optimized method)      *
+ * NOTE: This function is very ugly because it cleans the screen in a way   *
+ * that wasn't taken into account when the level_display and it's scroller  *
+ * design (much of which comes from the ScrollingTrick) was made. This is   *
+ * the least optimized method among the others, but it does get rid of the  *
+ * need to allocate a BOBsBackBuffer. However, I did my best to optimize it *
+ * to use minimal Blitter DMA possible.                                     *
+ * WARNING: The implementation below only works for TILESIZE == 16          *
+ ****************************************************************************/
+#if defined NO_BOBBACKBUFFER && TILESIZE == 16
+STATIC INLINE VOID LD_unBlitBOBUsingTiles(struct BOB* bob, UWORD bx, UWORD by, UBYTE* BITMAPTOP)
+{
+  LONG bob_x1_rounded = bob->lastBlt.x1 & 0xFFFFFFF0;
+  LONG bob_y1_rounded = bob->lastBlt.y1 & 0xFFFFFFF0;
+  ULONG num_tiles_x = ((bob->lastBlt.x2 & 0xFFFFFFF0) - bob_x1_rounded + 16) >> 4;
+  ULONG num_tiles_y = ((bob->lastBlt.y2 & 0xFFFFFFF0) - bob_y1_rounded + 16) >> 4;
+  ULONG top_crop = bob->lastBlt.y1 & 0xF;
+  ULONG left_crop = bob->lastBlt.x1 & 0xF;
+  ULONG right_crop = 16 - (bob->lastBlt.x2 & 0xF);
+  ULONG bottom_crop = 16 - (bob->lastBlt.y2 & 0xF);
+  UWORD bx_c = (bx & 0xFFF0) >> 3; // NOTE: This is a precalculated BYTE offset!
+  UWORD by_r_start = by & 0xFFF0;
+  UWORD by_r;
+  UWORD bltafwm = 0xFFFF >> left_crop;
+  UWORD bltalwm = 0xFFFF;
+  ULONG c, r;
+  ULONG c_start = 0;
+  ULONG r_start = 0;
+  ULONG mapPos = ((bob->lastBlt.y1 >> 4) + 1) * map->width + ((bob->lastBlt.x1 >> 4) + 1);
+  ULONG mapPos_c = mapPos;
+  ULONG mapPos_r;
+
+  if (right_crop == 16) {right_crop = 0; num_tiles_x--;}
+  if (bottom_crop == 16) {bottom_crop = 0; num_tiles_y--;}
+  if (bob->lastBlt.right_edge) num_tiles_x++;
+
+  //Check if the unblit is still within the valid blittable bitmap area
+  if (bob->lastBlt.x1 > vidPosX + SCREEN_WIDTH + TILESIZE) return;
+  if (bob->lastBlt.y1 > vidPosY + SCREEN_HEIGHT + TILESIZE) return;
+
+  // Skip the columns that trespass the the fill-up column
+  while (bob_x1_rounded < vidPosX - 16) {
+    c_start++;
+    bx_c += 2;
+    mapPos_c++;
+    bob_x1_rounded += 16;
+  }
+  if (c_start >= num_tiles_x) return;
+
+  // Skip the rows that trespass the the fill-up row
+  while (bob_y1_rounded < vidPosY - 16) {
+    r_start++;
+    by_r_start += 16;
+    mapPos_c += map->width;
+    bob_y1_rounded += 16;
+  }
+  if (r_start >= num_tiles_y) return;
+
+  busyWaitBlit();
+  custom.bltcon1 = 0;
+  custom.bltamod = 0;
+  custom.bltbmod = 0;
+  custom.bltcmod = BITMAP_BYTES_PER_ROW - (TILESIZE / 8); // NOTE: TILESIZE must be 16
+  custom.bltdmod = BITMAP_BYTES_PER_ROW - (TILESIZE / 8); // NOTE: TILESIZE must be 16
+
+  for (c = c_start; c < num_tiles_x; c++, bx_c += 2, mapPos_c++) {
+    by_r = by_r_start;
+    mapPos_r = mapPos_c;
+
+    if (c) bltafwm = 0xFFFF;
+    if (c == num_tiles_x - 1) bltalwm = 0xFFFF << right_crop;
+
+    busyWaitBlit();
+    custom.bltafwm = bltafwm;
+    custom.bltalwm = bltalwm;
+
+    if ((bltafwm & bltalwm) == 0xFFFF) {
+      custom.bltcon0 = 0x09F0; // use A = Source, D = Destination (direct copy)
+
+      for (r = r_start; r < num_tiles_y; r++, by_r += 16, mapPos_r += map->width) {
+        ULONG top_skip = 0;
+        ULONG bottom_skip = 0;
+        ULONG rows;
+        struct Tile* tile = &tileset->tiles[map->data[mapPos_r]];
+
+        if (r == 0) top_skip = top_crop;
+        if (r == num_tiles_y - 1) bottom_skip = bottom_crop;
+        rows = 16 - top_skip - bottom_skip;
+
+        // BLIT TILE!!!
+        if ((by_r + top_skip + rows) <= BITMAP_HEIGHT) {
+          busyWaitBlit();
+          custom.bltapt  = &tile->row[top_skip];
+          custom.bltdpt  = BITMAPTOP + (by_r + top_skip) * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + bx_c;
+          custom.bltsize = ((rows * TILEDEPTH) << 6) + (TILESIZE / 16);
+        }
+        else if ((by_r + top_skip) >= BITMAP_HEIGHT) {
+          busyWaitBlit();
+          custom.bltapt  = &tile->row[top_skip];
+          custom.bltdpt  = BITMAPTOP + ((by_r + top_skip) - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + bx_c;
+          custom.bltsize = ((rows * TILEDEPTH) << 6) + (TILESIZE / 16);
+        }
+        else { // blit it in two parts because of the videosplit!
+          UWORD firstPartRows = BITMAP_HEIGHT - (by_r + top_skip);
+
+          busyWaitBlit();
+          custom.bltapt  = &tile->row[top_skip];
+          custom.bltdpt  = BITMAPTOP + (by_r + top_skip) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + bx_c;
+          custom.bltsize = ((firstPartRows * TILEDEPTH) << 6) + (TILESIZE / 16);
+
+          busyWaitBlit();
+          custom.bltdpt  = BITMAPTOP + bx_c;
+          custom.bltsize = (((rows - firstPartRows) * TILEDEPTH) << 6) + (TILESIZE / 16);
+        }
+      }
+    }
+    else {
+      custom.bltcon0 = 0x07CA; // use B = Source, C, D = Destination (rectangular cut)
+      custom.bltadat = 0xFFFF;
+
+      for (r = r_start; r < num_tiles_y; r++, by_r += 16, mapPos_r += map->width) {
+        ULONG top_skip = 0;
+        ULONG bottom_skip = 0;
+        ULONG rows;
+        struct Tile* tile = &tileset->tiles[map->data[mapPos_r]];
+
+        if (r == 0) top_skip = top_crop;
+        if (r == num_tiles_y - 1) bottom_skip = bottom_crop;
+        rows = 16 - top_skip - bottom_skip;
+
+        // BLIT TILE!!!
+        if ((by_r + top_skip + rows) <= BITMAP_HEIGHT) {
+          UBYTE* bltdpt = BITMAPTOP + (by_r + top_skip) * (BITMAP_BYTES_PER_ROW * SCREEN_DEPTH) + bx_c;
+
+          busyWaitBlit();
+          custom.bltbpt  = &tile->row[top_skip];
+          custom.bltcpt  = bltdpt;
+          custom.bltdpt  = bltdpt;
+          custom.bltsize = ((rows * TILEDEPTH) << 6) + (TILESIZE / 16);
+        }
+        else if ((by_r + top_skip) >= BITMAP_HEIGHT) {
+          UBYTE* bltdpt = BITMAPTOP + ((by_r + top_skip) - BITMAP_HEIGHT) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + bx_c;
+
+          busyWaitBlit();
+          custom.bltbpt  = &tile->row[top_skip];
+          custom.bltcpt  = bltdpt;
+          custom.bltdpt  = bltdpt;
+          custom.bltsize = ((rows * TILEDEPTH) << 6) + (TILESIZE / 16);
+        }
+        else { // blit it in two parts because of the videosplit!
+          UWORD firstPartRows = BITMAP_HEIGHT - (by_r + top_skip);
+          UBYTE* bltdpt = BITMAPTOP + (by_r + top_skip) * BITMAP_BYTES_PER_ROW * SCREEN_DEPTH + bx_c;
+
+          busyWaitBlit();
+          custom.bltbpt  = &tile->row[top_skip];
+          custom.bltcpt  = bltdpt;
+          custom.bltdpt  = bltdpt;
+          custom.bltsize = ((firstPartRows * TILEDEPTH) << 6) + (TILESIZE / 16);
+
+          bltdpt = BITMAPTOP + bx_c;
+          busyWaitBlit();
+          custom.bltcpt  = bltdpt;
+          custom.bltdpt  = bltdpt;
+          custom.bltsize = (((rows - firstPartRows) * TILEDEPTH) << 6) + (TILESIZE / 16);
+        }
+      }
+    }
+  }
+}
+#endif // NO_BOBBACKBUFFER && TILESIZE == 16
 ///
 
 ///vblankEvents()

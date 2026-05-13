@@ -87,9 +87,9 @@ extern struct GameFont* gameFonts[NUM_GAMEFONTS];      // from fonts.o
 extern struct PT_VolumeTable volume_table;             // from audio.o
 extern struct Level current_level;                     // from level.o
 extern struct UIObject* ui_active_object;              // from ui.o
-#if NUM_BOBS
+#if NUM_BOBS && !defined NO_BOBBACKBUFFER
 extern struct BitMap* BOBsBackBuffer;                  // from gameobject.o
-#endif // NUM_BOBS
+#endif // NUM_BOBS && !NO_BOBBACKBUFFER
 
 // private globals
 STATIC struct GameObject* gameobjects;
@@ -463,7 +463,7 @@ STATIC INLINE VOID MD_setSprite(struct GameObject* go)
  ******************************************************************************/
 VOID MD_blitBOB(struct GameObject* go)
 {
-  #if NUM_BOBS
+#if NUM_BOBS
   struct BOB* bob = (struct BOB*)go->u.medium;
   struct BOBImage* image = (struct BOBImage*)go->image;
   UWORD row = image->bytesPerRow; // WARNING: we've utilized this member as row here!
@@ -483,11 +483,13 @@ VOID MD_blitBOB(struct GameObject* go)
   bob->lastBlt.rows  = ySize; //WARNING: we've utilized this member as pixel size here!
 
   busyWaitBlit();
+  #ifndef NO_BOBBACKBUFFER
   BltBitMap(rastPort->BitMap, xDest, yDest, BOBsBackBuffer, (bob->background - BOBsBackBuffer->Planes[0]) * 8, 0, xSize, ySize, 0x0C0, 0xFF, NULL);
+  #endif // !NO_BOBBACKBUFFER
   // Paste bob into screen bitmap
   busyWaitBlit();
   BltMaskBitMapRastPort(image->bob_sheet->bitmap, xSrc, row + ySrc, rastPort, xDest, yDest, xSize, ySize, (ABC|ABNC|ANBC), image->mask);
-  #endif // NUM_BOBS
+#endif // NUM_BOBS
 }
 ///
 ///MD_unBlitBOB(gameobject)
@@ -497,11 +499,13 @@ VOID MD_blitBOB(struct GameObject* go)
  ******************************************************************************/
 VOID MD_unBlitBOB(struct GameObject* go)
 {
-  #if NUM_BOBS
+#if NUM_BOBS
   struct BOB* bob = (struct BOB*)go->u.medium;
 
+  #ifndef NO_BOBBACKBUFFER
   busyWaitBlit();
   BltBitMapRastPort(BOBsBackBuffer, (bob->background - BOBsBackBuffer->Planes[0]) * 8, 0, rastPort, bob->lastBlt.x1, bob->lastBlt.y1, bob->lastBlt.words, bob->lastBlt.rows, 0x0C0);
-  #endif // NUM_BOBS
+  #endif // !NO_BOBBACKBUFFER
+#endif // NUM_BOBS
 }
 ///

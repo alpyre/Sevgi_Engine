@@ -453,6 +453,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_ShortHelp, help_string.source,
           ASLFR_TitleText, "Please select ilbm bob sheet file...",
           ASLFR_PositiveText, "Open",
+          ASLFR_DoSaveMode, FALSE,
           ASLFR_DrawersOnly, FALSE,
           ASLFR_DoPatterns, TRUE,
           ASLFR_InitialPattern, "#?.(iff|ilbm)",

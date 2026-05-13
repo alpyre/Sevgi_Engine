@@ -414,7 +414,7 @@
                              "anim_func":2,
                              "bank":0,
                              "image":0,
-                             "state":1,
+                             "state":"GOB_DEAD,GOB_OVERDRAW",
                              "type":2
                             }
                         }],
@@ -441,7 +441,7 @@
                              "anim_func":2,
                              "bank":0,
                              "image":1,
-                             "state":1,
+                             "state":"GOB_DEAD,GOB_OVERDRAW",
                              "type":2
                             }
                         }],
@@ -468,7 +468,7 @@
                              "anim_func":2,
                              "bank":0,
                              "image":2,
-                             "state":1,
+                             "state":"GOB_DEAD,GOB_OVERDRAW",
                              "type":2
                             }
                         }],

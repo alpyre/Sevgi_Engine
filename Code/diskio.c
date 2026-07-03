@@ -19,6 +19,9 @@
 #include "diskio.h"
 #include "fonts.h"
 ///
+///defines
+#define ROUND_TO_16(a) ((a + 15) & 0xFFFFFFF0)
+///
 
 ///locateStrInFile(fileHandle, str)
 /******************************************************************************
@@ -285,11 +288,11 @@ struct BitMap* loadILBMBitMap(STRPTR fileName, ULONG type, ULONG extra_width)
               bm = allocBitMap(bmhd.bmh_Width + extra_width, allocHeight, bmhd.bmh_Depth, allocFlags, NULL);
               if (bm && (TypeOfMem(bm->Planes[0]) & allocMemCheck) && (allocNoCheck || (GetBitMapAttr(bm, BMA_FLAGS) & BMF_INTERLEAVED))) {
                 if (bmhd.bmh_Compression) { // NOTE: consider possible compression methods
-                  UBYTE* w;                         // write cursor
-                  ULONG bpr = bmhd.bmh_Width / 8;   // bytes per row
+                  UBYTE* w; // write cursor
+                  ULONG bpr = ROUND_TO_16(bmhd.bmh_Width) / 8; // bytes per row
                   ULONG row;
                   ULONG plane;
-                  UBYTE b = 0;                      // read byte
+                  UBYTE b = 0; // read byte
                   UBYTE b2 = 0;
 
                   for (row = 0; row < bmhd.bmh_Height; row++) {
@@ -331,7 +334,7 @@ struct BitMap* loadILBMBitMap(STRPTR fileName, ULONG type, ULONG extra_width)
                 }
                 else // uncompressed ilbm
                 {
-                  ULONG bpr = bmhd.bmh_Width / 8;   // bytes per row
+                  ULONG bpr = ROUND_TO_16(bmhd.bmh_Width) / 8; // bytes per row
                   ULONG row;
                   UBYTE *w = (UBYTE*)bm->Planes[0]; // write cursor
                   for (row = 0; row < bmhd.bmh_Height; row++) {

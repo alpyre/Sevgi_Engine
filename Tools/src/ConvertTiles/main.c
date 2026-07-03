@@ -21,8 +21,8 @@
 ///defines
 #define PROGRAMNAME     "ConvertTiles"
 #define VERSION         0
-#define REVISION        7
-#define VERSIONSTRING   "0.7"
+#define REVISION        8
+#define VERSIONSTRING   "0.8"
 
 //define command line syntax and number of options
 #define RDARGS_TEMPLATE "F=FILE/A, O=OUTPUT/A, N=NUMTILES/N, T=TILESIZE/N, M=MARGIN/N, S=SPACING/N, A=ADDZERO/S, C=COLMAP/S"
@@ -41,6 +41,8 @@ enum {
 
 //#define or #undef GENERATEWBMAIN to enable workbench startup
 #define GENERATEWBMAIN
+
+#define ROUND_TO_16(a) ((a + 15) & 0xFFFFFFF0)
 ///
 ///includes
 //standard headers
@@ -454,10 +456,10 @@ struct BitMap* loadILBMBitMap(STRPTR fileName, struct Config* config)
                   if (bm && (GetBitMapAttr(bm, BMA_FLAGS) & BMF_INTERLEAVED)) {
                     if (bmhd.bmh_Compression) { // NOTE: consider possible compression methods
                       UBYTE *w = (UBYTE*)bm->Planes[0]; // write cursor
-                      ULONG bpr = bmhd.bmh_Width / 8;   // bytes per row
+                      ULONG bpr = ROUND_TO_16(bmhd.bmh_Width) / 8; // bytes per row
                       ULONG row;
                       ULONG plane;
-                      UBYTE b = 0;                      // read byte
+                      UBYTE b = 0; // read byte
                       UBYTE b2 = 0;
 
                       for (row = 0; row < bmhd.bmh_Height; row++) {
@@ -498,7 +500,7 @@ struct BitMap* loadILBMBitMap(STRPTR fileName, struct Config* config)
                     }
                     else // uncompressed ilbm
                     {
-                      ULONG bpr = bmhd.bmh_Width / 8;   // bytes per row
+                      ULONG bpr = ROUND_TO_16(bmhd.bmh_Width) / 8; // bytes per row
                       ULONG row;
                       UBYTE *w = (UBYTE*)bm->Planes[0]; // write cursor
                       for (row = 0; row < bmhd.bmh_Height; row++) {

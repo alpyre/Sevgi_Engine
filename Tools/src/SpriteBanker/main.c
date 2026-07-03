@@ -5,8 +5,8 @@
 ///defines
 #define PROGRAMNAME     "SpriteBanker"
 #define VERSION         0
-#define REVISION        19
-#define VERSIONSTRING   "0.19"
+#define REVISION        20
+#define VERSIONSTRING   "0.20"
 
 //define command line syntax and number of options
 #define RDARGS_TEMPLATE "ILBMFILE/A, SPRITEFILE/A, STRTX/N/A, STRTY/N/A, SEPX/N/A, SEPY/N/A, COLUMNS/N/A, ROWS/N/A, WIDTH/N/A, HEIGHT/N/A, COLORS/N, SFMODE/N, HSN/N, HSX/N, HSY/N, X=REVX/S, Y=REVY/S, C=COLFIRST/S, S=SMALL/S, B=BIG/S, A=ADDCTLW/S"
@@ -38,6 +38,8 @@ enum {
 
 //#define or #undef GENERATEWBMAIN to enable workbench startup
 #define GENERATEWBMAIN
+
+#define ROUND_TO_16(a) ((a + 15) & 0xFFFFFFF0)
 ///
 ///includes
 //standard headers
@@ -940,10 +942,10 @@ struct BitMap* loadILBM(STRPTR fileName)
               if (bm && (GetBitMapAttr(bm, BMA_FLAGS) & BMF_INTERLEAVED)) {
                 if (bmhd.bmh_Compression) { // NOTE: consider other possible compression methods
                   UBYTE *w = (UBYTE*)bm->Planes[0]; // write cursor
-                  ULONG bpr = bmhd.bmh_Width / 8;   // bytes per row
+                  ULONG bpr = ROUND_TO_16(bmhd.bmh_Width) / 8; // bytes per row
                   ULONG row;
                   ULONG plane;
-                  UBYTE b = 0;                      // read byte
+                  UBYTE b = 0; // read byte
                   UBYTE b2 = 0;
 
                   for (row = 0; row < bmhd.bmh_Height; row++) {
@@ -984,7 +986,7 @@ struct BitMap* loadILBM(STRPTR fileName)
                 }
                 else // uncompressed ilbm
                 {
-                  ULONG bpr = bmhd.bmh_Width / 8;   // bytes per row
+                  ULONG bpr = ROUND_TO_16(bmhd.bmh_Width) / 8; // bytes per row
                   ULONG row;
                   UBYTE *w = (UBYTE*)bm->Planes[0]; // write cursor
                   for (row = 0; row < bmhd.bmh_Height; row++) {

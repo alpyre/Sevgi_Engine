@@ -302,6 +302,8 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
     filename = makePath(NULL, name, ".sht");
   }
 
+  DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
+
   if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Save BOBsheet",
                                     ASLFR_Window, window,
                                     ASLFR_PositiveText, "Create",
@@ -312,6 +314,8 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
                                     g_Project.data_drawer ? ASLFR_InitialDrawer : TAG_IGNORE, g_Project.data_drawer,
                                     ASLFR_InitialFile, filename,
                                     TAG_END) && strlen(g_FileReq->fr_File)) {
+    // ASL requester resets the busy pointer so let's set it again
+    SetWindowPointer(window, WA_BusyPointer, TRUE, TAG_DONE);
 
     sheetpath = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, NULL);
     ilbmpath = stripExtension(sheetpath);
@@ -349,6 +353,8 @@ error:
   if (error_string) {
     MUI_Request(App, obj, NULL, "BOBSheet Creator", "*_OK", error_string);
   }
+
+  DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
 
   return 0;
 }

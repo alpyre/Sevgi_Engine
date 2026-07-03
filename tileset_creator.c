@@ -311,6 +311,8 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
                                       g_Project.data_drawer ? ASLFR_InitialDrawer : TAG_IGNORE, g_Project.data_drawer,
                                       ASLFR_InitialFile, filename,
                                       TAG_END) && strlen(g_FileReq->fr_File)) {
+      // ASL requester resets the busy pointer so let's set it again
+      SetWindowPointer(window, WA_BusyPointer, TRUE, TAG_DONE);
 
       filepath = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, NULL);
       if (filepath) {

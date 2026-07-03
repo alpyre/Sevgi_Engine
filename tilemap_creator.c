@@ -160,15 +160,18 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
   GetAttr(MUIA_String_Contents, data->obj_table.source, (ULONG*)&source);
   GetAttr(MUIA_Selected, data->obj_table.add_zero, &add_zero);
 
+  DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
+
   if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Save tilemap",
                                     ASLFR_Window, window,
-                                    ASLFR_SleepWindow, TRUE,
                                     ASLFR_PositiveText, "Create",
                                     ASLFR_DrawersOnly, TRUE,
                                     ASLFR_DoSaveMode, TRUE,
                                     ASLFR_DoPatterns, FALSE,
                                     g_Project.data_drawer ? ASLFR_InitialDrawer : TAG_IGNORE, g_Project.data_drawer,
                                     TAG_END)) {
+    // ASL requester resets the busy pointer so let's set it again
+    SetWindowPointer(window, WA_BusyPointer, TRUE, TAG_DONE);
 
     output_dir = stripExtension(FilePart(source));
     output_path = makePath(g_FileReq->fr_Drawer, output_dir, NULL);
@@ -178,9 +181,6 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
           goto error;
         }
       }
-
-      DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
-
       /************************************************************************
        ConvertMap tool can parse the custom members on the GameObject and
        GameObjectBank structs and create the compatible gameobject files. For
@@ -206,8 +206,6 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
         error_string = rtrn.string;
       else
         error_string = "Tools/ConvertMap could not be found!";
-
-      DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
     }
   }
 
@@ -218,6 +216,8 @@ error:
   if (error_string) {
     MUI_Request(App, obj, NULL, "Tilemap Creator", "*_OK", error_string);
   }
+
+  DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
 
   return 0;
 }

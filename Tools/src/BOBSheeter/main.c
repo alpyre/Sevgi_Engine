@@ -10,8 +10,8 @@
 ///defines
 #define PROGRAMNAME     "BOBSheeter"
 #define VERSION         0
-#define REVISION        15
-#define VERSIONSTRING   "0.15"
+#define REVISION        16
+#define VERSIONSTRING   "0.16"
 
 //define command line syntax and number of options
 #define RDARGS_TEMPLATE "ILBMFILE/A, SHEETFILE/A, STRTX/N/A, STRTY/N/A, SEPX/N/A, SEPY/N/A, COLUMNS/N/A, ROWS/N/A, WIDTH/N/A, HEIGHT/N/A, HSX/N, HSY/N, X=REVX/S, Y=REVY/S, C=COLFIRST/S, D=NOCOMP/S, F=FORCENI/S, S=SMALL/S, B=BIG/S"
@@ -38,6 +38,8 @@ enum {
   SMALL,
   BIG
 };
+
+#define ROUND_TO_16(a) ((a + 15) & 0xFFFFFFF0)
 
 //#define or #undef GENERATEWBMAIN to enable workbench startup
 //#define GENERATEWBMAIN
@@ -300,7 +302,7 @@ int Main(struct Config *config)
     if (table) {
       struct BitMap* bm = loadILBM((STRPTR)config->Options[ILBMFILE]);
       if (bm) {
-        struct BitMap* wbm = AllocBitMap(bm->BytesPerRow / bm->Depth * 8, bm->Rows, bm->Depth, BMF_INTERLEAVED | BMF_CLEAR, NULL);
+        struct BitMap* wbm = AllocBitMap(ROUND_TO_16(params->width) * params->columns, bm->Rows, bm->Depth, BMF_INTERLEAVED | BMF_CLEAR, NULL);
         if (wbm) {
           struct BitMap* tbm = AllocBitMap(params->width, params->height, bm->Depth, BMF_INTERLEAVED | BMF_CLEAR, NULL);
           if (tbm) {
@@ -648,10 +650,10 @@ struct BitMap* loadILBM(STRPTR fileName)
               if (bm && (GetBitMapAttr(bm, BMA_FLAGS) & BMF_INTERLEAVED)) { // WARNING! Depth:1 BitMaps are non-interleaved by default
                 if (bmhd.bmh_Compression) { // NOTE: consider other possible compression methods
                   UBYTE *w = (UBYTE*)bm->Planes[0]; // write cursor
-                  ULONG bpr = bmhd.bmh_Width / 8;   // bytes per row
+                  ULONG bpr = ROUND_TO_16(bmhd.bmh_Width) / 8; // bytes per row
                   ULONG row;
                   ULONG plane;
-                  UBYTE b = 0;                      // read byte
+                  UBYTE b = 0; // read byte
                   UBYTE b2 = 0;
 
                   for (row = 0; row < bmhd.bmh_Height; row++) {
@@ -692,7 +694,7 @@ struct BitMap* loadILBM(STRPTR fileName)
                 }
                 else // uncompressed ilbm
                 {
-                  ULONG bpr = bmhd.bmh_Width / 8;   // bytes per row
+                  ULONG bpr = ROUND_TO_16(bmhd.bmh_Width) / 8; // bytes per row
                   ULONG row;
                   UBYTE *w = (UBYTE*)bm->Planes[0]; // write cursor
                   for (row = 0; row < bmhd.bmh_Height; row++) {
@@ -812,102 +814,92 @@ VOID analyzeImage(struct BitMap* tbm, struct Analyze* analyzed, struct Parameter
 
   analyzed->height = analyzed->v_end - analyzed->v_start + 1;
   analyzed->width  = analyzed->h_end - analyzed->h_start + 1;
-  analyzed->bytes  = (((analyzed->width - 1) / 16) + 1) * 2;
+  analyzed->bytes  = ROUND_TO_16(analyzed->width) / 8;
 }
 ///
-///RLE_CompressILBMBody(bitmap, max_bytes, rows, depth, filehandle)
+///RLE_CompressILBMBody(bitmap, max_bytes, rows, filehandle)
 /******************************************************************************
- * When called with fh = NULL, returns the expected size of body. When called *
- * with a valid fh, saves the body to the file. It will add a pad byte if the *
- * expected body size calculates to be odd.                                   *
+ * When called with fh == NULL, just returns the expected size of body.       *
+ * When called with a valid non-null fh, also saves the body to the file.     *
+ * It will add a pad byte if the expected body size calculates to be odd.     *
  ******************************************************************************/
-ULONG RLE_CompressILBMBody(struct BitMap* bm, UWORD max_bytes, UWORD rows, UBYTE depth, BPTR fh)
+ULONG RLE_CompressILBMBody(struct BitMap* bm, UWORD max_bytes, UWORD rows, BPTR fh)
 {
   ULONG bodySize = 0;
-  ULONG r;        // iterator for current row
-  ULONG d;        // iterator for current plane
-  ULONG b;        // iterator for current byte
-  UBYTE m = 128;  // bytecode for compression (128 is NOP)
-  UBYTE* r_c;     // read cursor on bitmap bytes
-  UBYTE c_byte;   // the value of the byte pointed by r_c
-  UBYTE p_byte;   // the value of the previous byte
+  UWORD r; // iterator for rows
+  UWORD d; // iterator for planes
+  UWORD i; // iterator for bytes
 
   for (r = 0; r < rows; r++) {
     for (d = 0; d < bm->Depth; d++) {
-      r_c = bm->Planes[d] + r * bm->BytesPerRow;
-      p_byte = *r_c;
-      r_c++;
+      UBYTE* src = bm->Planes[d] + r * bm->BytesPerRow;
 
-      for (b = 1; b < max_bytes; b++) {
-        c_byte = *r_c;
+      i = 0;
+      while (i < max_bytes) {
+        // Detect replicate run
+        UWORD run = 1;
 
-        if (c_byte == p_byte) {
-          if (m == 128) m = 255;
-          else if (m > 128) m--;
-          else if (*(r_c + 1) == c_byte) { // finalize literal
-            //write m, write m + 1 bytes from r_c - (m + 2)
-            if (fh) {
-              Write(fh, &m, 1);
-              Write(fh, r_c - (m + 2), m + 1);
+        while (((i + run) < max_bytes) && (run < 128) && (src[i] == src[i + run])) {
+          run++;
+        }
+
+        if (run >= 3) {
+          // Replicate run
+          BYTE code = -(run - 1);
+
+          if (fh) {
+            Write(fh, &code, 1);
+            Write(fh, &src[i], 1);
+          }
+
+          bodySize += 2;
+          i += run;
+        }
+        else {
+          // Literal run
+          UWORD start = i;
+          UWORD lit_len = 0;
+          BYTE code;
+
+          while ((i < max_bytes) && (lit_len < 128)) {
+            // Check if a replicate run starts here
+            UWORD look = 1;
+
+            while ((i + look < max_bytes) && (look < 128) &&(src[i] == src[i + look])) {
+              look++;
             }
-            bodySize += m + 2;
-            m = 255;
-          }
-          else { // keep on literal
-            m++;
-          }
-        }
-        else { // c_byte != p_byte
-          if (m == 128) m = 0;
-          else if (m < 128) m++;
-          else { // finalize replicate
-            //write m, write p_byte
-            if (fh) {
-              Write(fh, &m, 1);
-              Write(fh, &p_byte, 1);
-            }
-            bodySize += 2;
-            m = 128;
-          }
-        }
 
-        p_byte = *r_c;
-        r_c++;
-      }
+            if (look >= 3) break;
 
-      if (m == 128) {
-        m = 0;
-        Write(fh, &m, 1);
-        Write(fh, &p_byte, 1);
-        bodySize += 2;
-      }
-      else if (m < 128) { // finalize literal
-        //write m + 1, write m + 2 bytes from r_c - (m + 2)
-        if (fh) {
-          m++;
-          Write(fh, &m, 1);
-          m--;
-          Write(fh, r_c - (m + 2), m + 2);
+            // Always consume at least one byte
+            i++;
+            lit_len++;
+          }
+
+          // Ensure forward progress
+          if (lit_len == 0) {
+            i++;
+            lit_len = 1;
+          }
+
+          code = (lit_len - 1);
+
+          if (fh) {
+            Write(fh, &code, 1);
+            Write(fh, &src[start], lit_len);
+          }
+
+          bodySize += lit_len + 1;
         }
-        bodySize += m + 3;
       }
-      else { // finalize replicate
-        //write m, write p_byte
-        if (fh) {
-          Write(fh, &m, 1);
-          Write(fh, &p_byte, 1);
-        }
-        bodySize += 2;
-      }
-      m = 128;
     }
   }
 
-  // Append a pad byte if bodySize is calculated to be odd.
-  if (bodySize % 2) {
+  // Append a pad byte if bodySize is calculated to be odd (IFF requirement)
+  if (bodySize & 0x1) {
     if (fh) {
-      UBYTE pad_byte = 0;
-      Write(fh, &pad_byte, 1);
+      UBYTE pad = 0;
+      Write(fh, &pad, 1);
     }
     bodySize++;
   }
@@ -957,7 +949,7 @@ VOID saveWorkBitMap(struct BitMap* wbm, UWORD max_bytes, UWORD rows, STRPTR save
     bodySize = max_bytes * wbm->Depth * rows;
   }
   else {
-    bodySize = RLE_CompressILBMBody(wbm, max_bytes, rows, wbm->Depth, NULL);
+    bodySize = RLE_CompressILBMBody(wbm, max_bytes, rows, NULL);
   }
 
   formSize = strlen("ILBM") + strlen("BMHD") + 4 + bmhdSize + strlen("CMAP") + 4 + cmapSize + strlen("BODY") + 4 + bodySize;
@@ -985,7 +977,7 @@ VOID saveWorkBitMap(struct BitMap* wbm, UWORD max_bytes, UWORD rows, STRPTR save
       }
     }
     else {
-      RLE_CompressILBMBody(wbm, max_bytes, rows, wbm->Depth, fh);
+      RLE_CompressILBMBody(wbm, max_bytes, rows, fh);
     }
 
     SetFileSize(fh, 0, OFFSET_CURRENT);

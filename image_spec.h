@@ -38,6 +38,8 @@ struct Sheet {
   struct ImageSpec spec[0];
 };
 
+VOID swapSpecs(struct ImageSpec* spec1, struct ImageSpec* spec2);
+
 struct Sheet* loadBOBSheet(STRPTR fileName);
 struct Sheet* loadSpriteBank(STRPTR fileName);
 VOID freeSheet(struct Sheet* bs);

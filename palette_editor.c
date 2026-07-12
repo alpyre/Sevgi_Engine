@@ -1006,6 +1006,9 @@ ULONG m_Load_As(struct IClass* cl, Object* obj, Msg msg)
                                     ASLFR_InitialFile, "palettes.h",
                                     ASLFR_InitialDrawer, g_Project.directory,
                                     TAG_END) && strlen(g_FileReq->fr_File)) {
+    // ASL requester resets the busy pointer so let's set it again
+    SetWindowPointer(window, WA_BusyPointer, TRUE, TAG_DONE);
+
     path = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, NULL);
     if (path) {
       DoMethod(obj, MUIM_PaletteEditor_Reset);
@@ -1063,6 +1066,9 @@ ULONG m_Save_As(struct IClass* cl, Object* obj, Msg msg)
                                       ASLFR_InitialPattern, "#?.h",
                                       ASLFR_InitialFile, "palettes.h",
                                       TAG_END) && strlen(g_FileReq->fr_File)) {
+      // ASL requester resets the busy pointer so let's set it again
+      SetWindowPointer(window, WA_BusyPointer, TRUE, TAG_DONE);
+
       path = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, NULL);
       if (path) {
         if (Exists(path)) {

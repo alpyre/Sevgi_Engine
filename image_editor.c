@@ -14,6 +14,8 @@
 #define MUIM_ImageEditor_SelectHitBox 0x80430606
 #define MUIM_ImageEditor_AddHitBox    0x80430607
 #define MUIM_ImageEditor_RemoveHitBox 0x80430608
+#define MUIM_ImageEditor_SpecUp       0x80430609
+#define MUIM_ImageEditor_SpecDown     0x8043060A
 
 #define UPDATE_H_OFFS 0x01
 #define UPDATE_V_OFFS 0x02
@@ -63,6 +65,8 @@ struct cl_ObjTable
   Object* display;
   Object* image_group;
   Object* img_num;
+  Object* img_up;
+  Object* img_down;
   Object* width;
   Object* height;
   Object* h_offs;
@@ -207,6 +211,32 @@ UBYTE checkDataSizes(struct Sheet* sheet)
   }
 
   return type;
+}
+///
+///copySheetILBM(old_sheet_file, ilbm_filename, new_dir)
+/******************************************************************************
+ * If the sheet is "saved as" to a different directory, copy the BOBsheet's   *
+ * ILBM file to the new directory alongside with it.                          *
+ ******************************************************************************/
+VOID copySheetILBM(STRPTR old_sheet_file, STRPTR ilbm_filename, STRPTR new_dir)
+{
+  STRPTR old_dir = pathPart(old_sheet_file);
+
+  if (old_dir && strcmp(old_dir, new_dir)) {
+    STRPTR old_ILBM_path = makePath(old_dir, ilbm_filename, NULL);
+    if (old_ILBM_path) {
+      STRPTR new_ILBM_path = makePath(new_dir, ilbm_filename, NULL);
+      if (new_ILBM_path) {
+        if (Exists(old_ILBM_path)) {
+          CopyFile(old_ILBM_path, new_ILBM_path);
+        }
+        freeString(new_ILBM_path);
+      }
+      freeString(old_ILBM_path);
+    }
+  }
+
+  freeString(old_dir);
 }
 ///
 
@@ -419,6 +449,14 @@ ULONG m_SetSheet(struct IClass* cl, Object* obj, struct Sheet* sheet, ULONG mode
   DoMethod(data->obj_table.hitbox_y2, MUIM_NoNotifySet, MUIA_Integer_Value, 0);
 
   DoMethod(data->obj_table.image_group, MUIM_Set, MUIA_Disabled, FALSE);
+  if (mode == MODE_BOBSHEET) {
+    DoMethod(data->obj_table.img_up, MUIM_Set, MUIA_Disabled, FALSE);
+    DoMethod(data->obj_table.img_down, MUIM_Set, MUIA_Disabled, FALSE);
+  }
+  else {
+    DoMethod(data->obj_table.img_up, MUIM_Set, MUIA_Disabled, TRUE);
+    DoMethod(data->obj_table.img_down, MUIM_Set, MUIA_Disabled, TRUE);
+  }
   DoMethod(data->obj_table.hitbox_add, MUIM_Set, MUIA_Disabled, FALSE);
   DoMethod(data->obj_table.saveas, MUIM_Set, MUIA_Disabled, FALSE);
   m_FillHitBoxList(cl, obj);
@@ -434,14 +472,13 @@ ULONG m_LoadSheet(struct IClass* cl, Object* obj, Msg msg)
   struct Window* window;
 
   get(obj, MUIA_Window_Window, &window);
+  DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
 
   if (data->edited) {
     if (!MUI_Request(App, obj, NULL, "Sheet Editor", "*_Discard|_Cancel", "Discard the changes made on the current sheet?")) {
-      return 0;
+      goto cancel;
     }
   }
-
-  DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
 
   if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Load a bob sheet or sprite bank",
                                     ASLFR_Window, window,
@@ -453,6 +490,9 @@ ULONG m_LoadSheet(struct IClass* cl, Object* obj, Msg msg)
                                     g_Project.data_drawer ? ASLFR_InitialDrawer : TAG_IGNORE, g_Project.data_drawer,
                                     ASLFR_InitialFile, "",
                                     TAG_END) && strlen(g_FileReq->fr_File)) {
+    // ASL requester resets the busy pointer so let's set it again
+    SetWindowPointer(window, WA_BusyPointer, TRUE, TAG_DONE);
+
     path = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, NULL);
     if (path) {
       struct Sheet* sheet = NULL;
@@ -478,6 +518,7 @@ ULONG m_LoadSheet(struct IClass* cl, Object* obj, Msg msg)
     }
   }
 
+cancel:
   DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
 
   return 0;
@@ -487,16 +528,20 @@ ULONG m_LoadSheet(struct IClass* cl, Object* obj, Msg msg)
 ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
 {
   struct cl_Data *data = INST_DATA(cl, obj);
-  BPTR fh;
-  ULONG i;
 
   if (data->sheet) {
+    struct Window* window;
+    BPTR fh = NULL;
+    ULONG i;
     //put user selected size type settings onto the sheet
     ULONG small_sizes;
     ULONG big_sizes;
     ULONG small_hitbox_sizes;
     UBYTE new_type = 0;
 
+    DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
+
+    get(obj, MUIA_Window_Window, &window);
     get(data->obj_table.small, MUIA_Selected, &small_sizes);
     get(data->obj_table.big, MUIA_Selected, &big_sizes);
     get(data->obj_table.hitbox_small, MUIA_Selected, &small_hitbox_sizes);
@@ -531,10 +576,7 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
                 (ULONG)(type == 0x02 ? "small" : "regular"), (ULONG)(recommended_img_type == 0x02 ? "small" : "regular"), (ULONG)(recommended_img_type == 0x02 ? "small" : "regular"), (ULONG)(recommended_img_type == 0x02 ? "\nThis will require compiling the engine with SMALL_IMAGE_SIZES for this sheet to work." : ""))) {
                 type = recommended_img_type;
               }
-              else {
-                Close(fh);
-                return 0;
-              }
+              else goto cancel;
             }
           }
           else if (type == 0x02) {
@@ -558,10 +600,7 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
                   if (MUI_Request(App, obj, NULL, "Sheet Editor", "Continue|*_Cancel", "The hitboxes on this bob sheet used to have small size offsets.\nAfter the edits made it now requires big data sizes.\nIf you click 'Continue' the sheet will be saved using big data sizes.\nThis will require compiling the engine withOUT SMALL_IMAGE_SIZES for this sheet to work.\n\nWhat would you want to do?")) {
                     type |= recommended_hbx_type;
                   }
-                  else {
-                    Close(fh);
-                    return 0;
-                  }
+                  else goto cancel;
                 }
               }
               else {
@@ -636,7 +675,6 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
           saveHitBoxes(fh, data->sheet, type);
 
           SetFileSize(fh, 0, OFFSET_CURRENT);
-          Close(fh);
         }
       }
       break;
@@ -670,10 +708,7 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
                 (ULONG)(type == 0x02 ? "small" : "regular"), (ULONG)(recommended_img_type == 0x02 ? "small" : "regular"), (ULONG)(recommended_img_type == 0x02 ? "small" : "regular"), (ULONG)(recommended_img_type == 0x02 ? "\nThis will require compiling the engine with SMALL_IMAGE_SIZES for this spritebank to work." : ""))) {
                 type = recommended_img_type;
               }
-              else {
-                Close(fh);
-                return 0;
-              }
+              else goto cancel;
             }
           }
           else if (type == 0x02) {
@@ -697,10 +732,7 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
                   if (MUI_Request(App, obj, NULL, "Sheet Editor", "Continue|*_Cancel", "The hitboxes on this bob sheet used to have small size offsets.\nAfter the edits made it now requires big data sizes.\nIf you click 'Continue' the sheet will be saved using big data sizes.\nThis will require compiling the engine withOUT SMALL_IMAGE_SIZES for this sheet to work.\n\nWhat would you want to do?")) {
                     type |= recommended_hbx_type;
                   }
-                  else {
-                    Close(fh);
-                    return 0;
-                  }
+                  else goto cancel;
                 }
               }
               else {
@@ -771,7 +803,6 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
           saveHitBoxes(fh, data->sheet, type);
 
           SetFileSize(fh, 0, OFFSET_CURRENT);
-          Close(fh);
         }
       }
       break;
@@ -779,6 +810,10 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
 
     data->edited = FALSE;
     DoMethod(data->obj_table.save, MUIM_Set, MUIA_Disabled, TRUE);
+
+cancel:
+    if (fh) Close(fh);
+    DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
   }
 
   return 0;
@@ -788,12 +823,13 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
 ULONG m_SaveSheetAs(struct IClass* cl, Object* obj, Msg msg)
 {
   struct cl_Data *data = INST_DATA(cl, obj);
-  STRPTR path;
-  struct Window* window;
-
-  get(obj, MUIA_Window_Window, &window);
 
   if (data->sheet) {
+    STRPTR path;
+    struct Window* window;
+
+    get(obj, MUIA_Window_Window, &window);
+
     DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
 
     if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Save bob sheet or sprite bank as",
@@ -806,8 +842,22 @@ ULONG m_SaveSheetAs(struct IClass* cl, Object* obj, Msg msg)
                                       g_Project.data_drawer ? ASLFR_InitialDrawer : TAG_IGNORE, g_Project.data_drawer,
                                       ASLFR_InitialFile, FilePart(data->sheet->sheet_file),
                                       TAG_END) && strlen(g_FileReq->fr_File)) {
+      // ASL requester resets the busy pointer so let's set it again
+      SetWindowPointer(window, WA_BusyPointer, TRUE, TAG_DONE);
+
       path = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, NULL);
       if (path) {
+        if (Exists(path)) {
+          if (!MUI_Request(App, obj, NULL, "Image Editor", "*_Overwrite|_Cancel", "Sheet file already exists!")) {
+            freeString(path);
+            goto cancel;
+          }
+        }
+
+        if (data->mode == MODE_BOBSHEET) {
+          copySheetILBM(data->sheet->sheet_file, data->sheet->ilbm_file, g_FileReq->fr_Drawer);
+        }
+
         freeString(data->sheet->sheet_file);
         data->sheet->sheet_file = path;
 
@@ -817,6 +867,7 @@ ULONG m_SaveSheetAs(struct IClass* cl, Object* obj, Msg msg)
       }
     }
 
+cancel:
     DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
   }
 
@@ -883,6 +934,55 @@ ULONG m_UpdateSpec(struct IClass* cl, Object* obj, struct cl_UpdateMsg* msg)
     }
 
     DoMethod(data->obj_table.display, MUIM_ImageDisplay_Update);
+  }
+
+  return 0;
+}
+///
+
+///m_SpecUp(cl, obj, msg)
+/******************************************************************************
+ * Moves the selected image's spec up changing the order of the sheet.        *
+ * WARNING: Only works on bob sheets!                                         *
+ ******************************************************************************/
+ULONG m_SpecUp(struct IClass* cl, Object* obj, Msg msg)
+{
+  struct cl_Data *data = INST_DATA(cl, obj);
+
+  if (data->sheet && data->sheet->num_images > 1 && data->mode == MODE_BOBSHEET) {
+    ULONG img_num;
+
+    get(data->obj_table.img_num, MUIA_Integer_Value, &img_num);
+
+    if (img_num < data->sheet->num_images - 1) {
+      swapSpecs(&data->sheet->spec[img_num], &data->sheet->spec[img_num + 1]);
+
+      DoMethod(data->obj_table.img_num, MUIM_NoNotifySet, MUIA_Integer_Value, img_num + 1);
+    }
+  }
+
+  return 0;
+}
+///
+///m_SpecDown(cl, obj, msg)
+/******************************************************************************
+ * Moves the selected image's spec down changing the order of the sheet.      *
+ * WARNING: Only works on bob sheets!                                         *
+ ******************************************************************************/
+ULONG m_SpecDown(struct IClass* cl, Object* obj, Msg msg)
+{
+  struct cl_Data *data = INST_DATA(cl, obj);
+
+  if (data->sheet && data->sheet->num_images > 1 && data->mode == MODE_BOBSHEET) {
+    ULONG img_num;
+
+    get(data->obj_table.img_num, MUIA_Integer_Value, &img_num);
+
+    if (img_num > 0) {
+      swapSpecs(&data->sheet->spec[img_num], &data->sheet->spec[img_num - 1]);
+
+      DoMethod(data->obj_table.img_num, MUIM_NoNotifySet, MUIA_Integer_Value, img_num - 1);
+    }
   }
 
   return 0;
@@ -1069,6 +1169,8 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* display;
     Object* image_group;
     Object* img_num;
+    Object* img_up;
+    Object* img_down;
     Object* width;
     Object* height;
     Object* h_offs;
@@ -1145,14 +1247,24 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
             MUIA_Disabled, TRUE,
             MUIA_Group_Columns, 2,
             MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Image:", MUIA_HorizWeight, 0, TAG_END),
-            MUIA_Group_Child, (objects.img_num = NewObject(MUIC_Integer->mcc_Class, NULL,
-              MUIA_Integer_Input, TRUE,
-              MUIA_Integer_Value, 0,
-              MUIA_Integer_Min, 0,
-              MUIA_Integer_Max, 0xFFFF,
-              MUIA_Integer_Buttons, TRUE,
-              MUIA_ShortHelp, "Currently displayed image.",
-            TAG_END)),
+            MUIA_Group_Child, MUI_NewObject(MUIC_Group,
+              MUIA_Group_Horiz, TRUE,
+              MUIA_Group_HorizSpacing, 1,
+              MUIA_Group_Child, (objects.img_num = NewObject(MUIC_Integer->mcc_Class, NULL,
+                MUIA_Integer_Input, TRUE,
+                MUIA_Integer_Value, 0,
+                MUIA_Integer_Min, 0,
+                MUIA_Integer_Max, 0xFFFF,
+                MUIA_Integer_Buttons, TRUE,
+                MUIA_Integer_Button_Inc_Text, ">",
+                MUIA_Integer_Button_Dec_Text, "<",
+                MUIA_Integer_Buttons_Inverse, TRUE,
+                MUIA_ShortHelp, "Currently displayed image.",
+              TAG_END)),
+              MUIA_Group_Child, MUI_NewObject(MUIC_Rectangle, MUIA_FixWidth, 2, TAG_END),
+              MUIA_Group_Child, (objects.img_up = MUI_NewButton("+", NULL, "Move image up")),
+              MUIA_Group_Child, (objects.img_down = MUI_NewButton("-", NULL, "Move image down")),
+            TAG_END),
             MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "width:", MUIA_HorizWeight, 0, TAG_END),
             MUIA_Group_Child, (objects.width = NewObject(MUIC_Integer->mcc_Class, NULL,
               MUIA_Integer_Input, FALSE,
@@ -1268,6 +1380,12 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     DoMethod(objects.img_num, MUIM_Notify, MUIA_Integer_Value, MUIV_EveryTime, obj, 2,
       MUIM_ImageEditor_ChangeSpec, MUIV_TriggerValue);
 
+    DoMethod(objects.img_up, MUIM_Notify, MUIA_Pressed, FALSE, obj, 1,
+      MUIM_ImageEditor_SpecUp);
+
+    DoMethod(objects.img_down, MUIM_Notify, MUIA_Pressed, FALSE, obj, 1,
+      MUIM_ImageEditor_SpecDown);
+
     DoMethod(objects.scale, MUIM_Notify, MUIA_Integer_Value, MUIV_EveryTime, objects.display, 3,
       MUIM_Set, MUIA_ImageDisplay_Scale, MUIV_TriggerValue);
 
@@ -1319,24 +1437,28 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     DoMethod(objects.hitbox_add, MUIM_Set, MUIA_Disabled, TRUE);
     DoMethod(objects.hitbox_rem, MUIM_Set, MUIA_Disabled, TRUE);
     DoMethod(objects.hitbox_small, MUIM_Set, MUIA_Disabled, TRUE);
+    DoMethod(objects.img_up, MUIM_Set, MUIA_Weight, 0);
+    DoMethod(objects.img_down, MUIM_Set, MUIA_Weight, 0);
 
-    data->obj_table.load = objects.load;
-    data->obj_table.save = objects.save;
-    data->obj_table.saveas = objects.saveas;
-    data->obj_table.undo = objects.undo;
-    data->obj_table.redo = objects.redo;
-    data->obj_table.file    = objects.file;
-    data->obj_table.scale   = objects.scale;
+    data->obj_table.load         = objects.load;
+    data->obj_table.save         = objects.save;
+    data->obj_table.saveas       = objects.saveas;
+    data->obj_table.undo         = objects.undo;
+    data->obj_table.redo         = objects.redo;
+    data->obj_table.file         = objects.file;
+    data->obj_table.scale        = objects.scale;
     data->obj_table.small        = objects.small;
     data->obj_table.big          = objects.big;
     data->obj_table.hitbox_small = objects.hitbox_small;
-    data->obj_table.display = objects.display;
-    data->obj_table.image_group = objects.image_group;
-    data->obj_table.img_num = objects.img_num;
-    data->obj_table.width = objects.width;
-    data->obj_table.height = objects.height;
-    data->obj_table.h_offs = objects.h_offs;
-    data->obj_table.v_offs = objects.v_offs;
+    data->obj_table.display      = objects.display;
+    data->obj_table.image_group  = objects.image_group;
+    data->obj_table.img_num      = objects.img_num;
+    data->obj_table.img_up       = objects.img_up;
+    data->obj_table.img_down     = objects.img_down;
+    data->obj_table.width        = objects.width;
+    data->obj_table.height       = objects.height;
+    data->obj_table.h_offs       = objects.h_offs;
+    data->obj_table.v_offs       = objects.v_offs;
     data->obj_table.hitbox_group = objects.hitbox_group;
     data->obj_table.hitbox_lv    = objects.hitbox_lv;
     data->obj_table.hitbox_x1    = objects.hitbox_x1;
@@ -1447,8 +1569,10 @@ SDISPATCHER(cl_Dispatcher)
       return m_AddHitBox(cl, obj, msg);
     case MUIM_ImageEditor_RemoveHitBox:
       return m_RemoveHitBox(cl, obj, msg);
-
-    //<DISPATCH SUBCLASS METHODS HERE>
+    case MUIM_ImageEditor_SpecUp:
+      return m_SpecUp(cl, obj, msg);
+    case MUIM_ImageEditor_SpecDown:
+      return m_SpecDown(cl, obj, msg);
 
     default:
       return DoSuperMethodA(cl, obj, msg);

@@ -841,6 +841,8 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, Msg msg)
   if (str_name) {
     UBYTE name_initial[2] = {0};
 
+    DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
+
     //Prepare name strings
     str_name = makeString(str_name);
     replaceChars(str_name, " ", '_');
@@ -1024,6 +1026,8 @@ cancel:
     freeString(Name);
     freeString(name);
     freeString(str_name);
+
+    DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
   }
 
   return 0;

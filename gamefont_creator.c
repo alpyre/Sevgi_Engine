@@ -443,14 +443,16 @@ STATIC ULONG m_WindowClose(struct IClass* cl, Object* obj, struct cl_Msg* msg)
 STATIC ULONG m_Load(struct IClass* cl, Object* obj, struct cl_Msg* msg)
 {
   struct cl_Data *data = INST_DATA(cl, obj);
+  struct Window* window;
+
+  get(obj, MUIA_Window_Window, &window);
+  DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
 
   if (data->state == STATE_EDITED) {
     if (!MUI_Request(App, obj, NULL, "Gamefont Creator", "*_Discard|_Cancel", "Current gamefont is not saved.\nDiscard changes?")) {
-      return 0;
+      goto cancel;
     }
   }
-
-  DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
 
   if (AslRequestTags(g_FileReq, ASLFR_TitleText, "Load a gamefont",
                                 ASLFR_PositiveText, "Load",
@@ -461,8 +463,12 @@ STATIC ULONG m_Load(struct IClass* cl, Object* obj, struct cl_Msg* msg)
                                 g_Project.data_drawer ? ASLFR_InitialDrawer : TAG_IGNORE, g_Project.data_drawer,
                                 ASLFR_InitialPattern, "*.fnt",
                                 TAG_END) && strlen(g_FileReq->fr_File)) {
-    STRPTR pathname = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, NULL);
+    STRPTR pathname;
 
+    // ASL requester resets the busy pointer so let's set it again
+    SetWindowPointer(window, WA_BusyPointer, TRUE, TAG_DONE);
+
+    pathname = makePath(g_FileReq->fr_Drawer, g_FileReq->fr_File, NULL);
     if (pathname) {
       BPTR fh = Open(pathname, MODE_OLDFILE);
       if (fh) {
@@ -531,6 +537,7 @@ STATIC ULONG m_Load(struct IClass* cl, Object* obj, struct cl_Msg* msg)
     }
   }
 
+cancel:
   DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, FALSE);
 
   return 0;
@@ -622,6 +629,9 @@ STATIC ULONG m_Save(struct IClass* cl, Object* obj, struct cl_Msg* msg)
                                     TAG_END) && strlen(g_FileReq->fr_File)) {
     BPTR fh;
     UWORD final_offset;
+
+    // ASL requester resets the busy pointer so let's set it again
+    SetWindowPointer(window, WA_BusyPointer, TRUE, TAG_DONE);
 
     final_name = stripExtension(g_FileReq->fr_File);
 

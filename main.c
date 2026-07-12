@@ -7,8 +7,8 @@
 ///defines
 #define PROGRAMNAME     "Sevgi Editor"
 #define VERSION         0
-#define REVISION        162
-#define VERSIONSTRING   "0.162"
+#define REVISION        163
+#define VERSIONSTRING   "0.163"
 #define AUTHOR          "Ibrahim Alper Sönmez"
 #define COPYRIGHT       "@ 2024 " AUTHOR
 #define CONTACT         "amithlondestek@gmail.com"

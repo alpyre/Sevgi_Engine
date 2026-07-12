@@ -26,6 +26,22 @@ extern APTR g_MemoryPool;
 struct ILBMImage* newILBMImageFromBitmap(struct BitMap* bm);
 ///
 
+///swapSpecs(spec1, spec2)
+/******************************************************************************
+ * WARNING: Only to be used on bobsheets!!!                                   *
+ ******************************************************************************/
+VOID swapSpecs(struct ImageSpec* spec1, struct ImageSpec* spec2)
+{
+  struct ImageSpec temp;
+
+  if (spec1 && spec2) {
+    CopyMem(spec1, &temp, sizeof(struct ImageSpec));
+    CopyMem(spec2, spec1, sizeof(struct ImageSpec));
+    CopyMem(&temp, spec2, sizeof(struct ImageSpec));    
+  }
+}
+///
+
 ///loadHitboxes(fh, sheet, type)
 BOOL loadHitboxes(BPTR fh, struct Sheet* sheet, UBYTE type)
 {

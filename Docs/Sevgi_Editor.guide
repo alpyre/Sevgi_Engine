@@ -7,7 +7,7 @@
 
                 Asset creator and manager for Sevgi_Engine
 
-                             Version 0.162
+                             Version 0.163
 
                           User Documentation
 
@@ -577,12 +577,14 @@ Sevgi_Engine gameobject bank (.obj).
 Converts ILBM sprite sheets into Sevgi_Engine compatible BOB sheets. A BOB sheet
 is consist of two files. The first file is still an ILBM file but rearranged to
 a layout optimized for quick blitting. Second file (.sht) contains the data
-required to define each image as a Sevgi_Engine BOBImage. Namely the width and
+required to define each image as a Sevgi_Engine BOBImage. Namely the widths and
 heights, offsets of the images on the sheet, the offsets of their hot spots,
 offsets and sizes of the hitboxes (if they have hitboxes) etc.
 
-The placement of the hot spot and hitboxes can be edited later using the
-"Image Editor" tool.
+This tool is to let you create BOBSheet files to work with by grabbing the
+images from the source sheets in a particular order using a common hotspot
+offset. Afterward, you may use the @{"Image Editor" link "14_Editor_ImageEditor"} tool to make further changes in
+the order of the images and their hotspots, as well as to add hitboxes for each.
 
 @{b}Source:@{ub}
     The ILBM sprite sheet to create the BOBSheet from. You can click the
@@ -627,7 +629,7 @@ These sizes determine the size of these hypothetical rectangles.
 @{b}Hotspot:@{ub}
     The offset of the hot spot for every image from the left corner of their
     hypothetical image rectangles. If images have to have different hot spot
-    offsets, edit the BOBSheet in "Image Editor" after creation.
+    offsets, edit the BOBSheet in @{"Image Editor" link "14_Editor_ImageEditor"} after creation.
 
 @{b}Reverse X, Y:@{ub}
     Grab images in reverse order.
@@ -779,7 +781,12 @@ will be displayed in arbitrary colors.
     Helps you zoom in/out on images to better set up offsets and hitboxes.
 
 @{b}Image:@{ub}
-    The index of the image displayed on the BOBSheet/Sprite Bank.
+    The index of the image displayed on the BOBSheet/Sprite Bank. The buttons
+    marked with '<' and '>' will let you select the previous/next image on the
+    sheet. The buttons with '+' and '-' signs will let you move the image
+    up/down on the list changing its index. These let you manually sort your
+    images after grabbing them from your source sheets. This feature is only
+    available for BOBSheets.
 
 @{b}h_offs:@{ub}
 @{b}v_offs:@{ub}

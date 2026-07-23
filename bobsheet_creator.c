@@ -1,5 +1,5 @@
 /******************************************************************************
- * BobsheetCreator                                                            *
+ * BOBSheetCreator                                                            *
  ******************************************************************************/
 ///Defines
 //private methods
@@ -53,6 +53,7 @@ struct cl_ObjTable
   Object* reverse_x;
   Object* reverse_y;
   Object* columns_first;
+  Object* optimize;
   Object* compress;
   Object* force_ni;
   Object* small;
@@ -127,6 +128,7 @@ static struct {
   STRPTR reverse_x;
   STRPTR reverse_y;
   STRPTR columns_first;
+  STRPTR optimize;
   STRPTR compress;
   STRPTR force_ni;
   STRPTR small;
@@ -153,9 +155,11 @@ static struct {
   "Grab images from left to right instead.",
   "Grab images from bottom to top instead.",
   "Grab images columns first.",
+  "Moves the images around on the sheet using a multi-pass\nMaxRects algorithm to make sure the final sheet has as little\nempty space and ILBM size as possible.\n"
+    "May increase computation time drastically on slower systems.",
   "RLE compress the optimized BOBSheet ILBM.",
-  "Forces the bob sheet to be allocated as a non-interleaved bitmap.\nSheet will use less chip memory, but blits from it will be less optimized.\n"
-    "You should only use this if you are out of chip memory or you have found\nsome other benefit to have your sheet non-interleaved.",
+  "Forces the BOBSheet to be allocated as a non-interleaved bitmap.\nSheet will use less chip memory, but blits from it will be less optimized.\n"
+    "You should only use this if you are out of chip memory or you have\nfound some other benefit to have your sheet non-interleaved.",
   "Use BYTEs instead of WORDs to store image offset information.\nRequires compiling the engine with SMALL_IMAGE_SIZES.",
   "Use UWORDs instead of UBYTESs to store image size information.\nRequires compiling the engine with BIG_IMAGE_SIZES.",
   "Optimize and save the sheet ILBM and\nthe accompanying .sht file which contains image data.",
@@ -256,6 +260,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
   ULONG reverse_x;
   ULONG reverse_y;
   ULONG columns_first;
+  ULONG optimize;
   ULONG compress;
   ULONG force_ni;
   ULONG small;
@@ -284,6 +289,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
   GetAttr(MUIA_Selected, data->obj_table.reverse_x, &reverse_x);
   GetAttr(MUIA_Selected, data->obj_table.reverse_y, &reverse_y);
   GetAttr(MUIA_Selected, data->obj_table.columns_first, &columns_first);
+  GetAttr(MUIA_Selected, data->obj_table.optimize, &optimize);
   GetAttr(MUIA_Selected, data->obj_table.compress, &compress);
   GetAttr(MUIA_Selected, data->obj_table.force_ni, &force_ni);
   GetAttr(MUIA_Selected, data->obj_table.small, &small);
@@ -304,7 +310,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
 
   DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
 
-  if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Save BOBsheet",
+  if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Save BOBSheet",
                                     ASLFR_Window, window,
                                     ASLFR_PositiveText, "Create",
                                     ASLFR_DrawersOnly, FALSE,
@@ -328,7 +334,7 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
         }
       }
 
-      sprintf(command, "%s \"%s\" \"%s\" %lu %lu %lu %lu %lu %lu %lu %lu %ld %ld%s%s%s%s%s%s%s",
+      sprintf(command, "%s \"%s\" \"%s\" %lu %lu %lu %lu %lu %lu %lu %lu %ld %ld%s%s%s%s%s%s%s%s",
         g_Tools.bob_sheeter, source, ilbmpath, margin_x, margin_y, spacing_x, spacing_y, columns, rows, width, height, hotspot_x, hotspot_y,
         reverse_x ? " REVX" : "",
         reverse_y ? " REVY" : "",
@@ -336,7 +342,8 @@ STATIC ULONG m_Create(struct IClass* cl, Object* obj, struct cl_Msg* msg)
         compress ? "" : " NOCOMP",
         force_ni ? " FORCENI" : "",
         small ? " SMALL" : "",
-        big ? " BIG" : "");
+        big ? " BIG" : "",
+        optimize ? " OPTIMIZE" : "");
 
       if (execute(&rtrn, command))
         error_string = rtrn.string;
@@ -426,6 +433,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     Object* reverse_x;
     Object* reverse_y;
     Object* columns_first;
+    Object* optimize;
     Object* compress;
     Object* force_ni;
     Object* small;
@@ -436,7 +444,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
 
   if ((obj = (Object *) DoSuperNew(cl, obj,
     MUIA_Window_ID, MAKE_ID('S','V','G','8'),
-    MUIA_Window_Title, "Bob Sheet Creator",
+    MUIA_Window_Title, "BOBSheet Creator",
     MUIA_Window_RootObject, MUI_NewObject(MUIC_Group,
       MUIA_Group_Child, MUI_NewObject(MUIC_Group,
         MUIA_Group_Columns, 2,
@@ -457,7 +465,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_PopASLString_Requester, g_FileReq,
           MUIA_PopASLString_IgnoreContents, TRUE,
           MUIA_ShortHelp, help_string.source,
-          ASLFR_TitleText, "Please select ilbm bob sheet file...",
+          ASLFR_TitleText, "Please select ILBM source sheet file...",
           ASLFR_PositiveText, "Open",
           ASLFR_DoSaveMode, FALSE,
           ASLFR_DrawersOnly, FALSE,
@@ -597,6 +605,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
         TAG_END),
       TAG_END),
       MUIA_Group_Child, MUI_NewCheckMark(&objects.columns_first, FALSE, "Columns first", 0, help_string.columns_first),
+      MUIA_Group_Child, MUI_NewCheckMark(&objects.optimize, FALSE, "Optimize", 0, help_string.optimize),
       MUIA_Group_Child, MUI_NewCheckMark(&objects.compress, TRUE, "Compress", 0, help_string.compress),
       MUIA_Group_Child, MUI_NewCheckMark(&objects.force_ni, FALSE, "Force non-interleaved", 0, help_string.force_ni),
       MUIA_Group_Child, MUI_NewCheckMark(&objects.small, FALSE, "Small sizes", 0, help_string.small),
@@ -629,6 +638,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
     data->obj_table.reverse_x = objects.reverse_x;
     data->obj_table.reverse_y = objects.reverse_y;
     data->obj_table.columns_first = objects.columns_first;
+    data->obj_table.optimize = objects.optimize;
     data->obj_table.compress = objects.compress;
     data->obj_table.force_ni = objects.force_ni;
     data->obj_table.small = objects.small;
@@ -655,6 +665,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
                                              objects.reverse_x,
                                              objects.reverse_y,
                                              objects.columns_first,
+                                             objects.optimize,
                                              objects.compress,
                                              objects.force_ni,
                                              objects.small,

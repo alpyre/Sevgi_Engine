@@ -116,8 +116,8 @@ struct BOBImage {
   IMAGE_COMMON
   struct HitBox* hitbox;
   struct BOBSheet* bob_sheet;
-  UBYTE* pointer;       //pointer to image start in bob sheet
-  UBYTE* mask;          //pointer to image mask in bob sheet
+  UBYTE* pointer;       //pointer to image start in BOBSheet
+  UBYTE* mask;          //pointer to image mask in BOBSheet
   UWORD  bytesPerRow;   //calculated as ((width-1)/16 + 1) * 2 NOTE: Needs a better name
 };
 
@@ -152,7 +152,7 @@ struct BOB {
 #if defined QUICKBOBS || defined NO_BOBBACKBUFFER
     ULONG right_edge;         // Edge case for images cropped at the left edge of the display
 #endif // QUICKBOBS || NO_BOBBACKBUFFER
-    struct BOBSheet* bob_sheet; // Bob sheet of the image used in blitBOB()
+    struct BOBSheet* bob_sheet; // BOBSheet of the image used in blitBOB()
     UWORD words;                // Width of the blit in words
     UWORD rows;                 // Height of the blit in pixellines
     UWORD x_s;                  // Shift value to go into BLTCONx (already left shifted 12)
@@ -270,7 +270,7 @@ VOID destroyGameObject(struct GameObject* go);
 #endif /* GAMEOBJECT_H */
 
 /*
-STRUCTURE OF A BOB SHEET FILE (in pseudo code)
+STRUCTURE OF A BOBSheet FILE (in pseudo code)
 struct BOBSheetFile {
   UBYTE id[8];   // <-- "BOBSHEET"
   UBYTE ilbmFile[?];  // a NULL terminated string that holds the sheet ilbm path
@@ -283,8 +283,8 @@ struct BOBSheetFile {
     UBYTE or UWORD height;
     BYTE or WORD h_offs;
     BYTE or WORD v_offs;
-    UBYTE word;  // x coord of image in bob sheet / 16 (NOTE: Bob images MUST be in a WORD boundary)
-    UWORD row;   // y coord of image in bob sheet.
+    UBYTE word;  // x coord of image in BOBSheet / 16 (NOTE: BOB images MUST be in a WORD boundary)
+    UWORD row;   // y coord of image in BOBSheet.
   }imageData[num_images];
   // OR
   UBYTE width;
@@ -297,7 +297,7 @@ struct BOBSheetFile {
 */
 
 /*
-STRUCTURE OF A SPRITE BANK FILE (in pseudo code)
+STRUCTURE OF A SpriteBank FILE (in pseudo code)
 struct SpriteBankFile {
   UBYTE id[7];   // <-- "SPRBANK"
   UBYTE type;    // data size type bits

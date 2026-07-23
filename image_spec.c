@@ -28,7 +28,7 @@ struct ILBMImage* newILBMImageFromBitmap(struct BitMap* bm);
 
 ///swapSpecs(spec1, spec2)
 /******************************************************************************
- * WARNING: Only to be used on bobsheets!!!                                   *
+ * WARNING: Only to be used on BOBSheets!!!                                   *
  ******************************************************************************/
 VOID swapSpecs(struct ImageSpec* spec1, struct ImageSpec* spec2)
 {
@@ -37,7 +37,7 @@ VOID swapSpecs(struct ImageSpec* spec1, struct ImageSpec* spec2)
   if (spec1 && spec2) {
     CopyMem(spec1, &temp, sizeof(struct ImageSpec));
     CopyMem(spec2, spec1, sizeof(struct ImageSpec));
-    CopyMem(&temp, spec2, sizeof(struct ImageSpec));    
+    CopyMem(&temp, spec2, sizeof(struct ImageSpec));
   }
 }
 ///
@@ -133,7 +133,7 @@ BOOL loadHitboxes(BPTR fh, struct Sheet* sheet, UBYTE type)
 ///
 ///loadBobSheet(fileName)
 /******************************************************************************
- * Allocates a new struct Sheet and loads the given bob sheet file (.sht)     *
+ * Allocates a new struct Sheet and loads the given BOBSheet file (.sht)      *
  * from disk into it by loading the ilbm file referred by the file as an      *
  * ILBMImage and creates all the ImageSpec structures it defines.             *
  ******************************************************************************/
@@ -301,17 +301,17 @@ struct Sheet* loadBOBSheet(STRPTR fileName)
             loadHitboxes(fh, bs, bs->type);
 
           }// TODO: We have to change these err. messages into requesters!
-          else { puts("Not enough memory for BOB sheet!"); freeILBMImage(sheet_ilbm); }
+          else { puts("Not enough memory for BOBSheet!"); freeILBMImage(sheet_ilbm); }
         }
-        else puts("Bob sheet ilbm could not be loaded!");
+        else puts("BOBSheet ILBM could not be loaded!");
       }
-      else puts("Invalid bob sheet ilbm filename!");
+      else puts("Invalid BOBSheet ILBM filename!");
     }
-    else puts("Invalid bob sheet file!");
+    else puts("Invalid BOBSheet file!");
 
     Close(fh);
   }
-  else printf("Bob sheet file %s could not be opened!\n", fileName);
+  else printf("BOBSheet file %s could not be opened!\n", fileName);
 
   return bs;
 }
@@ -796,7 +796,7 @@ struct Sheet* loadSpriteBank(STRPTR fileName)
 ///
 ///freeSheet(sheet)
 /******************************************************************************
- * Frees a bob sheet loaded by loadBOBSheet().                                *
+ * Frees a BOBSheet loaded by loadBOBSheet().                                 *
  ******************************************************************************/
 VOID freeSheet(struct Sheet* sheet)
 {

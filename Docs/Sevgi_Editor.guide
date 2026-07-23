@@ -7,7 +7,7 @@
 
                 Asset creator and manager for Sevgi_Engine
 
-                             Version 0.163
+                             Version 0.164
 
                           User Documentation
 
@@ -62,8 +62,8 @@ pens and color depth in native Workbench screens.
 @{" Gamefont Creator    " link "09_Editor_GamefontCreator"}
 @{" Tileset Creator     " link "10_Editor_TilesetCreator"}
 @{" Tilemap Creator     " link "11_Editor_TilemapCreator"}
-@{" BOB Sheet Creator   " link "12_Editor_BOBSheetCreator"}
-@{" Sprite Bank Creator " link "13_Editor_SpriteBankCreator"}
+@{" BOBSheet Creator    " link "12_Editor_BOBSheetCreator"}
+@{" SpriteBank Creator  " link "13_Editor_SpriteBankCreator"}
 
 @{" Image Editor        " link "14_Editor_ImageEditor"}
 
@@ -283,7 +283,7 @@ values for gameobject.c module.
     optimize the value testing your game's performance without glitching.
     This is actually the value of the define NUM_BOBS.
 
-    @{b}IMPORTANT NOTE:@{ub} Double-Buffering requires twice the amount of BOB mediums.
+    @{b}IMPORTANT NOTE:@{ub} @{"Double-buffering" link "02_Editor_GameSettings" 125} requires twice the amount of BOB mediums.
     i.e. if you plan to display maximum 10 BOBs at once, you should set the
     "Max. BOBs" setting to 20. Half of them will be assigned in even frames and
     the other half in odd frames.
@@ -571,10 +571,10 @@ Sevgi_Engine gameobject bank (.obj).
 @endnode
 
 @node "12_Editor_BOBSheetCreator" "Sevgi_Editor.guide/Features/BOBSheetCreator"
-@{b}BOB Sheet Creator@{ub}
+@{b}BOBSheet Creator@{ub}
 =================
 
-Converts ILBM sprite sheets into Sevgi_Engine compatible BOB sheets. A BOB sheet
+Converts ILBM sprite sheets into Sevgi_Engine compatible BOB sheets. A BOBSheet
 is consist of two files. The first file is still an ILBM file but rearranged to
 a layout optimized for quick blitting. Second file (.sht) contains the data
 required to define each image as a Sevgi_Engine BOBImage. Namely the widths and
@@ -640,11 +640,20 @@ These sizes determine the size of these hypothetical rectangles.
     By default images are grabbed row by row. Selecting this grabs images
     column by column.
 
+@{b}Optimize:@{ub}
+    Optimizes the sheet ILBM file to be created by repacking the images in a
+    better arrangement using a multi-pass MaxRects algorithm. This reduces the
+    wasted space on the sheet ILBM, preserving valuable chip memory when loaded
+    at run time. Image indexes will still be in the same order as the source
+    sheet. Only the physical placements of images on the sheet ILBM will change.
+
+    This may increase the computation time drastically on slower systems.
+
 @{b}Compress:@{ub}
     RLE compresses the resulting BOBSheet's ILBM file.
 
 @{b}Force non-interleaved:@{ub}
-    Forces the created bob sheet to be allocated by the game code as a
+    Forces the created BOBSheet to be allocated by the game code as a
     non-interleaved bitmap. This will allow the blit mask for the sheet to be a
     single plane bitmap. Meaning it will use less chip memory, but blits from it
     will be much less optimized. You should only use this if you really need to
@@ -652,11 +661,11 @@ These sizes determine the size of these hypothetical rectangles.
     non-interleaved.
     @{b}NOTE:@{ub} Most likely, you'll need to select this option to free up Chip RAM in
     the later stages of your game and level development. This means most of your
-    BOB Sheets will already be created and used in the game. Recreating BOB
+    BOBSheets will already be created and used in the game. Recreating BOB
     sheets by activating this option will also require you to recreate all the
     hitboxes, if you used them. It's recommended to instead use a hex editor and
     set the 5th bit of the type byte on the .sht file in this case. It would be
-    wise refering to the BOB sheet file structure explained in the end of
+    wise refering to the BOBSheet file structure explained in the end of
     gameobject.h file (type byte is the first byte after the sheet ILBM's null
     terminated file name and anding with 0x20 will set the FORCE_NONINTERLEAVED
     bit).
@@ -675,13 +684,13 @@ These sizes determine the size of these hypothetical rectangles.
 @endnode
 
 @node "13_Editor_SpriteBankCreator" "Sevgi_Editor.guide/Features/SpriteBankCreator"
-@{b}Sprite Bank Creator@{ub}
-===================
+@{b}SpriteBank Creator@{ub}
+==================
 
-Sevgi_Engine's sprite engine uses a file format called a Sprite Bank, which
+Sevgi_Engine's sprite engine uses a file format called a SpriteBank, which
 is a data structure in which images are organized into simple sprites that can
 be set directly into sprite registers. This tool converts images drawn in ILBM
-sprite sheets into Sprite Bank files.
+sprite sheets into SpriteBank files.
 
 The file format also store required information like image width, height, hot
 spot, hitboxes etc. for every sprite image.
@@ -690,7 +699,7 @@ The placement of the hot spot and hitboxes can be edited later using the
 "Image Editor" tool.
 
 @{b}Source:@{ub}
-    The ILBM sprite sheet to create the Sprite Bank from. You can click the
+    The ILBM sprite sheet to create the SpriteBank from. You can click the
     "Source:" label to check the sheet layout.
 
 @{b}Columns:@{ub}
@@ -720,7 +729,7 @@ These sizes determine the size of these hypothetical rectangles.
 @{b}Hotspot:@{ub}
     The offset of the hot spot for every image from the left corner of their
     hypothetical image rectangles. If images have to have different hot spot
-    offsets, edit the Sprite Bank in "Image Editor" after creation.
+    offsets, edit the SpriteBank in "Image Editor" after creation.
 
 @{b}Reverse X, Y:@{ub}
     Grab images in reverse order.
@@ -734,11 +743,11 @@ These sizes determine the size of these hypothetical rectangles.
 @{b}Colors:@{ub}
     Simple hardware sprites on Amiga have 4 colors (1 transparent 3 visible).
     Attached sprites can display 16 color (1 transparent 15 visible) images.
-    Setting this to 16 will imply all sprite images on this Sprite Bank will
+    Setting this to 16 will imply all sprite images on this SpriteBank will
     be displayed using attached sprites.
 
 @{b}Fetch Mode:@{ub}
-    On OCS/ECS Amigas can be maximum 16 pixels wide. Sprite Bank Creator will
+    On OCS/ECS Amigas can be maximum 16 pixels wide. SpriteBank Creator will
     create glued sprites (multiple hardware sprites put side by side) to display
     wider sprite images.
 
@@ -746,11 +755,11 @@ These sizes determine the size of these hypothetical rectangles.
     the need to glue multiple hardware sprites.
 
     Fetch Mode 2 enables a hardware sprite to be maximum 32 pixels wide.
-    Sprite Bank Creator will still create glued sprites to display even wider
+    SpriteBank Creator will still create glued sprites to display even wider
     images.
 
     Fetch Mode 4 enables a hardware sprite to be maximum 64 pixels wide.
-    Sprite Bank Creator will still create glued sprites to display even wider
+    SpriteBank Creator will still create glued sprites to display even wider
     images.
 
 @{b}Small Sizes:@{ub}
@@ -771,17 +780,17 @@ These sizes determine the size of these hypothetical rectangles.
 ============
 
 This tool helps editing the hot spot offsets and hitboxes for images on
-BOBSheets and Sprite Banks. You can also see a preview of the images before
+BOBSheets and SpriteBanks. You can also see a preview of the images before
 loading them on the engine.
 
-Because Sprite Banks do not store color palette data, images from Sprite Banks
+Because SpriteBanks do not store color palette data, images from SpriteBanks
 will be displayed in arbitrary colors.
 
 @{b}Scale:@{ub}
     Helps you zoom in/out on images to better set up offsets and hitboxes.
 
 @{b}Image:@{ub}
-    The index of the image displayed on the BOBSheet/Sprite Bank. The buttons
+    The index of the image displayed on the BOBSheet/SpriteBank. The buttons
     marked with '<' and '>' will let you select the previous/next image on the
     sheet. The buttons with '+' and '-' signs will let you move the image
     up/down on the list changing its index. These let you manually sort your

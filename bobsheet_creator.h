@@ -1,5 +1,5 @@
 /******************************************************************************
- * BobsheetCreator                                                            *
+ * BOBSheetCreator                                                            *
  ******************************************************************************/
 //Public Attributes
 //<SUBCLASS ATTRIBUTES HERE> ex: #define MUIA_BobsheetCreator_{Attribute} 0x80430001

@@ -34,7 +34,7 @@
 //Activate quick-BOBs (a.k.a. triple-buffering) on display_level.c
 //#define QUICKBOBS
 
-//Do not allocate a buffer to preserve bob backgrounds (use tileset instead)
+//Do not allocate a buffer to preserve BOB backgrounds (use tileset instead)
 //#define NO_BOBBACKBUFFER
 
 //Do color register updates on copperlist
@@ -85,7 +85,7 @@
 //#define BIG_IMAGE_SIZES
 //#define SMALL_HITBOX_SIZES
 
-//Allow non-interleaved bob sheets
+//Allow non-interleaved BOBSheets
 //#define USE_NONINTERLEAVED_BOBS
 
 #endif /* SETTINGS_H */

@@ -34,19 +34,22 @@ endif
 # Common options
 WARNINGS = -Wall
 OPTIMIZE = -Os
-DEBUG = 
-IDIRS = 
+DEBUG =
+IDIRS =
 
 CFLAGS = $(WARNINGS) $(OPTIMIZE) $(DEBUG) $(CPU) $(OPTIONS) $(IDIRS)
 
-OBJS = main.o
+OBJS = main.o max_rects.o
 ################################################################################
 
 # target 'all' (default target)
 all : $(EXE)
 
 # $@ matches the target; $< matches the first dependent
-main.o : main.c
+main.o : main.c max_rects.h
+	$(CC) -c $< $(CFLAGS)
+
+max_rects.o : max_rects.c max_rects.h
 	$(CC) -c $< $(CFLAGS)
 
 $(EXE) : $(OBJS)

@@ -1797,7 +1797,7 @@ VOID LD_blitBOB(struct GameObject* go)
 #ifdef USE_NONINTERLEAVED_BOBS
   if (image->bob_sheet->mask) {
  /******************************************************************************
-  * Non-Interleaved BOB sheet with (possibly) different depth than the display *
+  * Non-Interleaved BOBSheet with (possibly) different depth than the display. *
   ******************************************************************************/
     ULONG p;
     ULONG p_max = sheet_bitmap->Depth;
@@ -1976,7 +1976,7 @@ ni_blit_start:
   else {
 #endif // USE_NONINTERLEAVED_BOBS
  /******************************************************************************
-  * Interleaved BOB sheet with identical depth with the level display!         *
+  * Interleaved BOBSheet with identical depth with the level display!          *
   ******************************************************************************/
     amod = sheet_bitmap->BytesPerRow / sheet_bitmap->Depth - words; //OPTIMIZE: division should be precalculated into BOBImage struct
     dmod = BITMAP_BYTES_PER_ROW - words;
@@ -2176,7 +2176,7 @@ VOID LD_unBlitBOB(struct GameObject* go)
     else {
   #endif // USE_NONINTERLEAVED_BOBS
    /****************************************************************************
-    * Blit was from an interleaved bob sheet (highly optimized unblitting) :)  *
+    * Blit was from an interleaved BOBSheet (highly optimized unblitting) :)   *
     ****************************************************************************/
       custom.bltapt  = bob->lastBlt.bltapt;
       custom.bltbpt  = bob->lastBlt.bltbpt;

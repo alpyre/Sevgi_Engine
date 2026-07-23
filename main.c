@@ -7,8 +7,8 @@
 ///defines
 #define PROGRAMNAME     "Sevgi Editor"
 #define VERSION         0
-#define REVISION        163
-#define VERSIONSTRING   "0.163"
+#define REVISION        164
+#define VERSIONSTRING   "0.164"
 #define AUTHOR          "Ibrahim Alper Sönmez"
 #define COPYRIGHT       "@ 2024 " AUTHOR
 #define CONTACT         "amithlondestek@gmail.com"
@@ -189,7 +189,7 @@ struct {
   }avail;
 }g_Tools = {"Tools/ConvertTiles",
             "Tools/ConvertMap",
-            "Tools/BobSheeter",
+            "Tools/BOBSheeter",
             "Tools/SpriteBanker",
             "Tools/GOBBanker",
             {FALSE, FALSE, FALSE, FALSE, FALSE}};
@@ -575,8 +575,8 @@ Object *buildGUI()
           MUIA_Group_Child, (toolbar.font     = MUI_NewImageButton(IMG_SPEC_FONT,    "Gamefont Creator", MUIA_Enabled)),
           MUIA_Group_Child, (toolbar.tileset  = MUI_NewImageButton(IMG_SPEC_TILE,    "Tileset Creator", g_Tools.avail.convert_tiles ? MUIA_Enabled : MUIA_Disabled)),
           MUIA_Group_Child, (toolbar.tilemap  = MUI_NewImageButton(IMG_SPEC_MAP,     "Tilemap Creator", g_Tools.avail.convert_map ? MUIA_Enabled : MUIA_Disabled)),
-          MUIA_Group_Child, (toolbar.bobsheet = MUI_NewImageButton(IMG_SPEC_BOB,     "BobSheet Creator", g_Tools.avail.bob_sheeter ? MUIA_Enabled : MUIA_Disabled)),
-          MUIA_Group_Child, (toolbar.sprite   = MUI_NewImageButton(IMG_SPEC_SPRITE,  "Sprite Bank Creator", g_Tools.avail.sprite_banker ? MUIA_Enabled : MUIA_Disabled)),
+          MUIA_Group_Child, (toolbar.bobsheet = MUI_NewImageButton(IMG_SPEC_BOB,     "BOBSheet Creator", g_Tools.avail.bob_sheeter ? MUIA_Enabled : MUIA_Disabled)),
+          MUIA_Group_Child, (toolbar.sprite   = MUI_NewImageButton(IMG_SPEC_SPRITE,  "SpriteBank Creator", g_Tools.avail.sprite_banker ? MUIA_Enabled : MUIA_Disabled)),
           MUIA_Group_Child, (toolbar.image    = MUI_NewImageButton(IMG_SPEC_IMAGE,   "Image Hotspot and Hitbox Editor", MUIA_Enabled)),
           MUIA_Group_Child, (toolbar.object   = MUI_NewImageButton(IMG_SPEC_OBJECTS, "GameObject Editor (NOT IMPLEMENTED)", g_Tools.avail.gob_banker ? MUIA_Enabled : MUIA_Disabled)),
           MUIA_Group_Child, MUI_NewObject(MUIC_Rectangle, TAG_END),

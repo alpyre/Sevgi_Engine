@@ -122,7 +122,7 @@ struct Level* loadLevel(ULONG num)
       for (i = 0; i < level->num.bob_sheets; i++) {
         level->bob_sheet[i] = loadBOBSheet(levelData[num].bob_sheets[i]);
         if (!level->bob_sheet[i]) {
-          printf("Bob sheet %s could not be loaded!\n", levelData[num].bob_sheets[i]);
+          printf("BOBSheet %s could not be loaded!\n", levelData[num].bob_sheets[i]);
           goto fail;
         }
         loading_gauge_current++;

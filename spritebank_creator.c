@@ -445,7 +445,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
 
   if ((obj = (Object *) DoSuperNew(cl, obj,
     MUIA_Window_ID, MAKE_ID('S','V','G','9'),
-    MUIA_Window_Title, "Sprite Bank Creator",
+    MUIA_Window_Title, "SpriteBank Creator",
     MUIA_Window_RootObject, MUI_NewObject(MUIC_Group,
       MUIA_Group_Child, MUI_NewObject(MUIC_Group,
         MUIA_Group_Columns, 2,
@@ -466,7 +466,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
           MUIA_PopASLString_Requester, g_FileReq,
           MUIA_PopASLString_IgnoreContents, TRUE,
           MUIA_ShortHelp, help_string.source,
-          ASLFR_TitleText, "Please select ilbm bob sheet file...",
+          ASLFR_TitleText, "Please select ILBM source sheet file...",
           ASLFR_PositiveText, "Open",
           ASLFR_DoSaveMode, FALSE,
           ASLFR_DrawersOnly, FALSE,

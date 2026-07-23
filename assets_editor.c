@@ -211,7 +211,7 @@ extern struct Project {
 STATIC STRPTR asset_types[] = {
   "Tilesets",
   "Tilemaps",
-  "BobSheets",
+  "BOBSheets",
   "SpriteBanks",
   "Music Modules",
   "Sound Samples",
@@ -1204,8 +1204,8 @@ BOOL readLevelDataFromFile(BPTR fh, struct LevelDataItem** ld_item)
 ///
 ///checkNonInterleavedSheet(filename, depth)
 /******************************************************************************
- * Checks if the given BOB Sheet file requires the use of non-interleaved bob *
- * bob sheet implementations. Depth is the the depth of the level screen's    *
+ * Checks if the given BOBSheet file requires the use of non-interleaved      *
+ * BOBSheet implementations. Depth is the the depth of the level screen's     *
  * tilemap bitmap (which will be passed here by the game_settings.o).         *
  * NOTE: Will look up the file if it is in the project's data drawer.         *
  ******************************************************************************/
@@ -1282,8 +1282,8 @@ BOOL checkNonInterleavedSheet(STRPTR filename, ULONG depth)
 ///
 ///checkNonInterleaved(data)
 /******************************************************************************
- * Checks if there is any BOB sheets on any level which require the use of    *
- * non-interleaved bob sheet implementations (depth being different than the  *
+ * Checks if there is any BOBSheets on any level which require the use of     *
+ * non-interleaved BOBSheet implementations (depth being different than the   *
  * project's screen depth).                                                   *
  * NOTE: This of course excepts the main menu level, which is the first one!  *
  * NOTE: g_Project.screen_depth is only valid during settingsEditor saves the *
@@ -1734,14 +1734,14 @@ STATIC ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
         MUIA_Group_Columns, 2,
         MUIA_Frame, MUIV_Frame_Group,
         MUIA_FrameTitle, "Mouse Sprites",
-        MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Mouse Sprite Bank:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.mouse_sprite_bank, TAG_END),
+        MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Mouse SpriteBank:", MUIA_HorizWeight, 0, MUIA_ShortHelp, help_string.mouse_sprite_bank, TAG_END),
         MUIA_Group_Child, (objects.str_mouse_pointers = NewObject(MUIC_PopASLString->mcc_Class, NULL,
           MUIA_PopASLString_Requester, g_FileReq,
           MUIA_PopASLString_StringFunc, mousePointersStrFunc,
           MUIA_PopASLString_IgnoreContents, TRUE,
           MUIA_ShortHelp, help_string.mouse_sprite_bank,
           MUIA_Image_Spec, MUII_PopFile,
-          ASLFR_TitleText, "Select Sprite Bank File",
+          ASLFR_TitleText, "Select SpriteBank File",
           ASLFR_PositiveText, "Select",
           ASLFR_DrawersOnly, FALSE,
           ASLFR_DoPatterns, TRUE,

@@ -7,7 +7,7 @@
 
                 A video game engine for Amiga computers
 
-                             Version 0.194
+                             Version 0.195
 
                         Developer Documentation
 
@@ -912,7 +912,7 @@ level an empty one will be created and used.
 
 @node "Concepts_13Images" "Sevgi_Engine.guide/Concepts/Images"
 @{b}Images@{ub}
-******
+======
 
 Image data for sprite and BOB mediums are structured differently in
 Sevgi_Engine.
@@ -920,21 +920,21 @@ Sevgi_Engine.
 Images for BOBs are stored in chip memory as interleaved* bitmap sheets, where
 each image on the sheet is horizontally aligned to a 16 pixel grid so they are
 quickly blittable to the game display using the width and height values stored
-on the BOB struct. Thankfully the tool called @{"BobSheet Creator" LINK Sevgi_Editor.guide/12_Editor_BOBSheetCreator} in Sevgi_Editor
+on the BOB struct. Thankfully the tool called @{"BOBSheet Creator" LINK Sevgi_Editor.guide/12_Editor_BOBSheetCreator} in Sevgi_Editor
 can automatically create the proper BOBSheet files, directly loadable by the
 engine from any ILBM sheet.
 
 On the other hand, sprite images are stored as in the data structure explained
 in Amiga Hardware Reference Manual's @{b}SPRITE HARDWARE/Forming A Sprite@{ub} section
 (@{u}https://amigadev.elowar.com/read/ADCD_2.1/Hardware_Manual_guide/node00B9.html@{uu})
-in a container structure called Sprite Banks. This enables each sprite image to
+in a container structure called SpriteBanks. This enables each sprite image to
 be directly settable to sprite hardware registers to be displayed without the
 need to move any image data in memory.
 
 The two initial control words are no longer present in sprite images as of
 version 0.190 due to the change in the structure of sprite instructions on
 created copperlists and the implementation of the setSprite() function. This
-also allowed the Sprite Banks to be smaller, freeing up some valuable chip
+also allowed the SpriteBanks to be smaller, freeing up some valuable chip
 memory (especially in higher sprite fetch modes).
 
 Of course on the Amiga 16 colour sprite images has to be split into two sprite
@@ -944,7 +944,7 @@ even further. Sevgi_Editor provides another tool called @{"SpriteBank Creator" L
 which does all the complicated work of creating these structures properly from
 regular ILBM sheets.
 
-All you have to do is, create your BOBsheet or SpriteBank files from your ILBM
+All you have to do is, create your BOBSheet or SpriteBank files from your ILBM
 sheets, list them on the level they will be needed in @{"Assets Editor" LINK Sevgi_Editor.guide/03_Editor_AssetsEditor} and
 @{"loadLevel()" link "35-loadLevel"} function will load them for you at run time. Loaded images can be
 accessed just by using their indices as:
@@ -1043,7 +1043,7 @@ Other values specific to BOB images are:
         UWORD  bytesPerRow;
     };
 
-bob_sheet   - is a back pointer to the bob sheet this image is stored in
+bob_sheet   - is a back pointer to the BOBSheet this image is stored in
 pointer     - points to the byte where the image starts on the sheet bitmap
 mask        - points to the byte where the image mask starts on the sheet bitmap
 bytesPerRow - a precalculated modulo value to be used when blitting this image
@@ -1053,19 +1053,19 @@ All these values necessary will be set by the functions @{"loadSpriteBank()" lin
 when you define what files to be loaded per game level in assets.h (or in
 @{"Assets Editor" LINK Sevgi_Editor.guide/03_Editor_AssetsEditor} in Sevgi_Editor).
 
-(*) As of engine version 0.187, BOB sheets can be allocated as non-interleaved
-    bitmaps to allow BOB sheets to be a different depth than the level bitmap.
+(*) As of engine version 0.187, BOBSheets can be allocated as non-interleaved
+    bitmaps to allow sheet ILBMs to be a different depth than the level bitmap.
     This also allows the blit masks for the sheets to be a single-plane bitmap,
     saving even more Chip RAM. But using this is less optimal because blitting
     from these sheets is more complicated. You can force a sheet to be loaded
     this way by setting the FORCE_NONINTERLEAVED bit on its type. Refer to the
-    end of gameobject.h where the file structure of BOB sheets is explained.
-    @{"BobSheet Creator" LINK Sevgi_Editor.guide/12_Editor_BOBSheetCreator} tool in Sevgi Editor also provides a way to set this bit.
+    end of gameobject.h where the file structure of BOBSheets is explained.
+    @{"BOBSheet Creator" LINK Sevgi_Editor.guide/12_Editor_BOBSheetCreator} tool in Sevgi Editor also provides a way to set this bit.
     All sheets with a different depth will automatically be loaded this way
     regardless of this bit. The extra code required for this feature is
     activated by defining the symbol USE_NONINTERLEAVED_BOBS in settings.h. You
     can also strip it out by undefining if you won't use it. Sevgi Editor can
-    determine whether this symbol needs to be defined by checking the BOB Sheets
+    determine whether this symbol needs to be defined by checking the BOBSheets
     listed in the Assets Editor while saving your project.
 
 @endnode
@@ -3458,7 +3458,7 @@ SEE ALSO
 
 @node "20-freeBOBSheet" "Sevgi_Engine.guide/Function Reference/freeBOBSheet"
 NAME
-    freeBOBSheet - Frees a BOB sheet loaded by loadBOBSheet()
+    freeBOBSheet - Frees a BOBSheet loaded by loadBOBSheet()
 
 SYNOPSIS
     freeBOBSheet(bob_sheet)
@@ -4047,7 +4047,7 @@ INPUTS
                BM_TYPE_GAMEFONT
                    The type to use when loading Sevgi_Engine gamefont files
                BM_TYPE_BOBSHEET
-                   The type to use when loading Sevgi_Engine BOB sheet files
+                   The type to use when loading Sevgi_Engine BOBSheet files
                    It will allocate an interleaved BitMap on Chip Memory,
                    twice the height, creating the image masks on the bottom half
                    for fast masked blit operations.

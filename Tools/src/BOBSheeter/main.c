@@ -1,6 +1,6 @@
 /******************************************************************************
  * BOBSheeter                                                                 *
- * NOTE: This tool only creates BST_IRREGULAR type bob sheets.                *
+ * NOTE: This tool only creates BST_IRREGULAR type BOBSheets.                 *
  * WARNING: SHEETFILE argument is the pathname of the compacted destination   *
  * ILBM sheet. Not the destination .sht file. Do NOT add .sht extension to    *
  * this argument. Adding .iff or .ilbm is OK, as long as it does not match    *
@@ -10,12 +10,12 @@
 ///defines
 #define PROGRAMNAME     "BOBSheeter"
 #define VERSION         0
-#define REVISION        16
-#define VERSIONSTRING   "0.16"
+#define REVISION        17
+#define VERSIONSTRING   "0.17"
 
 //define command line syntax and number of options
-#define RDARGS_TEMPLATE "ILBMFILE/A, SHEETFILE/A, STRTX/N/A, STRTY/N/A, SEPX/N/A, SEPY/N/A, COLUMNS/N/A, ROWS/N/A, WIDTH/N/A, HEIGHT/N/A, HSX/N, HSY/N, X=REVX/S, Y=REVY/S, C=COLFIRST/S, D=NOCOMP/S, F=FORCENI/S, S=SMALL/S, B=BIG/S"
-#define RDARGS_OPTIONS  19
+#define RDARGS_TEMPLATE "ILBMFILE/A, SHEETFILE/A, STRTX/N/A, STRTY/N/A, SEPX/N/A, SEPY/N/A, COLUMNS/N/A, ROWS/N/A, WIDTH/N/A, HEIGHT/N/A, HSX/N, HSY/N, X=REVX/S, Y=REVY/S, C=COLFIRST/S, D=NOCOMP/S, F=FORCENI/S, S=SMALL/S, B=BIG/S, O=OPTIMIZE/S"
+#define RDARGS_OPTIONS  20
 
 enum {
   ILBMFILE,
@@ -36,10 +36,12 @@ enum {
   NOCOMP,
   FORCENI,
   SMALL,
-  BIG
+  BIG,
+  OPTIMIZE
 };
 
 #define ROUND_TO_16(a) ((a + 15) & 0xFFFFFFF0)
+#define MAX_SHELVES 256
 
 //#define or #undef GENERATEWBMAIN to enable workbench startup
 //#define GENERATEWBMAIN
@@ -95,6 +97,8 @@ enum {
 #include <proto/rexxsyslib.h>
 #include <proto/utility.h>
 #include <proto/wb.h>
+
+#include "max_rects.h"
 ///
 ///structs
 /***********************************************
@@ -134,6 +138,7 @@ struct Parameters {
   BOOL  force_ni;
   BOOL  small_sizes;
   BOOL  big_sizes;
+  BOOL  optimize;
 };
 
 struct Analyze {
@@ -152,8 +157,8 @@ struct __attribute__((packed)) Table_big {
   UWORD height;
   WORD h_offs;
   WORD v_offs;
-  UBYTE word;  // x coord of image in bob sheet / 16 (NOTE: Bob images MUST be in a WORD boundary)
-  UWORD row;   // y coord of image in bob sheet.
+  UBYTE word;  // x coord of image in BOBSheet / 16 (NOTE: BOB images MUST be in a WORD boundary)
+  UWORD row;   // y coord of image in BOBSheet.
 };
 
 struct __attribute__((packed)) Table_small {
@@ -161,8 +166,8 @@ struct __attribute__((packed)) Table_small {
   UBYTE height;
   BYTE h_offs;
   BYTE v_offs;
-  UBYTE word;  // x coord of image in bob sheet / 16 (NOTE: Bob images MUST be in a WORD boundary)
-  UWORD row;   // y coord of image in bob sheet.
+  UBYTE word;  // x coord of image in BOBSheet / 16 (NOTE: BOB images MUST be in a WORD boundary)
+  UWORD row;   // y coord of image in BOBSheet.
 };
 
 struct __attribute__((packed)) Table {
@@ -170,10 +175,9 @@ struct __attribute__((packed)) Table {
   UBYTE height;
   WORD h_offs;
   WORD v_offs;
-  UBYTE word;  // x coord of image in bob sheet / 16 (NOTE: Bob images MUST be in a WORD boundary)
-  UWORD row;   // y coord of image in bob sheet.
+  UBYTE word;  // x coord of image in BOBSheet / 16 (NOTE: BOB images MUST be in a WORD boundary)
+  UWORD row;   // y coord of image in BOBSheet.
 };
-
 ///
 ///globals
 /***********************************************
@@ -208,6 +212,8 @@ VOID saveWorkBitMap(struct BitMap* wbm, UWORD max_bytes, UWORD rows, STRPTR save
 VOID analyzeImage(struct BitMap* tbm, struct Analyze* analyzed, struct Parameters* params);
 struct Parameters* checkParameters(struct Config *config);
 struct BitMap* loadILBM(STRPTR fileName);
+
+struct BitMap* optimizeWorkBitMap(struct BitMap*, UWORD*, UWORD*, ULONG, struct Table*, struct Parameters*);
 ///
 ///init
 /***********************************************
@@ -416,7 +422,6 @@ int Main(struct Config *config)
                   if (analyzed.empty) {continue;}
 
                   // Set image properties to image table
-                  // Set image properties to image table
                   if (params->big_sizes) {
                     struct Table_big* table_big = (struct Table_big*)table;
                     table_big[img].width  = analyzed.width;
@@ -457,17 +462,23 @@ int Main(struct Config *config)
               max_rows = row;
             }
 
+            FreeBitMap(tbm);
+            FreeBitMap(bm); bm = NULL;
+
             if (img) {
+              if (params->optimize) {
+                wbm = optimizeWorkBitMap(wbm, &max_bytes, &max_rows, img, table, params);
+              }
               // Save the work bitmap
               saveWorkBitMap(wbm, max_bytes, max_rows, (STRPTR)config->Options[SHEETFILE], (STRPTR)config->Options[ILBMFILE], params->no_compression);
               // Save the sheet file
               saveSheetFile(img, table, (STRPTR)config->Options[SHEETFILE], params);
+
             }
-            FreeBitMap(tbm);
           }
           FreeBitMap(wbm);
         }
-        FreeBitMap(bm);
+        if (bm) { FreeBitMap(bm); bm = NULL; }
       }
       else printf("Cannot open ILBM file: %s\n", (STRPTR)config->Options[ILBMFILE]);
 
@@ -522,7 +533,7 @@ struct Parameters* checkParameters(struct Config *config)
   params.force_ni = config->Options[FORCENI] ? TRUE : FALSE;
   params.small_sizes = config->Options[SMALL] ? TRUE : FALSE;
   params.big_sizes = config->Options[BIG] ? TRUE : FALSE;
-
+  params.optimize = config->Options[OPTIMIZE] ? TRUE : FALSE;
 
   if (!len_sheetfilename) {
     puts("Invalid sheetfile name!");
@@ -1053,5 +1064,102 @@ STRPTR changeExtension(STRPTR fileName, STRPTR ext)
 VOID freeString(STRPTR str)
 {
   if (str) FreeMem(str, strlen(str) + 1);
+}
+///
+
+///optimizeWorkBitMap(input_bm, &max_bytes, &max_rows, num_images, table, params)
+/******************************************************************************
+ * Reconfigures image positions on the table to require the minimum possible  *
+ * bitmap sizes.                                                              *
+ * NOTE: If any of the allocations fail, returns the input_bm, table,         *
+ * max_bytes and max_rows untouched.                                          *
+ ******************************************************************************/
+struct BitMap* optimizeWorkBitMap(struct BitMap* input_bm, UWORD* max_bytes, UWORD* max_rows, ULONG num_images, struct Table* table, struct Parameters *params)
+{
+  struct BitMap* output_bm = input_bm;
+  struct ImageDesc* input = NULL;
+  struct ImageDesc* output = NULL;
+  UWORD out_width = 1024;
+  UWORD out_height;
+
+  input = AllocMem(sizeof(struct ImageDesc) * num_images, MEMF_ANY);
+  if (input) {
+    ULONG i;
+
+    // Prepare input image descriptor array
+    if (params->big_sizes) {
+      struct Table_big* table_big = (struct Table_big*)table;
+      for (i = 0; i < num_images; i++) {
+        input[i].width  = table_big[i].width;
+        input[i].height = table_big[i].height;
+        input[i].x_pos  = table_big[i].word * 16;
+        input[i].y_pos  = table_big[i].row;
+      }
+    }
+    else if (params->small_sizes) {
+      struct Table_small* table_sml = (struct Table_small*)table;
+      for (i = 0; i < num_images; i++) {
+        input[i].width  = table_sml[i].width;
+        input[i].height = table_sml[i].height;
+        input[i].x_pos  = table_sml[i].word * 16;
+        input[i].y_pos  = table_sml[i].row;
+      }
+    }
+    else {
+      for (i = 0; i < num_images; i++) {
+        input[i].width  = table[i].width;
+        input[i].height = table[i].height;
+        input[i].x_pos  = table[i].word * 16;
+        input[i].y_pos  = table[i].row;
+      }
+    }
+
+    // Calculate optimal image positions onto the output image descriptor array
+    output = PackImagesMaxRects(input, num_images, &out_width, &out_height);
+    if (output) {
+      struct BitMap* optimized_bm = AllocBitMap(out_width, out_height, input_bm->Depth, BMF_INTERLEAVED | BMF_CLEAR, input_bm);
+      if (optimized_bm) {
+        ULONG i;
+
+        // Move images to their new positions on the optimized_bm
+        for (i = 0; i < num_images; i++) {
+          BltBitMap(input_bm, input[i].x_pos, input[i].y_pos, optimized_bm, output[i].x_pos, output[i].y_pos, input[i].width, input[i].height, 0xC0, 0xFF, NULL);
+        }
+
+        // Update the table
+        if (params->big_sizes) {
+          struct Table_big* table_big = (struct Table_big*)table;
+          for (i = 0; i < num_images; i++) {
+            table_big[i].word = output[i].x_pos / 16;
+            table_big[i].row  = output[i].y_pos;
+          }
+        }
+        else if (params->small_sizes) {
+          struct Table_small* table_sml = (struct Table_small*)table;
+          for (i = 0; i < num_images; i++) {
+            table_sml[i].word = output[i].x_pos / 16;
+            table_sml[i].row  = output[i].y_pos;
+          }
+        }
+        else {
+          for (i = 0; i < num_images; i++) {
+            table[i].word = output[i].x_pos / 16;
+            table[i].row  = output[i].y_pos;
+          }
+        }
+
+        FreeBitMap(input_bm);
+        output_bm = optimized_bm;
+        *max_bytes = out_width / 8;
+        *max_rows = out_height;
+      }
+
+      FreeMem(output, sizeof(struct ImageDesc) * num_images);
+    }
+
+    FreeMem(input, sizeof(struct ImageDesc) * num_images);
+  }
+
+  return output_bm;
 }
 ///

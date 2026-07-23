@@ -619,9 +619,9 @@ VOID freeSpriteBank(struct SpriteBank* bank)
 }
 ///
 
-///loadBobSheet(fileName)
+///loadBOBSheet(fileName)
 /******************************************************************************
- * Loads the specified BOB sheet (.sht) file from disk into a newly allocated *
+ * Loads the specified BOBSheet (.sht) file from disk into a newly allocated  *
  * struct BOBSheet, loads the ILBM file that the file refers to (using        *
  * BM_TYPE_BOBSHEET), and sets up all of the BOBImage structures it specifies.*
  ******************************************************************************/
@@ -676,7 +676,7 @@ struct BOBSheet* loadBOBSheet(STRPTR fileName)
               type = BM_TYPE_BOBSHEET_NONINTERLEAVED;
               sheet_mask = createBltMasks(sheet_ilbm);
               if (!sheet_mask) {
-                printf("BOB sheet: %s", fileName);
+                printf("BOBSheet: %s", fileName);
                 FreeBitMap(sheet_ilbm);
                 Close(fh);
                 return NULL;
@@ -731,8 +731,8 @@ struct BOBSheet* loadBOBSheet(STRPTR fileName)
                 {
                   struct {
                     IMAGE_COMMON
-                    UBYTE word; // x coord of image in bob sheet / 16 (NOTE: Bob images MUST be in a WORD boundary)
-                    UWORD row;  // y coord of image in bob sheet.
+                    UBYTE word; // x coord of image in BOBSheet / 16 (NOTE: BOB images MUST be in a WORD boundary)
+                    UWORD row;  // y coord of image in BOBSheet.
                   }props;
                   ULONG i;
 
@@ -793,26 +793,26 @@ struct BOBSheet* loadBOBSheet(STRPTR fileName)
                 bs->hitboxes = NULL;
               }
             }
-            else { puts("Not enough memory for BOB sheet!"); FreeBitMap(sheet_ilbm); }
+            else { puts("Not enough memory for BOBSheet!"); FreeBitMap(sheet_ilbm); }
           }
-          else puts("Bob sheet ilbm could not be loaded!");
+          else puts("BOBSheet ILBM could not be loaded!");
         }
-        else printf("Bob sheet %s is not compatible with compiled image/hitbox sizes:\nPlease check BIG_IMAGE_SIZES, SMALL_IMAGE_SIZES and SMALL_HITBOX_SIZES defines\n", fileName);
+        else printf("BOBSheet %s is not compatible with compiled image/hitbox sizes:\nPlease check BIG_IMAGE_SIZES, SMALL_IMAGE_SIZES and SMALL_HITBOX_SIZES defines\n", fileName);
       }
-      else puts("Invalid bob sheet ilbm filename!");
+      else puts("Invalid BOBSheet ILBM filename!");
     }
-    else puts("Invalid bob sheet file!");
+    else puts("Invalid BOBSheet file!");
 
     Close(fh);
   }
-  else printf("Bob sheet file %s could not be opened!\n", fileName);
+  else printf("BOBSheet file %s could not be opened!\n", fileName);
 
   return bs;
 }
 ///
 ///freeBOBSheet(sheet)
 /******************************************************************************
- * Frees a bob sheet loaded by loadBOBSheet().                                *
+ * Frees a BOBSheet loaded by loadBOBSheet().                                 *
  ******************************************************************************/
 VOID freeBOBSheet(struct BOBSheet* bs)
 {

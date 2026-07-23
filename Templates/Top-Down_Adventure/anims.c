@@ -250,7 +250,7 @@ VOID char_anim(struct GameObject* go)
 ///
 ///waterfall_anim(gameobject)
 /******************************************************************************
- * Plays the waterfall bob animation.                                         *
+ * Plays the waterfall BOB animation.                                         *
  ******************************************************************************/
 VOID waterfall_anim(struct GameObject* go)
 {

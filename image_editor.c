@@ -215,7 +215,7 @@ UBYTE checkDataSizes(struct Sheet* sheet)
 ///
 ///copySheetILBM(old_sheet_file, ilbm_filename, new_dir)
 /******************************************************************************
- * If the sheet is "saved as" to a different directory, copy the BOBsheet's   *
+ * If the sheet is "saved as" to a different directory, copy the BOBSheet's   *
  * ILBM file to the new directory alongside with it.                          *
  ******************************************************************************/
 VOID copySheetILBM(STRPTR old_sheet_file, STRPTR ilbm_filename, STRPTR new_dir)
@@ -480,7 +480,7 @@ ULONG m_LoadSheet(struct IClass* cl, Object* obj, Msg msg)
     }
   }
 
-  if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Load a bob sheet or sprite bank",
+  if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Load a BOBSheet or SpriteBank",
                                     ASLFR_Window, window,
                                     ASLFR_PositiveText, "Load",
                                     ASLFR_DrawersOnly, FALSE,
@@ -506,7 +506,7 @@ ULONG m_LoadSheet(struct IClass* cl, Object* obj, Msg msg)
           sheet = loadSpriteBank(path);
         break;
         default:
-          MUI_Request(App, obj, NULL, "Sheet Editor", "*_Ok", "File is not a Sevgi Engine Sprite Bank or Bob Sheet!");
+          MUI_Request(App, obj, NULL, "Sheet Editor", "*_Ok", "File is not a Sevgi Engine SpriteBank or BOBSheet!");
       }
 
       if (sheet) {
@@ -563,16 +563,16 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
           UBYTE recommended_hbx_type = recommended_type & 0x18;
 
           if (type == 0x04) {
-            MUI_Request(App, obj, NULL, "Sheet Editor", "*_Ok", "This bob sheet requires compiling the engine with BIG_IMAGE_SIZES!");
+            MUI_Request(App, obj, NULL, "Sheet Editor", "*_Ok", "This BOBSheet requires compiling the engine with BIG_IMAGE_SIZES!");
           }
           else if (type != recommended_img_type) {
             if (recommended_img_type == 0x02) {
-              if (MUI_Request(App, obj, NULL, "Sheet Editor", "Use _small sizes|*Use _default sizes", "This bob sheet uses small size offsets and can be saved using small data size.\nWhich also suggests compiling the engine with SMALL_IMAGE_SIZES.\nWould you want to save with small data sizes?")) {
+              if (MUI_Request(App, obj, NULL, "Sheet Editor", "Use _small sizes|*Use _default sizes", "This BOBSheet uses small size offsets and can be saved using small data size.\nWhich also suggests compiling the engine with SMALL_IMAGE_SIZES.\nWould you want to save with small data sizes?")) {
                 type = recommended_img_type;
               }
             }
             else {
-              if (MUI_Request(App, obj, NULL, "Sheet Editor", "Continue|*_Cancel", "This bob sheet was created with %s size offsets.\nAfter the edits made it now requires %s data sizes.\nIf you click 'Continue' the sheet will be saved using %s data sizes.%s\n\nWhat would you want to do?",
+              if (MUI_Request(App, obj, NULL, "Sheet Editor", "Continue|*_Cancel", "This BOBSheet was created with %s size offsets.\nAfter the edits made it now requires %s data sizes.\nIf you click 'Continue' the sheet will be saved using %s data sizes.%s\n\nWhat would you want to do?",
                 (ULONG)(type == 0x02 ? "small" : "regular"), (ULONG)(recommended_img_type == 0x02 ? "small" : "regular"), (ULONG)(recommended_img_type == 0x02 ? "small" : "regular"), (ULONG)(recommended_img_type == 0x02 ? "\nThis will require compiling the engine with SMALL_IMAGE_SIZES for this sheet to work." : ""))) {
                 type = recommended_img_type;
               }
@@ -580,7 +580,7 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
             }
           }
           else if (type == 0x02) {
-            MUI_Request(App, obj, NULL, "Sheet Editor", "*_Ok", "This bob sheet requires compiling the engine with SMALL_IMAGE_SIZES!");
+            MUI_Request(App, obj, NULL, "Sheet Editor", "*_Ok", "This BOBSheet requires compiling the engine with SMALL_IMAGE_SIZES!");
           }
 
           if (recommended_hbx_type & 0x8) {
@@ -588,7 +588,7 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
               if (hbx_type != recommended_hbx_type) {
                 if (recommended_hbx_type == 0x18) {
                   //was big, now small
-                  if (MUI_Request(App, obj, NULL, "Sheet Editor", "Use _small sizes|*Use _default sizes", "The hitboxes on this bob sheet used to have big size offsets.\nAfter the edits made it now can be saved with small data sizes.\nWhich also suggests compiling the engine with SMALL_IMAGE_SIZES.\n\nWhat would you want to do?")) {
+                  if (MUI_Request(App, obj, NULL, "Sheet Editor", "Use _small sizes|*Use _default sizes", "The hitboxes on this BOBSheet used to have big size offsets.\nAfter the edits made it now can be saved with small data sizes.\nWhich also suggests compiling the engine with SMALL_IMAGE_SIZES.\n\nWhat would you want to do?")) {
                     type |= recommended_hbx_type;
                   }
                   else {
@@ -597,7 +597,7 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
                 }
                 else {
                   //was small, now big
-                  if (MUI_Request(App, obj, NULL, "Sheet Editor", "Continue|*_Cancel", "The hitboxes on this bob sheet used to have small size offsets.\nAfter the edits made it now requires big data sizes.\nIf you click 'Continue' the sheet will be saved using big data sizes.\nThis will require compiling the engine withOUT SMALL_IMAGE_SIZES for this sheet to work.\n\nWhat would you want to do?")) {
+                  if (MUI_Request(App, obj, NULL, "Sheet Editor", "Continue|*_Cancel", "The hitboxes on this BOBSheet used to have small size offsets.\nAfter the edits made it now requires big data sizes.\nIf you click 'Continue' the sheet will be saved using big data sizes.\nThis will require compiling the engine withOUT SMALL_IMAGE_SIZES for this sheet to work.\n\nWhat would you want to do?")) {
                     type |= recommended_hbx_type;
                   }
                   else goto cancel;
@@ -720,7 +720,7 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
               if (hbx_type != recommended_hbx_type) {
                 if (recommended_hbx_type == 0x18) {
                   //was big, now small
-                  if (MUI_Request(App, obj, NULL, "Sheet Editor", "Use _small sizes|*Use _default sizes", "The hitboxes on this bob sheet used to have big size offsets.\nAfter the edits made it now can be saved with small data sizes.\nWhich also suggests compiling the engine with SMALL_IMAGE_SIZES.\n\nWhat would you want to do?")) {
+                  if (MUI_Request(App, obj, NULL, "Sheet Editor", "Use _small sizes|*Use _default sizes", "The hitboxes on this BOBSheet used to have big size offsets.\nAfter the edits made it now can be saved with small data sizes.\nWhich also suggests compiling the engine with SMALL_IMAGE_SIZES.\n\nWhat would you want to do?")) {
                     type |= recommended_hbx_type;
                   }
                   else {
@@ -729,7 +729,7 @@ ULONG m_SaveSheet(struct IClass* cl, Object* obj, Msg msg)
                 }
                 else {
                   //was small, now big
-                  if (MUI_Request(App, obj, NULL, "Sheet Editor", "Continue|*_Cancel", "The hitboxes on this bob sheet used to have small size offsets.\nAfter the edits made it now requires big data sizes.\nIf you click 'Continue' the sheet will be saved using big data sizes.\nThis will require compiling the engine withOUT SMALL_IMAGE_SIZES for this sheet to work.\n\nWhat would you want to do?")) {
+                  if (MUI_Request(App, obj, NULL, "Sheet Editor", "Continue|*_Cancel", "The hitboxes on this BOBSheet used to have small size offsets.\nAfter the edits made it now requires big data sizes.\nIf you click 'Continue' the sheet will be saved using big data sizes.\nThis will require compiling the engine withOUT SMALL_IMAGE_SIZES for this sheet to work.\n\nWhat would you want to do?")) {
                     type |= recommended_hbx_type;
                   }
                   else goto cancel;
@@ -832,7 +832,7 @@ ULONG m_SaveSheetAs(struct IClass* cl, Object* obj, Msg msg)
 
     DoMethod(obj, MUIM_Set, MUIA_Window_Sleep, TRUE);
 
-    if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Save bob sheet or sprite bank as",
+    if (MUI_AslRequestTags(g_FileReq, ASLFR_TitleText, "Save BOBSheet or SpriteBank as",
                                       ASLFR_Window, window,
                                       ASLFR_PositiveText, "Save",
                                       ASLFR_DrawersOnly, FALSE,
@@ -943,7 +943,7 @@ ULONG m_UpdateSpec(struct IClass* cl, Object* obj, struct cl_UpdateMsg* msg)
 ///m_SpecUp(cl, obj, msg)
 /******************************************************************************
  * Moves the selected image's spec up changing the order of the sheet.        *
- * WARNING: Only works on bob sheets!                                         *
+ * WARNING: Only works on BOBSheets!                                         *
  ******************************************************************************/
 ULONG m_SpecUp(struct IClass* cl, Object* obj, Msg msg)
 {
@@ -967,7 +967,7 @@ ULONG m_SpecUp(struct IClass* cl, Object* obj, Msg msg)
 ///m_SpecDown(cl, obj, msg)
 /******************************************************************************
  * Moves the selected image's spec down changing the order of the sheet.      *
- * WARNING: Only works on bob sheets!                                         *
+ * WARNING: Only works on BOBSheets!                                         *
  ******************************************************************************/
 ULONG m_SpecDown(struct IClass* cl, Object* obj, Msg msg)
 {
@@ -1215,7 +1215,7 @@ static ULONG m_New(struct IClass* cl, Object* obj, struct opSet* msg)
             MUIA_Group_Child, (objects.file = MUI_NewObject(MUIC_Text,
               MUIA_Frame, MUIV_Frame_Text,
               MUIA_Text_Contents, "",
-              MUIA_ShortHelp, "Opened bob sheet or sprite bank file.",
+              MUIA_ShortHelp, "Opened BOBSheet or SpriteBank file.",
             TAG_END)),
             MUIA_Group_Child, MUI_NewObject(MUIC_Text, MUIA_Text_Contents, "Scale:", MUIA_HorizWeight, 0, TAG_END),
             MUIA_Group_Child, (objects.scale = NewObject(MUIC_Integer->mcc_Class, NULL,

@@ -572,7 +572,7 @@ Sevgi_Engine gameobject bank (.obj).
 
 @node "12_Editor_BOBSheetCreator" "Sevgi_Editor.guide/Features/BOBSheetCreator"
 @{b}BOBSheet Creator@{ub}
-=================
+================
 
 Converts ILBM sprite sheets into Sevgi_Engine compatible BOB sheets. A BOBSheet
 is consist of two files. The first file is still an ILBM file but rearranged to
@@ -611,6 +611,10 @@ other columns and rows. For example:
 
 All images to be grabbed from the sheet must be in equal sized hypothetical
 rectangles laid out as columns and rows.
+
+Sometimes, the layout of the sheets you gather from asset stores or your pixel
+artist may not respect this form. In such a case, you might want to take a look
+at the "RepackSheet.py" script in Extras/Scripts. It can help a lot.
 
 These sizes determine the size of these hypothetical rectangles.
 

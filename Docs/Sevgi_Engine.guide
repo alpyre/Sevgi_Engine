@@ -2362,6 +2362,10 @@ with a single '<' (smaller than) or '>' (bigger than) operator. Otherwise you
 may need another map layer with a pseudo tileset in which you can use to define
 properties for tiles.
 
+Creating these tilesets and tilemaps is a serious art form and sometimes can be
+a very laborious task. Before anything, please check out the scripts provided in
+Extras/Scripts. You may find them useful for optimizing your workflow.
+
 When your map is ready, you can place game entities (called @{"gameobjects" link "Concepts_16Gameobjects"} in
 Sevgi_Engine) onto your map creating an object layer. The name you give to the
 layer will turn into the filename of your gameobject bank so beware using
@@ -2398,7 +2402,7 @@ Sevgi_Editor. The code to be created is ready to be compiled and tested.
 
 Then, collect the assets you will use in the game in the "assets" drawer in your
 project drawer. This will make the conversion stage easier. These assets are
-fonts, tilesets, tilemaps (created with Tiled), animation sheets, music modules,
+fonts, tilesets, tilemaps (created with @{"Tiled" link "Concepts_00Tiled"}), animation sheets, music modules,
 sound effects, ILBM files and similar. All graphic assets should be
 pre-converted and sized according to the color depth you plan on the game
 screen. Sound effects should be in IFF and music should be in protracker module

@@ -651,7 +651,8 @@ These sizes determine the size of these hypothetical rectangles.
     at run time. Image indexes will still be in the same order as the source
     sheet. Only the physical placements of images on the sheet ILBM will change.
 
-    This may increase the computation time drastically on slower systems.
+    This may greatly increase the computation time for sheet creation on slower
+    systems. Especially when there is an excessive number of images.
 
 @{b}Compress:@{ub}
     RLE compresses the resulting BOBSheet's ILBM file.
